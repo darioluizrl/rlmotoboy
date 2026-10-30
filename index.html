@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F2B705">
+<title>RL Motoboy Fretes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: abas Frete | Clientes | Motoboys; estreito ao lado do WhatsApp Web, 2 colunas em telas largas */
+:root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#16202A; --muted:#5A6774; --line:#D3DAE1;
+  --accent:#F2B705; --accent-ink:#7A5700; --meter:#141B22; --meter-ink:#F5C02A; --meter-muted:#8D9AA6;
+  --ok:#1E8E4E; --ok-bg:#E3F4EA; --bad:#B42318; --bad-bg:#FCE8E6;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F151B; --surface:#17202A; --ink:#E6ECF1; --muted:#93A1AE; --line:#2A3743;
+  --accent:#F5C02A; --accent-ink:#F5C02A; --meter:#0A0F14; --meter-ink:#F5C02A; --meter-muted:#7D8B97;
+  --ok:#4CC27F; --ok-bg:#163223; --bad:#F97066; --bad-bg:#3A1A18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F151B; --surface:#17202A; --ink:#E6ECF1; --muted:#93A1AE; --line:#2A3743;
+  --accent:#F5C02A; --accent-ink:#F5C02A; --meter:#0A0F14; --meter-ink:#F5C02A; --meter-muted:#7D8B97;
+  --ok:#4CC27F; --ok-bg:#163223; --bad:#F97066; --bad-bg:#3A1A18; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+.wrap{max-width:1180px;margin-inline:auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:16px 10px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand b{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.brand span{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.save{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.save i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.save.cloud i{background:var(--ok)}
+nav.tabs{display:flex;gap:4px;border-bottom:3px solid var(--accent);margin-bottom:16px;overflow-x:auto}
+nav.tabs a{font-family:var(--display);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-decoration:none;padding:8px 14px;border-radius:8px 8px 0 0;white-space:nowrap}
+nav.tabs a[aria-current="page"]{background:var(--accent);color:#16202A}
+nav.tabs a .ct{font-family:var(--mono);font-size:12px;margin-left:4px;opacity:.75}
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:960px){.grid{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}.side{position:sticky;top:12px}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+h2{font-family:var(--display);font-weight:700;font-size:19px;text-transform:uppercase;letter-spacing:.05em;margin:0;display:flex;align-items:center;gap:8px;text-wrap:balance}
+h2 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#16202A;font-size:14px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.row3{display:grid;gap:10px;grid-template-columns:repeat(3,1fr)}
+@media (max-width:480px){.row,.row3{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 10px;width:100%;min-width:0;text-transform:none;letter-spacing:0}
+textarea{resize:vertical;min-height:60px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.km input{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums;max-width:220px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--ink);text-transform:none;letter-spacing:0;user-select:none;flex-direction:row}
+.chip input{width:auto;margin:0;accent-color:var(--accent-ink)}
+.chip:has(input:checked){background:var(--accent);border-color:var(--accent);color:#16202A}
+.btn{font:inherit;font-weight:700;font-size:14px;letter-spacing:.03em;border-radius:7px;padding:10px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#16202A}
+.btn.primary:hover{filter:brightness(.95)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.danger{color:var(--bad)}
+.btn.danger.arm{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.ghost{background:transparent}
+.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.cli-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;min-height:30px}
+.found{color:var(--ok);font-weight:700}
+.meter{background:var(--meter);color:var(--meter-ink);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.meter .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--meter-muted);font-weight:600}
+.meter .total{font-family:var(--display);font-weight:800;font-size:58px;line-height:.95;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.meter .sub{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--meter-muted)}
+.lines{list-style:none;margin:0;padding:10px 0 0;border-top:1px dashed #33414e;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#C9D3DC}
+.lines li{display:flex;justify-content:space-between;gap:12px}
+.lines li span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+pre.msg{margin:0;white-space:pre-wrap;word-break:break-word;font-family:var(--body);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;max-height:320px;overflow:auto}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-radius:999px;padding:3px 10px;background:var(--bg);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.status.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.status.off{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.groups{display:flex;flex-direction:column;gap:6px}
+.grp{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;flex-wrap:wrap}
+.grp b{font-weight:600}
+.grp.done{border-color:var(--ok)}
+.grp.done b::after{content:" ✓ copiado";color:var(--ok);font-size:12px;font-weight:700}
+details.cfg{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 16px}
+details.cfg summary{cursor:pointer;padding:14px 0;font-family:var(--display);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.05em}
+details.cfg[open]{padding-bottom:16px}
+.cfggrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.cfggrid input{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.list>li{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.list>li:first-child{border-top:0}
+.who{min-width:0;flex:1 1 200px;display:flex;flex-direction:column;gap:2px}
+.who b{font-weight:600;overflow-wrap:anywhere}
+.who small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.no{font-family:var(--mono);font-weight:500;color:var(--accent-ink)}
+.val{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:14px;padding:18px;border:1px dashed var(--line);border-radius:8px;text-align:center}
+.tag-ex{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--accent);color:#16202A;border-radius:4px;padding:2px 6px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.stats b{font-family:var(--mono);color:var(--ink);font-weight:500}
+.geo{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.geo:empty{display:none}
+.geo .g{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:baseline}
+.geo .g b{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.geo .g span{overflow-wrap:anywhere}
+.geo .warn{color:var(--bad);font-weight:600}
+.geo .okk{color:var(--ok);font-weight:700}
+.btn[disabled]{opacity:.6;cursor:progress}
+.ac{position:relative}
+.ac-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:15;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 28px rgba(10,15,20,.18);list-style:none;margin:0;padding:4px;max-height:300px;overflow:auto;text-transform:none;letter-spacing:0;font-size:14px;font-weight:400;color:var(--ink)}
+.ac-item{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:6px;cursor:pointer}
+.ac-item b{font-weight:600;overflow-wrap:anywhere}
+.ac-item small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.ac-item.on,.ac-item:hover{background:var(--bg)}
+.ac-item .cli{color:var(--accent-ink);font-weight:700}
+.ac-load{padding:8px 10px;color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.btn{transition:filter .15s,border-color .15s}}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+.guia details{border-top:1px solid var(--line);padding:10px 0}
+.guia details:first-of-type{border-top:0}
+.guia summary{cursor:pointer;font-weight:700;font-size:15px;padding:4px 0}
+.guia ol{margin:10px 0 6px;padding-left:22px;display:flex;flex-direction:column;gap:8px;max-width:68ch}
+.guia ul{margin:6px 0;padding-left:18px}
+.guia a{color:var(--accent-ink);font-weight:600}
+.cfgh{font-family:var(--display);font-size:16px;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px}
+.cfgh:first-of-type{margin-top:4px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="brand"><b>RL Motoboy</b><span>Central de fretes</span></div>
+  <div class="actions"><span class="save" id="saveSt"><i></i><span>Salvo só neste aparelho</span></span><button class="btn sm primary" id="btnEntrar" type="button" hidden>Entrar com Google</button></div>
+</header>
+<nav class="tabs" aria-label="Seções">
+  <a href="#frete" data-tab="frete">Frete</a>
+  <a href="#clientes" data-tab="clientes">Clientes<span class="ct" id="ctCli"></span></a>
+  <a href="#motoboys" data-tab="motoboys">Equipe<span class="ct" id="ctMot"></span></a>
+  <a href="#config" data-tab="config">Configurar</a>
+</nav>
+
+<!-- ================= FRETE ================= -->
+<main class="grid" data-view="frete">
+  <div class="col">
+    <section class="panel" aria-labelledby="h1">
+      <div class="hd">
+        <h2 id="h1"><span class="n">1</span>Cliente e rota</h2>
+        <div class="actions"><span id="exTag" class="tag-ex">Exemplo</span><button class="btn sm" id="btnNovo" type="button">+ Novo frete</button></div>
+      </div>
+      <div class="row">
+        <label for="cNome">Cliente (digite para buscar)<input id="cNome" list="dlCli" autocomplete="off"></label>
+        <label for="cTel">WhatsApp (com DDD)<input id="cTel" inputmode="tel" placeholder="13 99999-0000"></label>
+      </div>
+      <datalist id="dlCli"></datalist>
+      <div class="cli-line" id="cliLine"></div>
+      <label for="cColeta">Endereço de coleta<input id="cColeta" placeholder="Rua, número, bairro"></label>
+      <label for="cEntrega">Endereço de entrega<input id="cEntrega" placeholder="Rua, número, bairro"></label>
+      <label for="cParadasEnd">Paradas extras (uma por linha, opcional)<textarea id="cParadasEnd" rows="2"></textarea></label>
+      <div class="actions">
+        <a class="btn" id="lnkMaps" href="#" target="_blank" rel="noopener">Abrir rota no Google Maps ↗</a>
+        <button class="btn ghost" id="btnInv" type="button">⇅ Inverter coleta e entrega</button>
+      </div>
+      <div class="actions" style="align-items:flex-end">
+        <label class="km" for="cKm" style="flex:0 1 220px">Distância (km)<input id="cKm" inputmode="decimal" placeholder="0,0"></label>
+        <button class="btn primary" id="btnKm" type="button" hidden>Calcular km</button>
+      </div>
+      <div id="kmInfo" class="geo" aria-live="polite"></div>
+      <p class="hint" id="kmHint">Abra a rota, veja os km que o Maps mostra e digite aqui. O valor recalcula na hora.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h2">
+      <h2 id="h2"><span class="n">2</span>Serviço</h2>
+      <div class="chips" role="group" aria-label="Veículo">
+        <label class="chip"><input type="radio" name="veic" value="moto" checked> Moto</label>
+        <label class="chip"><input type="radio" name="veic" value="carro"> Carro</label>
+        <label class="chip"><input type="radio" name="veic" value="utilitario"> Utilitário</label>
+        <label class="chip"><input type="radio" name="veic" value="caminhao"> Caminhão</label>
+      </div>
+      <div class="chips" role="group" aria-label="Tipo de serviço">
+        <label class="chip"><input type="radio" name="tipo" value="simples" checked> Entrega simples</label>
+        <label class="chip"><input type="radio" name="tipo" value="idavolta"> Ida e volta</label>
+      </div>
+      <div class="chips" role="group" aria-label="Adicionais">
+        <label class="chip"><input type="checkbox" id="xUrg"> Urgente</label>
+        <label class="chip"><input type="checkbox" id="xNot"> Noturno</label>
+        <label class="chip"><input type="checkbox" id="xChu"> Chuva</label>
+        <label class="chip"><input type="checkbox" id="xVol"> Volume grande</label>
+      </div>
+      <div class="row3">
+        <label for="cEspera">Espera (min)<input id="cEspera" inputmode="numeric" value="0"></label>
+        <label for="cPag">Pagamento<select id="cPag"><option>Pix</option><option>Dinheiro</option><option>Cartão</option><option>Faturado</option></select></label>
+        <label for="cCobrar">Cobrar<select id="cCobrar"><option>Na coleta</option><option>Na entrega</option><option>Já pago</option></select></label>
+      </div>
+      <label for="cObs">O que vai ser levado / instruções<textarea id="cObs" rows="2" placeholder="Ex.: envelope com documentos, falar com a Rita na recepção"></textarea></label>
+      <label for="cPrazo">Previsão de coleta<input id="cPrazo" value="até 30 min"></label>
+    </section>
+
+    <details class="cfg" id="cfgBox">
+      <summary>Tabela de preços e grupos</summary>
+      <h3 class="cfgh">Tabela por veículo</h3>
+      <div class="chips" role="group" aria-label="Veículo da tabela">
+        <label class="chip"><input type="radio" name="edVeic" value="moto" checked> Moto</label>
+        <label class="chip"><input type="radio" name="edVeic" value="carro"> Carro</label>
+        <label class="chip"><input type="radio" name="edVeic" value="utilitario"> Utilitário</label>
+        <label class="chip"><input type="radio" name="edVeic" value="caminhao"> Caminhão</label>
+      </div>
+      <p class="hint" style="margin:10px 0 8px"><b data-edv>Moto</b> · quanto o cliente paga</p>
+      <div class="cfggrid">
+        <label for="pMin">Valor fixo (R$)<input id="pMin" data-cfg="minimo" inputmode="decimal"></label>
+        <label for="pInc">Valor fixo até (km)<input id="pInc" data-cfg="kmInclusos" inputmode="decimal"></label>
+        <label for="pKm">R$ por km a mais<input id="pKm" data-cfg="porKm" inputmode="decimal"></label>
+      </div>
+      <p class="hint" style="margin:14px 0 8px"><b data-edv>Moto</b> · quanto o <span data-quem>motoboy</span> recebe</p>
+      <div class="cfggrid">
+        <label for="pM1Lim">Faixa 1 até (km)<input id="pM1Lim" data-cfg="mb1Lim" inputmode="decimal"></label>
+        <label for="pM1Val">Faixa 1 paga (R$)<input id="pM1Val" data-cfg="mb1Val" inputmode="decimal"></label>
+        <label for="pM2Lim">Faixa 2 até (km)<input id="pM2Lim" data-cfg="mb2Lim" inputmode="decimal"></label>
+        <label for="pM2Val">Faixa 2 paga (R$)<input id="pM2Val" data-cfg="mb2Val" inputmode="decimal"></label>
+        <label for="pMKm">Acima: R$ por km<input id="pMKm" data-cfg="mbKm" inputmode="decimal"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label for="pMModo">Acima da faixa 2, o km conta
+          <select id="pMModo" data-cfgs="mbModo"><option value="total">Todos os km × R$ por km</option><option value="extra">Faixa 2 + km que passarem</option></select></label>
+      </div>
+      <p class="hint" style="margin-top:6px" id="pMHint"></p>
+      <h3 class="cfgh">Adicionais e geral (valem para todos os veículos)</h3>
+      <p class="hint" style="margin-bottom:12px">Os adicionais (ida e volta, parada, espera, urgente, noturno, chuva, volume) ainda são valores de exemplo.</p>
+      <div class="cfggrid">
+        <label for="pIv">Ida e volta (+%)<input id="pIv" data-cfg="idaVoltaPct" inputmode="decimal"></label>
+        <label for="pPar">Parada extra (R$)<input id="pPar" data-cfg="parada" inputmode="decimal"></label>
+        <label for="pTol">Espera grátis (min)<input id="pTol" data-cfg="tolerancia" inputmode="numeric"></label>
+        <label for="pEsp">Cada 10 min espera (R$)<input id="pEsp" data-cfg="espera10" inputmode="decimal"></label>
+        <label for="pVol">Volume grande (R$)<input id="pVol" data-cfg="volume" inputmode="decimal"></label>
+        <label for="pUrg">Urgente (+%)<input id="pUrg" data-cfg="urgPct" inputmode="decimal"></label>
+        <label for="pNot">Noturno (+%)<input id="pNot" data-cfg="notPct" inputmode="decimal"></label>
+        <label for="pChu">Chuva (+%)<input id="pChu" data-cfg="chuvaPct" inputmode="decimal"></label>
+        <label for="pKmR">Km do cliente<select id="pKmR" data-cfgs="kmRedondo"><option value="sim">Arredondado (10,5 vira 11)</option><option value="nao">Exato, com decimais</option></select></label>
+        <label for="pArr">Arredondar para (R$)<input id="pArr" data-cfg="arred" inputmode="decimal"></label>
+        <label for="pCid">Cidade nos endereços<input id="pCid" data-cfg="cidade" placeholder="Ex.: Itanhaém, SP" style="font-family:var(--body)"></label>
+        <label for="pNum">Próxima OS nº<input id="pNum" data-cfg="proxOS" inputmode="numeric"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label for="pOsVal">Valor que vai na OS
+          <select id="pOsVal" data-cfgs="osValor"><option value="motoboy">Pagamento do motoboy / motorista</option><option value="cliente">Valor cobrado do cliente</option></select></label>
+      </div>
+      <label for="pGrupos" style="margin-top:12px">Grupos do WhatsApp que recebem a OS (um por linha)<textarea id="pGrupos" rows="3"></textarea></label>
+    </details>
+  </div>
+
+  <div class="col side">
+    <section class="meter" aria-live="polite">
+      <div class="lbl">Valor do frete</div>
+      <div class="total" id="mTotal">R$ 0,00</div>
+      <div class="sub"><span id="mKm">0,0 km</span><span id="mTipo">Entrega simples</span></div>
+      <ul class="lines" id="mLines"></ul>
+      <ul class="lines" id="mMoto"></ul>
+    </section>
+
+    <section class="panel" aria-labelledby="h3">
+      <div class="hd"><h2 id="h3"><span class="n">3</span>Orçamento para o cliente</h2><span class="status" id="stOrc">Rascunho</span></div>
+      <pre class="msg" id="msgOrc"></pre>
+      <div class="actions">
+        <button class="btn primary" id="btnCopyOrc" type="button">Copiar orçamento</button>
+        <a class="btn" id="lnkWa" href="#" target="_blank" rel="noopener"><span data-wa>Abrir conversa no WhatsApp Web</span> ↗</a>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h4">
+      <div class="hd"><h2 id="h4"><span class="n">4</span>Ordem de serviço</h2><span class="status" id="stOS">Aguardando aceite</span></div>
+      <label for="cMoto">Quem faz a corrida<select id="cMoto"></select></label>
+      <div id="osWait" class="actions">
+        <button class="btn ok" id="btnAceite" type="button">Cliente aceitou: gerar OS</button>
+      </div>
+      <div id="osBox" hidden style="display:flex;flex-direction:column;gap:12px">
+        <pre class="msg" id="msgOS"></pre>
+        <div class="actions" id="motoAct"></div>
+        <div class="groups" id="grpList"></div>
+        <p class="hint">Copie, abra o grupo no WhatsApp Web e cole (Ctrl+V). Cada grupo fica marcado depois de copiado.</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h5">
+      <div class="hd"><h2 id="h5">OS recentes</h2><div class="stats" id="osStats"></div></div>
+      <ul class="list" id="hist"></ul>
+    </section>
+  </div>
+</main>
+
+<!-- ================= CLIENTES ================= -->
+<main class="grid" data-view="clientes" hidden>
+  <section class="panel" aria-labelledby="hc1">
+    <div class="hd"><h2 id="hc1" data-formtitle>Novo cliente</h2><button class="btn sm ghost" type="button" data-clear="cli" hidden>Cancelar edição</button></div>
+    <form id="fCli" class="col" style="gap:12px">
+      <div class="row">
+        <label for="fcNome">Nome / empresa<input id="fcNome" required></label>
+        <label for="fcTel">WhatsApp<input id="fcTel" inputmode="tel" placeholder="13 99999-0000"></label>
+      </div>
+      <label for="fcEnd">Endereço principal<input id="fcEnd" placeholder="Rua, número, bairro"></label>
+      <label for="fcRef">Contato / referência<input id="fcRef" placeholder="Ex.: falar com a Rita, portão azul"></label>
+      <div class="row">
+        <label for="fcPag">Pagamento preferido<select id="fcPag"><option value="">—</option><option>Pix</option><option>Dinheiro</option><option>Cartão</option><option>Faturado</option></select></label>
+        <label for="fcObs">Observações<input id="fcObs" placeholder="Ex.: fatura todo dia 10"></label>
+      </div>
+      <div class="actions"><button class="btn primary" type="submit">Salvar cliente</button></div>
+    </form>
+  </section>
+  <section class="panel" aria-labelledby="hc2">
+    <div class="hd"><h2 id="hc2">Clientes cadastrados</h2></div>
+    <label for="qCli">Buscar<input id="qCli" placeholder="Nome, telefone ou endereço"></label>
+    <ul class="list" id="lstCli"></ul>
+  </section>
+</main>
+
+<!-- ================= MOTOBOYS ================= -->
+<main class="grid" data-view="motoboys" hidden>
+  <section class="panel" aria-labelledby="hm1">
+    <div class="hd"><h2 id="hm1" data-formtitle>Novo cadastro</h2><button class="btn sm ghost" type="button" data-clear="mot" hidden>Cancelar edição</button></div>
+    <form id="fMot" class="col" style="gap:12px">
+      <div class="row">
+        <label for="fmNome">Nome<input id="fmNome" required></label>
+        <label for="fmTel">WhatsApp<input id="fmTel" inputmode="tel" placeholder="13 99999-0000"></label>
+      </div>
+      <div class="row">
+        <label for="fmVeic">Veículo<select id="fmVeic"><option value="moto">Moto</option><option value="carro">Carro</option><option value="utilitario">Utilitário</option><option value="caminhao">Caminhão</option></select></label>
+        <label for="fmMoto">Modelo e cor<input id="fmMoto" placeholder="Ex.: CG 160 preta"></label>
+        <label for="fmPlaca">Placa<input id="fmPlaca" placeholder="ABC1D23" style="text-transform:uppercase"></label>
+      </div>
+      <label for="fmPix">Chave Pix<input id="fmPix"></label>
+      <label class="chip" for="fmAtivo" style="align-self:flex-start"><input type="checkbox" id="fmAtivo" checked> Ativo (aparece na OS)</label>
+      <div class="actions"><button class="btn primary" type="submit">Salvar motoboy</button></div>
+    </form>
+  </section>
+  <section class="panel" aria-labelledby="hm2">
+    <div class="hd"><h2 id="hm2">Equipe</h2></div>
+    <ul class="list" id="lstMot"></ul>
+  </section>
+</main>
+
+<!-- ================= CONFIGURAR ================= -->
+<main class="grid" data-view="config" hidden>
+  <div class="col">
+    <section class="panel" aria-labelledby="hg1">
+      <h2 id="hg1"><span class="n">G</span>Chave do Google</h2>
+      <p class="hint">Liga o autocompletar de endereços e o cálculo de km. A chave fica salva na nuvem e vale para o PC e o celular.</p>
+      <div class="actions" style="align-items:flex-end">
+        <label for="gKey" style="flex:1 1 260px">Chave de API<input id="gKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" style="font-family:var(--mono);font-size:13px"></label>
+        <button class="btn ghost sm" id="btnGVer" type="button">Mostrar</button>
+      </div>
+      <div class="actions"><button class="btn primary" id="btnGSalvar" type="button">Salvar e testar</button></div>
+      <div id="gMsg" class="geo" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hg2">
+      <h2 id="hg2"><span class="n">☁</span>Nuvem (Firebase)</h2>
+      <p class="hint">Guarda clientes, motoboys, OS e a tabela de preços na sua conta do Google, iguais no PC e no celular.</p>
+      <label for="fbConf">Código de configuração do Firebase<textarea id="fbConf" rows="5" spellcheck="false" placeholder="Cole aqui o bloco const firebaseConfig = { … } ou o código copiado do outro aparelho" style="font-family:var(--mono);font-size:12px"></textarea></label>
+      <div class="actions">
+        <button class="btn primary" id="btnFbConectar" type="button">Conectar</button>
+        <button class="btn" id="btnFbEntrar" type="button" hidden>Entrar com Google</button>
+        <button class="btn" id="btnFbCopiar" type="button" hidden>Copiar código para o celular</button>
+        <button class="btn ghost" id="btnFbSair" type="button" hidden>Sair da conta</button>
+        <button class="btn ghost danger" id="btnFbDesligar" type="button" hidden>Desconectar este aparelho</button>
+      </div>
+      <div id="fbMsg" class="geo" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hg3">
+      <h2 id="hg3"><span class="n">⇅</span>Backup</h2>
+      <p class="hint">Baixe uma cópia de tudo de vez em quando. O arquivo também serve para levar os dados para outro aparelho.</p>
+      <div class="actions">
+        <button class="btn" id="btnExp" type="button">Baixar backup</button>
+        <label class="btn" for="fImp" style="flex-direction:row;text-transform:none;letter-spacing:.03em;font-size:14px;color:var(--ink)">Importar backup<input id="fImp" type="file" accept="application/json,.json" hidden></label>
+        <button class="btn" id="btnSubir" type="button" hidden>Enviar dados deste aparelho para a nuvem</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel guia" aria-labelledby="hg4">
+    <h2 id="hg4">Passo a passo da configuração</h2>
+    <p class="hint">Faça uma vez só, no computador. Leva de 30 a 40 minutos.</p>
+
+    <details open>
+      <summary>1. Colocar a página no ar (GitHub Pages)</summary>
+      <ol>
+        <li>Crie uma conta grátis em <a href="https://github.com/signup" target="_blank" rel="noopener">github.com</a>.</li>
+        <li>Clique no <b>+</b> no alto → <b>New repository</b>. Nome: <code>rlmotoboy</code>, deixe <b>Public</b>, marque <b>Add a README file</b> e clique em <b>Create repository</b>.</li>
+        <li>No repositório, <b>Add file → Upload files</b>, arraste o arquivo <code>index.html</code> e clique em <b>Commit changes</b>.</li>
+        <li>Vá em <b>Settings → Pages</b>. Em <b>Branch</b>, escolha <code>main</code> e <code>/(root)</code> e clique em <b>Save</b>.</li>
+        <li>Em 1 ou 2 minutos aparece o endereço: <code>https://SEU-USUARIO.github.io/rlmotoboy/</code>. Use sempre esse endereço.</li>
+      </ol>
+      <p class="hint">O arquivo não tem nenhuma chave dentro: as chaves você cola aqui na página, então pode ficar público.</p>
+    </details>
+
+    <details>
+      <summary>2. Criar a chave do Google</summary>
+      <ol>
+        <li>Entre em <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> e crie um projeto chamado <b>RL Motoboy</b>.</li>
+        <li><b>Faturamento:</b> no menu, <b>Faturamento</b> → vincule uma conta com cartão. O Google exige, mesmo dentro do uso gratuito.</li>
+        <li><b>APIs e serviços → Biblioteca</b>: procure e ative <b>Places API (New)</b> e <b>Routes API</b>.</li>
+        <li><b>APIs e serviços → Credenciais → Criar credenciais → Chave de API</b>.</li>
+        <li>Abra a chave criada e proteja:
+          <ul>
+            <li><b>Restrições de aplicativos:</b> <b>Sites</b> → adicione <code>https://SEU-USUARIO.github.io/*</code></li>
+            <li><b>Restrições de API:</b> <b>Restringir chave</b> → marque <b>Places API (New)</b> e <b>Routes API</b>.</li>
+          </ul>
+          Salve.</li>
+        <li>Recomendado: em <b>Faturamento → Orçamentos e alertas</b>, crie um alerta de R$ 10 para ser avisado se algo sair do normal.</li>
+        <li>Copie a chave, cole no campo <b>Chave do Google</b> desta aba e clique em <b>Salvar e testar</b>. As duas linhas precisam ficar verdes.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>3. Ligar a nuvem (Firebase)</summary>
+      <ol>
+        <li>Entre em <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a> → <b>Criar um projeto</b> novo, com o nome <b>rl-motoboy-dados</b>. Use um projeto separado do da chave do Google: assim ele fica no plano gratuito (Spark), sem cartão. Pode desligar o Google Analytics.</li>
+        <li><b>Authentication → Vamos começar → Google</b>: ative, escolha seu e-mail de suporte e salve.</li>
+        <li><b>Authentication → Configurações → Domínios autorizados → Adicionar domínio</b>: <code id="rgHost"></code> (o endereço do GitHub, sem https e sem /rlmotoboy).</li>
+        <li><b>Firestore Database → Criar banco de dados</b>: local <b>southamerica-east1 (São Paulo)</b>, modo de <b>produção</b>.</li>
+        <li>Na aba <b>Regras</b> do Firestore, apague tudo e cole as regras abaixo, com o seu e-mail do Google. Depois clique em <b>Publicar</b>.
+          <label for="rgEmail" style="margin-top:8px">E-mails que podem usar a Central (separe por vírgula)<input id="rgEmail" type="email" multiple placeholder="seu-email@gmail.com"></label>
+          <pre class="msg" id="rgTxt" style="font-family:var(--mono);font-size:12px;margin-top:8px"></pre>
+          <button class="btn sm" id="btnRg" type="button" style="margin-top:6px">Copiar regras</button>
+        </li>
+        <li><b>Configurações do projeto</b> (engrenagem) → <b>Seus apps</b> → ícone <b>&lt;/&gt;</b> (Web) → apelido <b>Central</b> → <b>Registrar app</b>. Copie o bloco <code>const firebaseConfig = { … }</code>.</li>
+        <li>Cole o bloco em <b>Nuvem (Firebase)</b> nesta aba, clique em <b>Conectar</b> e entre com o mesmo e-mail das regras.</li>
+      </ol>
+      <p class="hint">Só os e-mails das regras conseguem ver ou mudar os dados. Para liberar um funcionário, adicione o e-mail dele e publique as regras de novo.</p>
+    </details>
+
+    <details>
+      <summary>4. Usar no celular</summary>
+      <ol>
+        <li>No PC, clique em <b>Copiar código para o celular</b> e mande para você mesmo no WhatsApp.</li>
+        <li>No celular, abra <code>https://SEU-USUARIO.github.io/rlmotoboy/</code> no Chrome → aba <b>Configurar</b>.</li>
+        <li>Cole o código em <b>Nuvem (Firebase)</b>, clique em <b>Conectar</b> e entre com o mesmo e-mail. A chave do Google vem sozinha.</li>
+        <li>No menu <b>⋮</b> do Chrome, toque em <b>Adicionar à tela inicial</b> para ter o ícone como um app.</li>
+      </ol>
+    </details>
+  </section>
+</main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const DEF={minimo:50,kmInclusos:10,porKm:3,kmRedondo:"sim",tabV:2,idaVoltaPct:80,parada:5,tolerancia:10,espera10:5,volume:5,urgPct:30,notPct:20,chuvaPct:20,arred:1,cidade:"",proxOS:1,mb1Lim:6,mb1Val:20,mb2Lim:16,mb2Val:25,mbKm:1.5,mbModo:"total",osValor:"motoboy",grupos:"Motoboys RL\nControle / Financeiro"};
+const LS={get(k,d){try{const v=localStorage.getItem("rl_"+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem("rl_"+k,JSON.stringify(v))}catch(e){}}};
+let cfg=Object.assign({},DEF,LS.get("cfg",{}));
+function migrar(){if((cfg.tabV||0)<2){Object.assign(cfg,{minimo:50,kmInclusos:10,porKm:3,kmRedondo:"sim",tabV:2});return true}return false}
+if(migrar())LS.set("cfg",cfg);
+const data={clientes:LS.get("clientes",[]),motoboys:LS.get("motoboys",[]),os:LS.get("os",[])};
+const VEIC={moto:"Moto",carro:"Carro",utilitario:"Utilitário",caminhao:"Caminhão"};
+const TABK=["minimo","kmInclusos","porKm","mb1Lim","mb1Val","mb2Lim","mb2Val","mbKm","mbModo"];
+let edVeic="moto";
+function tab(v){if(!v||v==="moto")return cfg;const k="t_"+v;if(!cfg[k]||typeof cfg[k]!=="object")cfg[k]={minimo:0,kmInclusos:0,porKm:0,mb1Lim:0,mb1Val:0,mb2Lim:0,mb2Val:0,mbKm:0,mbModo:"total"};return cfg[k]}
+const veicAtual=()=>{const r=document.querySelector("input[name=veic]:checked");return r?r.value:"moto"};
+const quem=v=>v&&v!=="moto"?"motorista":"motoboy";
+let osAtual=null, copiados={}, clienteSel=null, editCli=null, editMot=null, fcGeo=null;
+
+const brl=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const num=s=>{const n=parseFloat(String(s??"").replace(/\s/g,"").replace(",","."));return isFinite(n)?n:0};
+const fmtKm=k=>k.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1});
+const esc=s=>String(s??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const newId=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad=n=>String(n).padStart(4,"0");
+const digits=t=>{let d=String(t||"").replace(/\D/g,"");if(!d)return "";if(d.length<=11)d="55"+d;return d};
+const celular=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(window.matchMedia&&matchMedia("(pointer:coarse)").matches&&innerWidth<820);
+const waLink=(tel,txt)=>{const d=digits(tel);if(!d)return null;return celular?"https://wa.me/"+d+(txt?"?text="+encodeURIComponent(txt):""):"https://web.whatsapp.com/send?phone="+d+(txt?"&text="+encodeURIComponent(txt):"")};
+
+/* ---------- armazenamento: Firebase (nuvem) quando configurado, senão este navegador ---------- */
+const FBB="https://www.gstatic.com/firebasejs/10.12.2/";
+let fb=null; // {db, st, au, auth, user}
+let unsubs=[];
+function nuvem(){return !!(fb&&fb.user)}
+function limpo(o){return JSON.parse(JSON.stringify(o))}
+function erroFb(e){
+  const c=(e&&e.code)||"";
+  if(c.includes("permission-denied"))return "O Firebase recusou: este e-mail não está liberado nas regras. Confira o passo 3 em Configurar.";
+  if(c.includes("unavailable"))return "Sem internet agora. O dado fica guardado e sobe quando a conexão voltar.";
+  return "Não foi possível salvar: "+((e&&e.message)||c||"erro desconhecido");
+}
+async function salvar(col,id,obj){
+  obj.id=id;
+  if(nuvem()){try{await fb.st.setDoc(fb.st.doc(fb.db,col,id),limpo(obj));return true}catch(e){toast(erroFb(e));return false}}
+  const arr=data[col].filter(x=>x.id!==id);arr.unshift(obj);data[col]=arr;LS.set(col,arr);onData(col);return true;
+}
+async function apagar(col,id){
+  if(nuvem()){try{await fb.st.deleteDoc(fb.st.doc(fb.db,col,id))}catch(e){toast(erroFb(e))}return}
+  data[col]=data[col].filter(x=>x.id!==id);LS.set(col,data[col]);onData(col);
+}
+let cfgTimer;
+function saveCfg(now){
+  LS.set("cfg",cfg);
+  if(!nuvem())return;
+  clearTimeout(cfgTimer);
+  const go=()=>fb.st.setDoc(fb.st.doc(fb.db,"config","geral"),limpo(cfg)).catch(e=>toast(erroFb(e)));
+  if(now)return go(); cfgTimer=setTimeout(go,800);
+}
+function onData(col){
+  if(col==="clientes"){renderClientes();fillDatalist();checkCliente()}
+  if(col==="motoboys"){renderMotoboys();fillMotoSelect()}
+  if(col==="os"){renderHist();renderMotoboys()}
+  $("ctCli").textContent=data.clientes.length||"";
+  $("ctMot").textContent=data.motoboys.length||"";
+}
+function statusSalvo(){
+  const st=$("saveSt"),on=nuvem();
+  st.classList.toggle("cloud",on);
+  st.lastElementChild.textContent=on?"Salvo na nuvem":(fb?"Entre para sincronizar":"Salvo só neste aparelho");
+  $("btnEntrar").hidden=!(fb&&!fb.user);
+  renderFbStatus();
+}
+function parseFbConf(t){
+  t=String(t||"");const o={};
+  ["apiKey","authDomain","projectId","storageBucket","messagingSenderId","appId"].forEach(k=>{
+    const m=t.match(new RegExp('["\']?'+k+'["\']?\\s*:\\s*["\']([^"\']+)["\']'));if(m)o[k]=m[1]});
+  return o.apiKey&&o.projectId&&o.appId?o:null;
+}
+async function iniciarFirebase(){
+  const conf=LS.get("fbconf",null);
+  if(!conf){fb=null;statusSalvo();return}
+  try{
+    const [am,au,st]=await Promise.all([import(FBB+"firebase-app.js"),import(FBB+"firebase-auth.js"),import(FBB+"firebase-firestore.js")]);
+    const app=am.getApps().length?am.getApp():am.initializeApp(conf);
+    let db;
+    try{db=st.initializeFirestore(app,{localCache:st.persistentLocalCache({tabManager:st.persistentMultipleTabManager()})})}
+    catch(e){db=st.getFirestore(app)}
+    const auth=au.getAuth(app);
+    fb={db,st,au,auth,user:null};
+    statusSalvo();
+    try{await au.getRedirectResult(auth)}catch(e){}
+    au.onAuthStateChanged(auth,u=>{
+      fb.user=u||null;unsubs.forEach(f=>f());unsubs=[];
+      if(!u){data.clientes=LS.get("clientes",[]);data.motoboys=LS.get("motoboys",[]);data.os=LS.get("os",[]);["clientes","motoboys","os"].forEach(onData)}
+      statusSalvo();
+      if(u)ouvir();
+    });
+  }catch(e){
+    fb=null;statusSalvo();
+    $("fbMsg").innerHTML='<span class="warn">Não deu para conectar ao Firebase: '+esc(e.message||e)+'. Confira o código colado.</span>';
+  }
+}
+function ouvir(){
+  const {st,db}=fb;
+  const sortNome=(a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR");
+  const lista=s=>s.docs.map(d=>Object.assign({},d.data(),{id:d.id}));
+  const err=e=>{toast(erroFb(e));renderFbStatus(erroFb(e))};
+  unsubs.push(st.onSnapshot(st.collection(db,"clientes"),s=>{data.clientes=lista(s).sort(sortNome);onData("clientes")},err));
+  unsubs.push(st.onSnapshot(st.collection(db,"motoboys"),s=>{data.motoboys=lista(s).sort(sortNome);onData("motoboys")},err));
+  unsubs.push(st.onSnapshot(st.query(st.collection(db,"os"),st.orderBy("criado","desc"),st.limit(300)),s=>{data.os=lista(s);onData("os")},err));
+  let primeira=true;
+  unsubs.push(st.onSnapshot(st.doc(db,"config","geral"),s=>{
+    if(s.exists()){
+      const chaveLocal=cfg.gkey;
+      cfg=Object.assign({},DEF,s.data());
+      if(!cfg.gkey&&chaveLocal){cfg.gkey=chaveLocal;saveCfg(true)}
+      if(migrar())saveCfg(true);
+      LS.set("cfg",cfg);fillCfg();render();renderGrupos();atualizarGoogle();
+    }else if(primeira&&!s.metadata.fromCache){saveCfg(true)}
+    primeira=false;
+  },err));
+}
+async function entrar(){
+  if(!fb)return;
+  const {au,auth}=fb;const p=new au.GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});
+  try{await au.signInWithPopup(auth,p)}
+  catch(e){
+    const c=(e&&e.code)||"";
+    if(c==="auth/popup-blocked"||c==="auth/operation-not-supported-in-this-environment"||c==="auth/cancelled-popup-request"){try{await au.signInWithRedirect(auth,p)}catch(e2){toast("Não deu para entrar: "+(e2.code||e2.message))}}
+    else if(c==="auth/unauthorized-domain")renderFbStatus("Este endereço não está liberado no Firebase. Adicione "+location.hostname+" em Authentication → Configurações → Domínios autorizados.");
+    else if(c!=="auth/popup-closed-by-user")toast("Não deu para entrar: "+(c||e.message));
+  }
+}
+async function sair(){if(fb){try{await fb.au.signOut(fb.auth)}catch(e){}}}
+
+/* ---------- abas ---------- */
+function showTab(){
+  const t=(location.hash||"#frete").slice(1);const v=["frete","clientes","motoboys","config"].includes(t)?t:"frete";
+  document.querySelectorAll("[data-view]").forEach(m=>m.hidden=m.dataset.view!==v);
+  document.querySelectorAll("[data-tab]").forEach(a=>{if(a.dataset.tab===v)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+}
+addEventListener("hashchange",showTab);
+
+/* ---------- configuração ---------- */
+const alvoCfg=k=>TABK.includes(k)?tab(edVeic):cfg;
+document.querySelectorAll("[data-cfgs]").forEach(el=>el.addEventListener("change",()=>{const k=el.dataset.cfgs;alvoCfg(k)[k]=el.value;saveCfg();render()}));
+document.querySelectorAll("input[name=edVeic]").forEach(r=>r.addEventListener("change",()=>{edVeic=r.value;fillCfg();render()}));
+function fillCfg(){document.querySelectorAll("[data-edv]").forEach(e=>e.textContent=VEIC[edVeic]);document.querySelectorAll("[data-quem]").forEach(e=>e.textContent=quem(edVeic));document.querySelectorAll("[data-cfgs]").forEach(el=>{const k=el.dataset.cfgs;el.value=alvoCfg(k)[k]||""});document.querySelectorAll("[data-cfg]").forEach(el=>{if(document.activeElement===el)return;const k=el.dataset.cfg;const o=alvoCfg(k);el.value=typeof o[k]==="number"?String(o[k]).replace(".",","):(o[k]||"")});if(document.activeElement!==$("pGrupos"))$("pGrupos").value=cfg.grupos||""}
+document.querySelectorAll("[data-cfg]").forEach(el=>el.addEventListener("input",()=>{const k=el.dataset.cfg;alvoCfg(k)[k]=k==="cidade"?el.value:num(el.value);saveCfg();render()}));
+$("pGrupos").addEventListener("input",()=>{cfg.grupos=$("pGrupos").value;saveCfg();renderGrupos()});
+
+/* ---------- frete ---------- */
+const EX={cNome:"Mercado Boa Vista",cTel:"13 99812-3344",cColeta:"Av. Harry Forssell, 1200, Belas Artes",cEntrega:"Rua Cunha Moreira, 85, Centro",cParadasEnd:"",cKm:"4,9",cEspera:"0",cObs:"2 caixas de pedido, entregar para o Sr. Paulo",cPrazo:"até 30 min"};
+const campos=["cNome","cTel","cColeta","cEntrega","cParadasEnd","cKm","cEspera","cObs","cPrazo"];
+let exemplo=true;
+function semExemplo(){if(exemplo){exemplo=false;$("exTag").hidden=true}}
+campos.forEach(id=>{$(id).value=EX[id];$(id).addEventListener("input",()=>{semExemplo();render()})});
+document.querySelectorAll('input[name=veic]').forEach(el=>el.addEventListener("change",()=>{fillMotoSelect();render();if(typeof calcularKm==="function"&&gkey()&&$("cColeta").value.trim()&&$("cEntrega").value.trim())calcularKm(true)}));
+document.querySelectorAll('input[name=tipo],#xUrg,#xNot,#xChu,#xVol,#cPag,#cCobrar').forEach(el=>el.addEventListener("change",render));
+$("cMoto").addEventListener("change",render);
+
+function limparFrete(){
+  campos.forEach(id=>$(id).value="");$("cEspera").value="0";$("cPrazo").value="até 30 min";
+  document.querySelector('input[name=tipo][value=simples]').checked=true;document.querySelector('input[name=veic][value=moto]').checked=true;fillMotoSelect();
+  ["xUrg","xNot","xChu","xVol"].forEach(i=>$(i).checked=false);$("cPag").value="Pix";$("cCobrar").value="Na coleta";$("cMoto").value="";
+  clienteSel=null;semExemplo();resetOS();$("kmInfo").innerHTML="";
+}
+$("btnNovo").addEventListener("click",()=>{limparFrete();render();checkCliente();$("cNome").focus()});
+$("btnInv").addEventListener("click",()=>{$("kmInfo").innerHTML="";const a=$("cColeta").value;$("cColeta").value=$("cEntrega").value;$("cEntrega").value=a;semExemplo();render()});
+
+function fillDatalist(){$("dlCli").innerHTML=data.clientes.map(c=>'<option value="'+esc(c.nome)+'">').join("")}
+function achaCliente(n){n=String(n||"").trim().toLowerCase();return n?data.clientes.find(c=>String(c.nome).trim().toLowerCase()===n):null}
+function aplicarCliente(c){
+  clienteSel=c.id;$("cNome").value=c.nome;$("kmInfo").innerHTML="";$("cTel").value=c.tel||"";
+  if(c.endereco){$("cColeta").value=c.endereco;if(c.geo)geoSel[chaveEnd(c.endereco)]=c.geo}
+  if(c.pag)$("cPag").value=c.pag;
+  if(c.ref&&!$("cObs").value.trim())$("cObs").value="Contato: "+c.ref;
+  semExemplo();render();checkCliente();
+}
+$("cNome").addEventListener("input",()=>{const c=achaCliente($("cNome").value);if(c&&clienteSel!==c.id)aplicarCliente(c);else if(!c)clienteSel=null;checkCliente()});
+function checkCliente(){
+  const box=$("cliLine");const c=data.clientes.find(x=>x.id===clienteSel);
+  if(c){box.innerHTML='<span class="found">✓ Cliente cadastrado</span>'+(c.obs?'<span class="hint">· '+esc(c.obs)+'</span>':"");return}
+  if(!$("cNome").value.trim()){box.innerHTML='<span class="hint">Comece a digitar o nome para puxar um cliente cadastrado.</span>';return}
+  box.innerHTML='<span class="hint">Cliente novo.</span>';
+  const b=document.createElement("button");b.type="button";b.className="btn sm";b.textContent="Cadastrar este cliente";
+  b.addEventListener("click",async()=>{const id=newId("c");const ok=await salvar("clientes",id,{nome:$("cNome").value.trim(),tel:$("cTel").value.trim(),endereco:$("cColeta").value.trim(),geo:geoSel[chaveEnd($("cColeta").value)]||null,ref:"",pag:$("cPag").value,obs:"",criado:Date.now()});if(ok){clienteSel=id;toast("Cliente cadastrado");checkCliente()}});
+  box.appendChild(b);
+}
+
+function paradas(){return $("cParadasEnd").value.split("\n").map(s=>s.trim()).filter(Boolean)}
+function comCidade(e){if(!e||!cfg.cidade)return e;const c=cfg.cidade.split(",")[0].trim().toLowerCase();return e.toLowerCase().includes(c)?e:e+", "+cfg.cidade}
+function calc(){
+  const km=num($("cKm").value), tipo=document.querySelector('input[name=tipo]:checked').value, veic=veicAtual(), T=tab(veic);
+  const semTab=!(T.minimo>0||T.porKm>0);
+  const L=[]; let v;
+  const kmC=cfg.kmRedondo==="sim"?Math.round(km+1e-9):km;
+  if(kmC<=T.kmInclusos){v=T.minimo;L.push([VEIC[veic]+" · até "+String(T.kmInclusos).replace(".",",")+" km",v])}
+  else{const exc=kmC-T.kmInclusos;v=T.minimo+exc*T.porKm;L.push([VEIC[veic]+" · até "+String(T.kmInclusos).replace(".",",")+" km",T.minimo]);L.push([String(Math.round(exc*10)/10).replace(".",",")+" km a mais × "+brl(T.porKm),exc*T.porKm])}
+  if(tipo==="idavolta"){const a=v*cfg.idaVoltaPct/100;v+=a;L.push(["Ida e volta (+"+cfg.idaVoltaPct+"%)",a])}
+  const np=paradas().length; if(np){const a=np*cfg.parada;v+=a;L.push([np+" parada(s) extra",a])}
+  const esp=num($("cEspera").value); if(esp>cfg.tolerancia){const a=Math.ceil((esp-cfg.tolerancia)/10)*cfg.espera10;v+=a;L.push(["Espera "+esp+" min",a])}
+  if($("xVol").checked){v+=cfg.volume;L.push(["Volume grande",cfg.volume])}
+  const base=v;let pct=0;
+  [["xUrg","urgPct","Urgente"],["xNot","notPct","Noturno"],["xChu","chuvaPct","Chuva"]].forEach(([id,k,n])=>{if($(id).checked){pct+=cfg[k];L.push([n+" (+"+cfg[k]+"%)",base*cfg[k]/100])}});
+  v=base*(1+pct/100);
+  const arr=cfg.arred>0?cfg.arred:0.01;const total=Math.ceil(v/arr-1e-9)*arr;
+  if(Math.abs(total-v)>0.004)L.push(["Arredondamento",total-v]);
+  return {km,tipo,total,L,veic,semTab};
+}
+function extrasTxt(){const x=[];if($("xUrg").checked)x.push("urgente");if($("xNot").checked)x.push("noturno");if($("xChu").checked)x.push("chuva");if($("xVol").checked)x.push("volume grande");const e=num($("cEspera").value);if(e>0)x.push("espera "+e+" min");return x}
+function mapsUrl(){
+  const o=comCidade($("cColeta").value.trim()),d=comCidade($("cEntrega").value.trim());if(!o||!d)return null;
+  let u="https://www.google.com/maps/dir/?api=1&travelmode=driving&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(d);
+  const ps=paradas().map(comCidade);if(ps.length)u+="&waypoints="+encodeURIComponent(ps.join("|"));return u;
+}
+function motoSel(){return data.motoboys.find(m=>m.id===$("cMoto").value)||null}
+function msgOrc(c){
+  const nome=$("cNome").value.trim(),x=extrasTxt();
+  let t="*RL Motoboy* 🏍️\n*Orçamento de frete*\n\nOlá"+(nome?", "+nome:"")+"! Segue o orçamento:\n\n";
+  t+="📍 *Coleta:* "+($("cColeta").value.trim()||"—")+"\n";
+  paradas().forEach((p,i)=>t+="➕ *Parada "+(i+1)+":* "+p+"\n");
+  t+="🏁 *Entrega:* "+($("cEntrega").value.trim()||"—")+"\n📏 *Distância:* "+fmtKm(c.km)+" km\n";
+  t+=(c.veic==="moto"?"🛵":c.veic==="carro"?"🚗":"🚚")+" *Serviço:* "+(c.tipo==="idavolta"?"Ida e volta":"Entrega simples")+" de "+VEIC[c.veic].toLowerCase()+(x.length?" ("+x.join(", ")+")":"")+"\n";
+  if($("cObs").value.trim())t+="📦 *Item:* "+$("cObs").value.trim()+"\n";
+  t+="\n💰 *Valor: "+brl(c.total)+"*\nPagamento: "+$("cPag").value+($("cCobrar").value!=="Já pago"?" ("+$("cCobrar").value.toLowerCase()+")":"")+"\n";
+  if($("cPrazo").value.trim())t+="⏱️ Coleta "+$("cPrazo").value.trim()+" após a confirmação.\n";
+  return t+"\nPosso confirmar a corrida? ✅";
+}
+function msgOS(c){
+  let t="RL MOTOBOY E ENTREGAS\n\n";
+  if(c.veic!=="moto")t+="VEÍCULO\n"+VEIC[c.veic].toUpperCase()+"\n\n";
+  t+="RETIRADA\n"+($("cColeta").value.trim()||"—")+"\n\n";
+  paradas().forEach((p,i)=>t+="PARADA "+(i+1)+"\n"+p+"\n\n");
+  t+="ENTREGA\n"+($("cEntrega").value.trim()||"—")+"\n\n";
+  t+="KM "+fmtKm(c.km)+"\n";
+  t+="VALOR "+brl(osValor(c));
+  return t;
+}
+function setLink(a,u){if(u){a.href=u;a.removeAttribute("aria-disabled")}else{a.href="#";a.setAttribute("aria-disabled","true")}}
+function pagMoto(c){
+  const cfg=tab(c.veic);
+  const km=c.tipo==="idavolta"?c.km*2:c.km;
+  let v,faixa;
+  if(km<cfg.mb1Lim){v=cfg.mb1Val;faixa="até "+fmtKm(cfg.mb1Lim-0.1)+" km"}
+  else if(km<cfg.mb2Lim){v=cfg.mb2Val;faixa=fmtKm(cfg.mb1Lim)+" a "+fmtKm(cfg.mb2Lim-0.1)+" km"}
+  else if(cfg.mbModo==="extra"){const ex=Math.ceil(km-(cfg.mb2Lim-1)-1e-9);v=cfg.mb2Val+Math.max(0,ex)*cfg.mbKm;faixa=brl(cfg.mb2Val)+" + "+Math.max(0,ex)+" km × "+brl(cfg.mbKm)}
+  else{v=km*cfg.mbKm;faixa=fmtKm(km)+" km × "+brl(cfg.mbKm)}
+  return {valor:Math.round(v*100)/100,km,faixa};
+}
+function osValor(c){return cfg.osValor==="cliente"?c.total:pagMoto(c).valor}
+function render(){
+  const c=calc(),pm=pagMoto(c);
+  $("mTotal").textContent=brl(c.total);$("mKm").textContent=fmtKm(c.km)+" km";
+  $("mTipo").textContent=c.tipo==="idavolta"?"Ida e volta":"Entrega simples";
+  $("mLines").innerHTML=c.L.map(l=>"<li><span>"+esc(l[0])+"</span><span>"+brl(l[1])+"</span></li>").join("");
+  if(c.semTab)$("mLines").innerHTML='<li style="color:var(--meter-ink)"><span>A tabela de '+esc(VEIC[c.veic].toLowerCase())+' ainda não tem valores. Preencha em “Tabela de preços e grupos”.</span><span></span></li>';
+  $("mTipo").textContent=VEIC[c.veic]+" · "+(c.tipo==="idavolta"?"Ida e volta":"Entrega simples");
+  $("mMoto").innerHTML="<li><span>"+(quem(c.veic)==="motoboy"?"Motoboy":"Motorista")+" recebe ("+esc(pm.faixa)+(c.tipo==="idavolta"?", ida e volta "+fmtKm(pm.km)+" km":"")+")</span><span>"+brl(pm.valor)+"</span></li>"+
+    "<li style=\"color:var(--meter-ink);font-weight:700\"><span>Fica para a RL</span><span>"+brl(c.total-pm.valor)+"</span></li>";
+  const E=tab(edVeic);
+  $("pMHint").textContent=!(E.mb1Val>0||E.mbKm>0)?"Preencha as faixas de pagamento de "+VEIC[edVeic].toLowerCase()+".":"Faixa 1: menos de "+fmtKm(E.mb1Lim)+" km = "+brl(E.mb1Val)+". Faixa 2: de "+fmtKm(E.mb1Lim)+" a "+fmtKm(E.mb2Lim-0.1)+" km = "+brl(E.mb2Val)+". A partir de "+fmtKm(E.mb2Lim)+" km: "+(E.mbModo==="extra"?brl(E.mb2Val)+" + "+brl(E.mbKm)+" por km a mais":brl(E.mbKm)+" por km rodado")+". Em ida e volta, conta a ida mais a volta.";
+  const o=msgOrc(c);$("msgOrc").textContent=o;
+  setLink($("lnkMaps"),mapsUrl());setLink($("lnkWa"),waLink($("cTel").value,o));
+  if(osAtual){$("msgOS").textContent=msgOS(c);renderMotoAct()}
+}
+
+/* ---------- copiar ---------- */
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2000)}
+function copiar(texto,ok,el){
+  const fb=()=>{if(el){const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r)}toast("Texto selecionado: aperte Ctrl+C")};
+  try{navigator.clipboard.writeText(texto).then(()=>toast(ok),fb)}catch(e){fb()}
+}
+$("btnCopyOrc").addEventListener("click",()=>{copiar($("msgOrc").textContent,"Orçamento copiado",$("msgOrc"));$("stOrc").textContent="Enviado ao cliente"});
+$("lnkWa").addEventListener("click",()=>{$("stOrc").textContent="Enviado ao cliente"});
+
+/* ---------- OS ---------- */
+function fillMotoSelect(){
+  const cur=$("cMoto").value;
+  $("cMoto").innerHTML='<option value="">A definir (perguntar no grupo)</option>'+data.motoboys.filter(m=>m.ativo!==false&&(m.veic||"moto")===veicAtual()).map(m=>'<option value="'+esc(m.id)+'">'+esc(m.nome)+(m.moto?" · "+esc(m.moto):"")+'</option>').join("");
+  $("cMoto").value=data.motoboys.some(m=>m.id===cur)?cur:"";
+}
+function resetOS(){osAtual=null;copiados={};$("osBox").hidden=true;$("osWait").hidden=false;$("stOS").textContent="Aguardando aceite";$("stOS").classList.remove("ok");$("stOrc").textContent="Rascunho"}
+$("btnAceite").addEventListener("click",async()=>{
+  const n=Math.max(1,Math.round(cfg.proxOS||1));const d=new Date();
+  osAtual={num:n,data:d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),id:newId("os")};
+  cfg.proxOS=n+1;$("pNum").value=cfg.proxOS;saveCfg(true);
+  copiados={};$("osWait").hidden=true;$("osBox").hidden=false;$("stOS").textContent="OS "+pad(n)+" aberta";$("stOS").classList.add("ok");$("stOrc").textContent="Aceito";
+  render();renderGrupos();
+  const c=calc(),mb=motoSel();
+  await salvar("os",osAtual.id,{num:n,criado:d.getTime(),data:osAtual.data,clienteId:clienteSel||"",cliente:$("cNome").value.trim()||"Sem nome",tel:$("cTel").value.trim(),coleta:$("cColeta").value.trim(),entrega:$("cEntrega").value.trim(),km:c.km,veiculo:c.veic,total:c.total,pagMoto:pagMoto(c).valor,pag:$("cPag").value,motoboyId:mb?mb.id:"",motoboy:mb?mb.nome:"",status:"aberta",texto:$("msgOS").textContent});
+});
+$("cMoto").addEventListener("change",()=>{
+  if(!osAtual)return;const mb=motoSel();
+  const os=data.os.find(o=>o.id===osAtual.id);
+  if(os)salvar("os",os.id,Object.assign({},os,{motoboyId:mb?mb.id:"",motoboy:mb?mb.nome:"",texto:$("msgOS").textContent}));
+});
+function renderMotoAct(){
+  const box=$("motoAct");box.innerHTML="";const mb=motoSel();if(!mb)return;
+  const u=waLink(mb.tel,$("msgOS").textContent);
+  if(u){const a=document.createElement("a");a.className="btn";a.href=u;a.target="_blank";a.rel="noopener";a.textContent="Mandar OS no WhatsApp do "+mb.nome.split(" ")[0]+" ↗";box.appendChild(a)}
+  const s=document.createElement("span");s.className="hint";s.textContent=mb.nome.split(" ")[0]+" recebe "+brl(pagMoto(calc()).valor)+(mb.pix?" · Pix: "+mb.pix:"");box.appendChild(s);
+}
+function renderGrupos(){
+  const gs=(cfg.grupos||"").split("\n").map(s=>s.trim()).filter(Boolean);const box=$("grpList");box.innerHTML="";
+  if(!gs.length){box.innerHTML='<p class="hint">Nenhum grupo cadastrado. Adicione em “Tabela de preços e grupos”.</p>';return}
+  gs.forEach(g=>{const d=document.createElement("div");d.className="grp"+(copiados[g]?" done":"");d.innerHTML="<b>"+esc(g)+"</b>";
+    const b=document.createElement("button");b.type="button";b.className="btn primary sm";b.textContent="Copiar OS";
+    b.addEventListener("click",()=>{copiar($("msgOS").textContent,"OS copiada para "+g,$("msgOS"));copiados[g]=true;d.classList.add("done")});
+    d.appendChild(b);box.appendChild(d)});
+}
+function hoje(o){const d=new Date(o.criado||0),n=new Date();return d.toDateString()===n.toDateString()}
+function renderHist(){
+  const ul=$("hist");const list=data.os.slice().sort((a,b)=>(b.criado||0)-(a.criado||0)).slice(0,30);
+  const h=data.os.filter(hoje);$("osStats").innerHTML="Hoje: <b>"+h.length+"</b> OS · <b>"+brl(h.reduce((s,o)=>s+(+o.total||0),0))+"</b>";
+  if(!list.length){ul.innerHTML='<li class="empty" style="display:block">As OS geradas aparecem aqui, com o motoboy e o status de cada corrida.</li>';return}
+  ul.innerHTML="";
+  list.forEach(o=>{const li=document.createElement("li");const feita=o.status==="concluida";
+    li.innerHTML='<div class="who"><b><span class="no">#'+pad(o.num)+'</span> '+esc(o.cliente)+'</b><small>'+esc(o.data)+(o.veiculo&&o.veiculo!=="moto"?" · "+esc(VEIC[o.veiculo]||o.veiculo):"")+(o.motoboy?" · "+(o.veiculo&&o.veiculo!=="moto"?"🚚 ":"🏍️ ")+esc(o.motoboy):"")+(o.entrega?" · "+esc(o.entrega):"")+'</small></div>';
+    const r=document.createElement("div");r.className="actions";
+    r.innerHTML='<span class="val">'+brl(o.total)+'</span>';
+    const st=document.createElement("button");st.type="button";st.className="status"+(feita?" ok":"");st.style.cursor="pointer";st.textContent=feita?"Concluída":"Aberta";st.title="Clique para mudar o status";
+    st.addEventListener("click",()=>salvar("os",o.id,Object.assign({},o,{status:feita?"aberta":"concluida"})));
+    const b=document.createElement("button");b.className="btn ghost sm";b.type="button";b.textContent="Copiar";b.addEventListener("click",()=>copiar(o.texto||"","OS #"+o.num+" copiada",null));
+    r.append(st,b);li.appendChild(r);ul.appendChild(li)});
+}
+
+/* ---------- cadastros ---------- */
+function armDelete(btn,fn){btn.addEventListener("click",()=>{if(btn.classList.contains("arm")){fn();return}btn.classList.add("arm");btn.textContent="Confirmar exclusão";setTimeout(()=>{btn.classList.remove("arm");btn.textContent="Excluir"},3000)})}
+function formMode(form,editing,label){const sec=form.closest(".panel");sec.querySelector("[data-formtitle]").textContent=editing?"Editar "+label:"Novo "+label;sec.querySelector("[data-clear]").hidden=!editing}
+
+// Clientes
+const fc={nome:"fcNome",tel:"fcTel",endereco:"fcEnd",ref:"fcRef",pag:"fcPag",obs:"fcObs"};
+function limparFormCli(){Object.values(fc).forEach(i=>$(i).value="");editCli=null;fcGeo=null;formMode($("fCli"),false,"cliente")}
+$("fCli").addEventListener("submit",async e=>{e.preventDefault();const nome=$("fcNome").value.trim();if(!nome){$("fcNome").focus();return}
+  const id=editCli||newId("c");const old=data.clientes.find(c=>c.id===id)||{};
+  const obj=Object.assign({},old,{criado:old.criado||Date.now()});Object.entries(fc).forEach(([k,i])=>obj[k]=$(i).value.trim());if(fcGeo)obj.geo=fcGeo;else if(old.endereco!==obj.endereco)delete obj.geo;
+  if(await salvar("clientes",id,obj)){toast(editCli?"Cliente atualizado":"Cliente salvo");limparFormCli()}});
+document.querySelector('[data-clear="cli"]').addEventListener("click",limparFormCli);
+$("qCli").addEventListener("input",renderClientes);
+function renderClientes(){
+  const q=$("qCli").value.trim().toLowerCase(),ul=$("lstCli");
+  const qd=q.replace(/\D/g,"");
+  const list=data.clientes.filter(c=>!q||[c.nome,c.endereco,c.ref].join(" ").toLowerCase().includes(q)||(qd&&String(c.tel||"").replace(/\D/g,"").includes(qd)));
+  if(!data.clientes.length){ul.innerHTML='<li class="empty" style="display:block">Nenhum cliente ainda. Cadastre ao lado, ou use “Cadastrar este cliente” na aba Frete. Depois é só digitar o nome no frete que telefone e endereço vêm junto.</li>';return}
+  if(!list.length){ul.innerHTML='<li class="empty" style="display:block">Nenhum cliente encontrado para essa busca.</li>';return}
+  ul.innerHTML="";
+  list.forEach(c=>{const li=document.createElement("li");const n=data.os.filter(o=>o.clienteId===c.id).length;
+    li.innerHTML='<div class="who"><b>'+esc(c.nome)+'</b><small>'+esc(c.tel||"sem telefone")+(c.endereco?" · "+esc(c.endereco):"")+(n?" · "+n+" OS":"")+'</small>'+(c.obs?'<small>'+esc(c.obs)+'</small>':"")+'</div>';
+    const r=document.createElement("div");r.className="actions";
+    const f=document.createElement("button");f.type="button";f.className="btn primary sm";f.textContent="Fazer frete";
+    f.addEventListener("click",()=>{limparFrete();aplicarCliente(c);location.hash="frete";$("cEntrega").focus()});
+    const ed=document.createElement("button");ed.type="button";ed.className="btn sm";ed.textContent="Editar";
+    ed.addEventListener("click",()=>{editCli=c.id;fcGeo=c.geo||null;Object.entries(fc).forEach(([k,i])=>$(i).value=c[k]||"");formMode($("fCli"),true,"cliente");$("fcNome").focus();scrollTo({top:0,behavior:"smooth"})});
+    const del=document.createElement("button");del.type="button";del.className="btn danger sm";del.textContent="Excluir";
+    armDelete(del,()=>{apagar("clientes",c.id);if(editCli===c.id)limparFormCli();toast("Cliente excluído")});
+    r.append(f,ed,del);li.appendChild(r);ul.appendChild(li)});
+}
+
+// Motoboys
+const fm={nome:"fmNome",tel:"fmTel",veic:"fmVeic",moto:"fmMoto",placa:"fmPlaca",pix:"fmPix"};
+function limparFormMot(){Object.values(fm).forEach(i=>$(i).value="");$("fmVeic").value="moto";$("fmAtivo").checked=true;editMot=null;formMode($("fMot"),false,"cadastro")}
+$("fMot").addEventListener("submit",async e=>{e.preventDefault();const nome=$("fmNome").value.trim();if(!nome){$("fmNome").focus();return}
+  const id=editMot||newId("m");const old=data.motoboys.find(m=>m.id===id)||{};
+  const obj=Object.assign({},old,{criado:old.criado||Date.now(),ativo:$("fmAtivo").checked});Object.entries(fm).forEach(([k,i])=>obj[k]=$(i).value.trim());obj.placa=obj.placa.toUpperCase();
+  if(await salvar("motoboys",id,obj)){toast(editMot?"Cadastro atualizado":"Cadastro salvo");limparFormMot()}});
+document.querySelector('[data-clear="mot"]').addEventListener("click",limparFormMot);
+function renderMotoboys(){
+  const ul=$("lstMot");
+  if(!data.motoboys.length){ul.innerHTML='<li class="empty" style="display:block">Ninguém cadastrado ainda. Cadastre motoboys e motoristas ao lado, com o veículo de cada um, para escolher quem faz a corrida na OS e mandar a OS direto no WhatsApp.</li>';return}
+  ul.innerHTML="";
+  data.motoboys.forEach(m=>{const li=document.createElement("li");const ativo=m.ativo!==false;
+    const hj=data.os.filter(o=>o.motoboyId===m.id&&hoje(o));const tot=hj.reduce((s,o)=>s+(+o.pagMoto||0),0);
+    li.innerHTML='<div class="who"><b>'+esc(m.nome)+' <span class="status '+(ativo?"ok":"off")+'">'+(ativo?"Ativo":"Inativo")+'</span></b><small>'+esc(VEIC[m.veic||"moto"])+' · '+esc(m.tel||"sem telefone")+(m.moto?" · "+esc(m.moto):"")+(m.placa?" · "+esc(m.placa):"")+'</small><small>Hoje: '+hj.length+' corrida(s) · a receber '+brl(tot)+(m.pix?" · Pix: "+esc(m.pix):"")+'</small></div>';
+    const r=document.createElement("div");r.className="actions";
+    const ed=document.createElement("button");ed.type="button";ed.className="btn sm";ed.textContent="Editar";
+    ed.addEventListener("click",()=>{editMot=m.id;Object.entries(fm).forEach(([k,i])=>$(i).value=m[k]||"");$("fmVeic").value=m.veic||"moto";$("fmAtivo").checked=ativo;formMode($("fMot"),true,"cadastro");$("fmNome").focus();scrollTo({top:0,behavior:"smooth"})});
+    const del=document.createElement("button");del.type="button";del.className="btn danger sm";del.textContent="Excluir";
+    armDelete(del,()=>{apagar("motoboys",m.id);if(editMot===m.id)limparFormMot();toast("Cadastro excluído")});
+    r.append(ed,del);li.appendChild(r);ul.appendChild(li)});
+}
+
+/* ---------- Google: autocompletar endereços e calcular km ---------- */
+let centro=LS.get("centro",{latitude:-24.18,longitude:-46.79});
+const gkey=()=>String(cfg.gkey||"").trim();
+const uuid=()=>(crypto.randomUUID?crypto.randomUUID():"s"+Date.now().toString(36)+Math.random().toString(36).slice(2));
+let sessao=null;
+async function gfetch(url,opt){
+  let r;
+  try{r=await fetch(url,opt)}catch(e){const er=new Error("Sem conexão com o Google. Confira a internet.");er.status=0;throw er}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const er=new Error((j&&j.error&&j.error.message)||("erro "+r.status));er.status=r.status;throw er}
+  return j||{};
+}
+function erroGoogle(e){
+  const m=String((e&&e.message)||"");
+  if(/API key not valid|API_KEY_INVALID/i.test(m))return "A chave do Google está errada. Confira em Configurar.";
+  if(/referer|referrer/i.test(m))return "A chave do Google não está liberada para este endereço ("+location.host+"). Ajuste a restrição de sites da chave.";
+  if(/not been used|disabled|not authorized|PERMISSION_DENIED/i.test(m))return "Falta ativar a API no Google Cloud (Places API (New) e Routes API). "+m;
+  if(/billing/i.test(m))return "O Google pede o faturamento ativo no projeto. Confira o passo 2 em Configurar.";
+  if(e&&e.status===429)return "Limite diário do Google atingido. Digite os km pelo Google Maps até amanhã ou aumente a cota.";
+  return "O Google não respondeu: "+(m||"erro desconhecido");
+}
+async function gAuto(q){
+  if(!sessao)sessao=uuid();
+  const body={input:q,sessionToken:sessao,languageCode:"pt-BR",regionCode:"br",includedRegionCodes:["br"],
+    locationBias:{circle:{center:{latitude:centro.latitude,longitude:centro.longitude},radius:50000}},
+    origin:{latitude:centro.latitude,longitude:centro.longitude}};
+  const j=await gfetch("https://places.googleapis.com/v1/places:autocomplete",{method:"POST",headers:{"Content-Type":"application/json","X-Goog-Api-Key":gkey()},body:JSON.stringify(body)});
+  return (j.suggestions||[]).map(s=>s.placePrediction).filter(Boolean);
+}
+async function gDetalhe(placeId){
+  const u="https://places.googleapis.com/v1/places/"+encodeURIComponent(placeId)+"?languageCode=pt-BR&regionCode=br"+(sessao?"&sessionToken="+encodeURIComponent(sessao):"");
+  sessao=null;
+  return gfetch(u,{headers:{"X-Goog-Api-Key":gkey(),"X-Goog-FieldMask":"id,location,formattedAddress,shortFormattedAddress"}});
+}
+async function gRota(pts,veic){
+  const wp=p=>p.lat!=null?{location:{latLng:{latitude:p.lat,longitude:p.lng}}}:{address:p.endereco};
+  const corpo=modo=>JSON.stringify({origin:wp(pts[0]),destination:wp(pts[pts.length-1]),intermediates:pts.slice(1,-1).map(wp),travelMode:modo,languageCode:"pt-BR",regionCode:"BR",units:"METRIC"});
+  const h={"Content-Type":"application/json","X-Goog-Api-Key":gkey(),"X-Goog-FieldMask":"routes.distanceMeters,routes.duration"};
+  let ultimo=null;
+  for(const modo of (veic&&veic!=="moto"?["DRIVE"]:["TWO_WHEELER","DRIVE"])){
+    try{
+      const j=await gfetch("https://routes.googleapis.com/directions/v2:computeRoutes",{method:"POST",headers:h,body:corpo(modo)});
+      const r=j.routes&&j.routes[0];
+      if(r&&r.distanceMeters>0)return {metros:r.distanceMeters,seg:parseInt(r.duration,10)||0,modo};
+    }catch(e){ultimo=e;if(e.status===401||e.status===403||e.status===429||e.status===0)throw e}
+  }
+  if(ultimo)throw ultimo;
+  return null;
+}
+
+const geoSel={}; // texto do campo -> {lat,lng,nome}
+const chaveEnd=t=>String(t||"").trim().toLowerCase();
+function atualizarGoogle(){
+  const ok=!!gkey();
+  $("btnKm").hidden=!ok;
+  $("kmHint").textContent=ok
+    ?"Escolha os endereços na lista do Google e os km aparecem sozinhos. Se digitar sem escolher, clique em “Calcular km”."
+    :"Configure a chave do Google na aba Configurar para ter o autocompletar e os km automáticos. Até lá, use o botão do Google Maps e digite os km.";
+  if(document.activeElement!==$("gKey"))$("gKey").value=cfg.gkey||"";
+}
+async function calcularKm(auto){
+  const campos=[["Retirada",$("cColeta").value.trim()],...paradas().map((p,i)=>["Parada "+(i+1),p]),["Entrega",$("cEntrega").value.trim()]];
+  const info=$("kmInfo");
+  if(!gkey())return;
+  if(!campos[0][1]||!campos[campos.length-1][1]){if(!auto)info.innerHTML='<span class="warn">Preencha o endereço de retirada e o de entrega.</span>';return}
+  const b=$("btnKm");b.disabled=true;b.textContent="Calculando…";info.innerHTML='<span class="hint">Calculando a rota no Google…</span>';
+  try{
+    const pts=campos.map(([,t])=>{const g=geoSel[chaveEnd(t)];return g?{lat:g.lat,lng:g.lng,nome:g.nome,ok:true}:{endereco:comCidade(t)+", Brasil",nome:t,ok:false}});
+    const r=await gRota(pts,veicAtual());
+    if(!r){info.innerHTML='<span class="warn">O Google não achou rota entre esses endereços. Escolha os endereços na lista de sugestões.</span>';return}
+    const km=Math.round(r.metros/100)/10;
+    $("cKm").value=String(km).replace(".",",");semExemplo();render();
+    if(pts[0].lat!=null){centro={latitude:pts[0].lat,longitude:pts[0].lng};LS.set("centro",centro)}
+    info.innerHTML='<span class="okk">'+fmtKm(km)+' km · cerca de '+Math.max(1,Math.round(r.seg/60))+' min'+(r.modo==="TWO_WHEELER"?" de moto":" de carro")+'</span>'+
+      pts.map((p,i)=>'<div class="g"><b>'+campos[i][0]+'</b><span>'+esc(p.nome)+(p.ok?'':' <span class="warn">(digitado, sem escolher na lista: confira)</span>')+'</span></div>').join("");
+  }catch(e){info.innerHTML='<span class="warn">'+esc(erroGoogle(e))+'</span>'}
+  finally{b.disabled=false;b.textContent="Calcular km"}
+}
+$("btnKm").addEventListener("click",()=>calcularKm(false));
+["cColeta","cEntrega","cParadasEnd"].forEach(id=>$(id).addEventListener("input",()=>{$("kmInfo").innerHTML=""}));
+
+function locais(q){
+  q=q.trim().toLowerCase();if(q.length<2)return [];
+  return data.clientes.filter(c=>c.endereco&&(String(c.nome).toLowerCase().includes(q)||String(c.endereco).toLowerCase().includes(q))).slice(0,3)
+    .map(c=>({titulo:c.endereco,sub:'<span class="cli">Cliente</span> · '+esc(c.nome),valor:c.endereco,geo:c.geo||null}));
+}
+function semBrasil(t){return String(t||"").replace(/,?\s*Brasil$/i,"").replace(/,?\s*Brazil$/i,"")}
+function autocompletar(input,aoEscolher){
+  const wrap=document.createElement("div");wrap.className="ac";input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
+  const ul=document.createElement("ul");ul.className="ac-list";ul.hidden=true;ul.id=input.id+"-ac";ul.setAttribute("role","listbox");wrap.appendChild(ul);
+  input.setAttribute("autocomplete","off");input.setAttribute("role","combobox");input.setAttribute("aria-autocomplete","list");input.setAttribute("aria-controls",ul.id);input.setAttribute("aria-expanded","false");
+  let itens=[],ativo=-1,timer,seq=0,quieto=false,carregando=false,aviso="";
+  const fechar=()=>{ul.hidden=true;ativo=-1;input.setAttribute("aria-expanded","false")};
+  const mostrar=()=>{
+    ul.innerHTML="";
+    if(!itens.length&&!carregando&&!aviso){fechar();return}
+    itens.forEach((it,i)=>{const li=document.createElement("li");li.className="ac-item"+(i===ativo?" on":"");li.setAttribute("role","option");li.id=ul.id+"-"+i;
+      li.innerHTML="<b>"+esc(it.titulo)+"</b><small>"+it.sub+"</small>";
+      li.addEventListener("mousedown",e=>{e.preventDefault();escolher(i)});ul.appendChild(li)});
+    if(carregando){const li=document.createElement("li");li.className="ac-load";li.textContent="Buscando no Google…";ul.appendChild(li)}
+    else if(aviso){const li=document.createElement("li");li.className="ac-load";li.style.color="var(--bad)";li.textContent=aviso;ul.appendChild(li)}
+    if(ativo>=0)input.setAttribute("aria-activedescendant",ul.id+"-"+ativo);else input.removeAttribute("aria-activedescendant");
+    ul.hidden=false;input.setAttribute("aria-expanded","true");
+  };
+  const escolher=async i=>{
+    const it=itens[i];if(!it)return;
+    quieto=true;input.value=it.valor;fechar();input.dispatchEvent(new Event("input",{bubbles:true}));quieto=false;
+    if(it.rua){input.focus();try{input.setSelectionRange(input.value.length,input.value.length)}catch(e){}return}
+    if(it.geo){geoSel[chaveEnd(it.valor)]=it.geo;if(aoEscolher)aoEscolher(it);return}
+    if(it.placeId){
+      try{
+        const d=await gDetalhe(it.placeId);
+        if(d&&d.location){const g={lat:d.location.latitude,lng:d.location.longitude,nome:semBrasil(d.formattedAddress||it.valor)};geoSel[chaveEnd(input.value)]=g;it.geo=g;if(aoEscolher)aoEscolher(it)}
+      }catch(e){toast(erroGoogle(e))}
+    }
+  };
+  input.addEventListener("input",()=>{
+    if(quieto)return;clearTimeout(timer);seq++;
+    const q=input.value.trim();itens=locais(q);ativo=-1;carregando=false;aviso="";
+    if(gkey()&&q.length>=3){
+      carregando=true;
+      timer=setTimeout(async()=>{const meu=++seq;
+        try{
+          const ps=await gAuto(q);
+          if(meu!==seq)return;
+          const gs=ps.slice(0,6).map(p=>{
+            const main=(p.structuredFormat&&p.structuredFormat.mainText&&p.structuredFormat.mainText.text)||(p.text&&p.text.text)||"";
+            const sec=semBrasil((p.structuredFormat&&p.structuredFormat.secondaryText&&p.structuredFormat.secondaryText.text)||"");
+            const tipos=p.types||[];
+            const rua=tipos.includes("route")&&!/\d/.test(main);
+            return rua
+              ?{titulo:main,sub:esc(sec)+' · <span style="color:var(--accent-ink);font-weight:600">escolha e digite o número</span>',valor:main+", ",rua:true}
+              :{titulo:main,sub:esc(sec),valor:sec?main+" - "+sec:main,placeId:p.placeId};
+          });
+          itens=locais(q).concat(gs);
+          if(!gs.length&&!itens.length)aviso="O Google não achou. Tente com o nome da rua e o número.";
+        }catch(e){if(meu!==seq)return;aviso=erroGoogle(e)}
+        carregando=false;if(document.activeElement===input)mostrar();
+      },300);
+    }
+    mostrar();
+  });
+  input.addEventListener("keydown",e=>{
+    if(ul.hidden)return;
+    if(e.key==="ArrowDown"){ativo=Math.min(itens.length-1,ativo+1);mostrar();e.preventDefault()}
+    else if(e.key==="ArrowUp"){ativo=Math.max(0,ativo-1);mostrar();e.preventDefault()}
+    else if(e.key==="Enter"&&ativo>=0){escolher(ativo);e.preventDefault()}
+    else if(e.key==="Escape"){fechar()}
+  });
+  input.addEventListener("blur",()=>setTimeout(fechar,150));
+}
+const autoKm=()=>{if($("cColeta").value.trim()&&$("cEntrega").value.trim())calcularKm(true)};
+autocompletar($("cColeta"),autoKm);
+autocompletar($("cEntrega"),autoKm);
+autocompletar($("fcEnd"),it=>{fcGeo=it.geo||null});
+
+/* ---------- aba Configurar ---------- */
+function renderFbStatus(msg){
+  const box=$("fbMsg");if(!box)return;
+  const conf=LS.get("fbconf",null);
+  $("btnFbSair").hidden=!nuvem();$("btnFbEntrar").hidden=!(fb&&!fb.user);$("btnFbCopiar").hidden=!conf;$("btnFbDesligar").hidden=!conf;
+  $("btnSubir").hidden=!nuvem();
+  if(msg){box.innerHTML='<span class="warn">'+esc(msg)+'</span>';return}
+  if(nuvem())box.innerHTML='<span class="okk">Conectado como '+esc(fb.user.email||"")+'. Clientes, motoboys, OS e tabela estão sincronizados.</span>';
+  else if(fb)box.innerHTML='<span class="hint">Firebase configurado. Clique em “Entrar com Google” para sincronizar.</span>';
+  else box.innerHTML='<span class="hint">Sem nuvem: os dados ficam só neste aparelho.</span>';
+}
+$("btnGSalvar").addEventListener("click",async()=>{
+  cfg.gkey=$("gKey").value.trim();saveCfg(true);atualizarGoogle();
+  const box=$("gMsg");
+  if(!cfg.gkey){box.innerHTML='<span class="hint">Chave removida.</span>';return}
+  box.innerHTML='<span class="hint">Testando…</span>';
+  let lugares="",rotas="";
+  try{const r=await gAuto("Praça da Sé São Paulo");lugares=r.length?'<span class="okk">✓ Autocompletar (Places API) funcionando</span>':'<span class="warn">Places API respondeu, mas sem resultados.</span>'}
+  catch(e){lugares='<span class="warn">✗ Autocompletar: '+esc(erroGoogle(e))+'</span>'}
+  sessao=null;
+  try{const r=await gRota([{lat:-23.5503,lng:-46.6340},{lat:-23.5614,lng:-46.6559}]);rotas=r?'<span class="okk">✓ Cálculo de km (Routes API) funcionando</span>':'<span class="warn">Routes API respondeu, mas sem rota.</span>'}
+  catch(e){rotas='<span class="warn">✗ Km: '+esc(erroGoogle(e))+'</span>'}
+  box.innerHTML=lugares+rotas;
+});
+$("btnGVer").addEventListener("click",()=>{const i=$("gKey");i.type=i.type==="password"?"text":"password"});
+$("btnFbConectar").addEventListener("click",async()=>{
+  const conf=parseFbConf($("fbConf").value);
+  if(!conf){renderFbStatus("Não reconheci o código. Cole o bloco inteiro do firebaseConfig, com apiKey, projectId e appId.");return}
+  LS.set("fbconf",conf);$("fbConf").value="";
+  if(fb){location.reload();return}
+  await iniciarFirebase();if(fb&&!fb.user)entrar();
+});
+$("btnFbEntrar").addEventListener("click",entrar);
+$("btnEntrar").addEventListener("click",entrar);
+$("btnFbSair").addEventListener("click",sair);
+$("btnFbCopiar").addEventListener("click",()=>{const c=LS.get("fbconf",null);if(c)copiar(JSON.stringify(c),"Código copiado. Cole no celular, em Configurar.",null)});
+$("btnFbDesligar").addEventListener("click",async()=>{await sair();try{localStorage.removeItem("rl_fbconf")}catch(e){}location.reload()});
+// regras do Firestore geradas com o e-mail digitado
+function regras(){
+  const emails=$("rgEmail").value.split(/[\s,;]+/).map(s=>s.trim().toLowerCase()).filter(s=>s.includes("@"));
+  const lista=emails.length?emails.map(e=>'"'+e+'"').join(", "):'"seu-email@gmail.com"';
+  return "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null\n        && request.auth.token.email_verified == true\n        && request.auth.token.email in ["+lista+"];\n    }\n  }\n}";
+}
+$("rgEmail").addEventListener("input",()=>{$("rgTxt").textContent=regras()});
+$("btnRg").addEventListener("click",()=>copiar(regras(),"Regras copiadas",$("rgTxt")));
+$("rgHost").textContent=location.host||"seu-usuario.github.io";
+// backup
+function pacote(){return {app:"RL Motoboy",versao:1,exportado:new Date().toISOString(),cfg:Object.assign({},cfg,{gkey:undefined}),clientes:data.clientes,motoboys:data.motoboys,os:data.os}}
+$("btnExp").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(pacote(),null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="rl-motoboy-backup-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Backup baixado");
+});
+async function importar(p){
+  if(!p||!Array.isArray(p.clientes)){toast("Arquivo de backup inválido");return}
+  let n=0;
+  for(const col of ["clientes","motoboys","os"])for(const it of (p[col]||[])){if(it&&it.id){await salvar(col,it.id,Object.assign({},it));n++}}
+  if(p.cfg){const k=cfg.gkey;cfg=Object.assign({},DEF,p.cfg,{gkey:k});saveCfg(true);fillCfg();render();renderGrupos()}
+  toast(n+" registros importados");
+}
+$("fImp").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{await importar(JSON.parse(await f.text()))}catch(er){toast("Não consegui ler o arquivo")}e.target.value=""});
+$("btnSubir").addEventListener("click",async()=>{
+  const p={clientes:LS.get("clientes",[]),motoboys:LS.get("motoboys",[]),os:LS.get("os",[])};
+  const t=p.clientes.length+p.motoboys.length+p.os.length;
+  if(!t){toast("Não há dados guardados só neste aparelho");return}
+  await importar(p);
+});
+if(celular)document.querySelectorAll("[data-wa]").forEach(s=>s.textContent="Abrir conversa no WhatsApp");
+
+/* ---------- início ---------- */
+fillCfg();fillMotoSelect();fillDatalist();showTab();render();renderGrupos();
+["clientes","motoboys","os"].forEach(onData);checkCliente();
+atualizarGoogle();$("rgTxt").textContent=regras();
+iniciarFirebase();
+})();
+</script>
+</body>
+</html>
