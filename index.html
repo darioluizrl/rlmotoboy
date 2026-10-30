@@ -389,11 +389,16 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
 <main class="grid" data-view="config" hidden>
   <div class="col">
     <section class="panel" aria-labelledby="hg1">
-      <h2 id="hg1"><span class="n">G</span>Chave do Google</h2>
-      <p class="hint">Liga o autocompletar de endereços e o cálculo de km. A chave fica salva na nuvem e vale para o PC e o celular.</p>
-      <div class="actions" style="align-items:flex-end">
-        <label for="gKey" style="flex:1 1 260px">Chave de API<input id="gKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" style="font-family:var(--mono);font-size:13px"></label>
-        <button class="btn ghost sm" id="btnGVer" type="button">Mostrar</button>
+      <h2 id="hg1"><span class="n">📍</span>Mapa e endereços</h2>
+      <p class="hint">Liga o autocompletar de endereços e o km automático. As chaves ficam salvas na nuvem e valem para o PC e o celular. A busca por CEP funciona mesmo sem chave.</p>
+      <label for="mapProv">Serviço de mapa<select id="mapProv"><option value="here">HERE (recomendado)</option><option value="google">Google</option></select></label>
+      <div class="actions" style="align-items:flex-end" data-prov="here">
+        <label for="hKey" style="flex:1 1 260px">Chave de API do HERE<input id="hKey" type="password" autocomplete="off" spellcheck="false" placeholder="Cole a API Key do HERE" style="font-family:var(--mono);font-size:13px"></label>
+        <button class="btn ghost sm" type="button" data-ver="hKey">Mostrar</button>
+      </div>
+      <div class="actions" style="align-items:flex-end" data-prov="google">
+        <label for="gKey" style="flex:1 1 260px">Chave de API do Google<input id="gKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" style="font-family:var(--mono);font-size:13px"></label>
+        <button class="btn ghost sm" type="button" data-ver="gKey">Mostrar</button>
       </div>
       <div class="actions"><button class="btn primary" id="btnGSalvar" type="button">Salvar e testar</button></div>
       <div id="gMsg" class="geo" aria-live="polite"></div>
@@ -441,7 +446,19 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
     </details>
 
     <details>
-      <summary>2. Criar a chave do Google</summary>
+      <summary>2. Criar a chave do mapa (HERE)</summary>
+      <ol>
+        <li>Entre em <a href="https://platform.here.com/" target="_blank" rel="noopener">platform.here.com</a> com a sua conta.</li>
+        <li>Vá em <b>Access Manager → Apps → Register new app</b>, dê o nome <b>Central RL</b> e confirme.</li>
+        <li>Dentro do app, em <b>Credentials → API Keys</b>, clique em <b>Create API key</b> e copie a chave.</li>
+        <li>Se houver a opção de restringir a chave por domínio, libere só <code>darioluizrl.github.io</code>.</li>
+        <li>Aqui na aba Configurar, escolha <b>HERE</b>, cole a chave e clique em <b>Salvar e testar</b>. As duas linhas precisam ficar verdes.</li>
+      </ol>
+      <p class="hint">Prefere o Google? Ele também funciona: crie a chave com Places API (New) e Routes API ativadas, escolha Google aqui e cole a chave.</p>
+    </details>
+
+    <details>
+      <summary>2b. Chave do Google (opcional)</summary>
       <ol>
         <li>Entre em <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> e crie um projeto chamado <b>RL Motoboy</b>.</li>
         <li><b>Faturamento:</b> no menu, <b>Faturamento</b> → vincule uma conta com cartão. O Google exige, mesmo dentro do uso gratuito.</li>
@@ -657,7 +674,7 @@ const campos=["cNome","cTel","cColeta","cEntrega","cParadasEnd","cKm","cEspera",
 let exemplo=true;
 function semExemplo(){if(exemplo){exemplo=false;$("exTag").hidden=true}}
 campos.forEach(id=>{$(id).value=EX[id];$(id).addEventListener("input",()=>{semExemplo();render()})});
-document.querySelectorAll('input[name=veic]').forEach(el=>el.addEventListener("change",()=>{fillMotoSelect();render();renderGrupos();if(typeof calcularKm==="function"&&gkey()&&$("cColeta").value.trim()&&$("cEntrega").value.trim())calcularKm(true)}));
+document.querySelectorAll('input[name=veic]').forEach(el=>el.addEventListener("change",()=>{fillMotoSelect();render();renderGrupos();if(typeof calcularKm==="function"&&prov()&&$("cColeta").value.trim()&&$("cEntrega").value.trim())calcularKm(true)}));
 document.querySelectorAll('input[name=tipo],#xUrg,#xNot,#xChu,#xVol,#cPag,#cCobrar').forEach(el=>el.addEventListener("change",render));
 $("cMoto").addEventListener("change",render);
 
@@ -939,32 +956,132 @@ async function gRota(pts,veic){
   return null;
 }
 
+/* ---------- HERE e busca por CEP ---------- */
+const hkey=()=>String(cfg.hkey||"").trim();
+const prov=()=>cfg.mapProv==="google"?(gkey()?"google":(hkey()?"here":"")):(hkey()?"here":(gkey()?"google":""));
+const NOME_PROV={here:"HERE",google:"Google"};
+const ehCep=q=>/^\d{5}-?\d{3}$/.test(String(q).trim());
+async function hfetch(url){
+  let r;
+  try{r=await fetch(url)}catch(e){const er=new Error("Sem conexão com o HERE. Confira a internet.");er.status=0;er.here=true;throw er}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const er=new Error((j&&(j.title||j.error_description||j.error||j.cause))||("erro "+r.status));er.status=r.status;er.here=true;throw er}
+  return j||{};
+}
+function erroHere(e){
+  const m=String((e&&e.message)||"");
+  if(e&&e.status===401)return "A chave do HERE está errada ou desativada. Confira em Configurar.";
+  if(e&&e.status===403)return "O HERE recusou a chave neste endereço ("+location.host+"). Confira a restrição de domínio da chave. "+m;
+  if(e&&e.status===429)return "Limite do HERE atingido no momento. Tente de novo em instantes.";
+  if(e&&e.status===0)return m;
+  return "O HERE não respondeu: "+(m||"erro desconhecido");
+}
+const erroMapa=e=>e&&e.here?erroHere(e):erroGoogle(e);
+function hUrl(base,params,extra){
+  return base+"?"+Object.entries(params).filter(([,v])=>v!=null&&v!=="").map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&")+(extra||"")+"&apiKey="+encodeURIComponent(hkey());
+}
+function hPartes(a){
+  const rua=a.street?(a.street+(a.houseNumber?", "+a.houseNumber:"")):"";
+  const sec=[a.district,a.city?(a.city+(a.stateCode?" - "+a.stateCode:"")):""].filter(Boolean).join(", ");
+  return {main:rua,sec};
+}
+const AVISO_NUM=' · <span style="color:var(--accent-ink);font-weight:600">escolha e digite o número</span>';
+async function hAuto(q){
+  const p={q,in:"countryCode:BRA",lang:"pt-BR",limit:6,at:centro.latitude+","+centro.longitude};
+  let j;
+  try{j=await hfetch(hUrl("https://autocomplete.search.hereapi.com/v1/autocomplete",p))}
+  catch(e){if(e.status===400){delete p.at;j=await hfetch(hUrl("https://autocomplete.search.hereapi.com/v1/autocomplete",p))}else throw e}
+  return (j.items||[]).map(it=>{
+    const a=it.address||{},{main,sec}=hPartes(a),tit=main||it.title||a.label||"";
+    if(a.street&&!a.houseNumber){const v=a.street+", ";return {titulo:a.street,sub:esc(sec)+AVISO_NUM,valor:v+" - "+sec,cursor:v.length,rua:true}}
+    return {titulo:tit,sub:esc(sec+(a.postalCode?" · CEP "+a.postalCode:"")),valor:sec&&main?main+" - "+sec:(a.label||tit),hereLabel:a.label||it.title};
+  });
+}
+async function hGeocode(texto){
+  const j=await hfetch(hUrl("https://geocode.search.hereapi.com/v1/geocode",{q:texto,in:"countryCode:BRA",lang:"pt-BR",limit:1,at:centro.latitude+","+centro.longitude}));
+  const it=(j.items||[])[0];if(!it||!it.position)return null;
+  const a=it.address||{},{main,sec}=hPartes(a);
+  return {lat:it.position.lat,lng:it.position.lng,nome:main?main+" - "+sec:(a.label||texto),rua:it.resultType==="street"||(!!a.street&&!a.houseNumber)};
+}
+async function hRota(pts,veic){
+  const ll=p=>p.lat+","+p.lng;
+  const modos=veic==="caminhao"?["truck","car"]:veic==="moto"?["scooter","car"]:["car"];
+  let ultimo=null;
+  for(const m of modos){
+    const vias=pts.slice(1,-1).map(p=>"&via="+encodeURIComponent(ll(p))).join("")+(m==="scooter"?"&scooter%5BallowHighway%5D=true":"");
+    try{
+      const j=await hfetch(hUrl("https://router.hereapi.com/v8/routes",{transportMode:m,origin:ll(pts[0]),destination:ll(pts[pts.length-1]),return:"summary"},vias));
+      const r=(j.routes||[])[0];
+      if(r&&r.sections&&r.sections.length){const metros=r.sections.reduce((s,x)=>s+((x.summary&&x.summary.length)||0),0),seg=r.sections.reduce((s,x)=>s+((x.summary&&x.summary.duration)||0),0);if(metros>0)return {metros,seg,modo:m}}
+    }catch(e){ultimo=e;if(e.status===401||e.status===403||e.status===429||e.status===0)throw e}
+  }
+  if(ultimo)throw ultimo;
+  return null;
+}
+async function viaCep(q){
+  const cep=String(q).replace(/\D/g,""),cepF=cep.slice(0,5)+"-"+cep.slice(5);
+  let j;try{j=await (await fetch("https://viacep.com.br/ws/"+cep+"/json/")).json()}catch(e){return []}
+  if(!j||j.erro)return [];
+  const sec=[j.bairro,j.localidade?(j.localidade+(j.uf?" - "+j.uf:"")):""].filter(Boolean).join(", ");
+  if(!j.logradouro){const v=sec+", ";return [{titulo:sec||("CEP "+cepF),sub:"CEP "+cepF+" · cidade com CEP único: digite a rua e o número",valor:v,rua:true}]}
+  const v=j.logradouro+", ";
+  return [{titulo:j.logradouro,sub:esc(sec+" · CEP "+cepF)+AVISO_NUM,valor:v+" - "+sec,cursor:v.length,rua:true}];
+}
+function gItens(ps){
+  return ps.slice(0,6).map(p=>{
+    const main=(p.structuredFormat&&p.structuredFormat.mainText&&p.structuredFormat.mainText.text)||(p.text&&p.text.text)||"";
+    const sec=semBrasil((p.structuredFormat&&p.structuredFormat.secondaryText&&p.structuredFormat.secondaryText.text)||"");
+    const rua=(p.types||[]).includes("route")&&!/\d/.test(main);
+    return rua?{titulo:main,sub:esc(sec)+AVISO_NUM,valor:main+", ",rua:true}:{titulo:main,sub:esc(sec),valor:sec?main+" - "+sec:main,placeId:p.placeId};
+  });
+}
+async function sugerir(q){
+  if(ehCep(q))return viaCep(q);
+  if(prov()==="here")return hAuto(q);
+  if(prov()==="google")return gItens(await gAuto(q));
+  return [];
+}
+async function detalhar(it){
+  if(it.placeId){const d=await gDetalhe(it.placeId);return d&&d.location?{lat:d.location.latitude,lng:d.location.longitude,nome:semBrasil(d.formattedAddress||it.valor)}:null}
+  if(it.hereLabel)return hGeocode(it.hereLabel);
+  return null;
+}
+const MODO_TXT={TWO_WHEELER:"de moto",DRIVE:"de carro",scooter:"de moto",car:"de carro",truck:"de caminhão"};
+
 const geoSel={}; // texto do campo -> {lat,lng,nome}
 const chaveEnd=t=>String(t||"").trim().toLowerCase();
 function atualizarGoogle(){
-  const ok=!!gkey();
+  const p=prov(),ok=!!p;
   $("btnKm").hidden=!ok;
   $("kmHint").textContent=ok
-    ?"Escolha os endereços na lista do Google e os km aparecem sozinhos. Se digitar sem escolher, clique em “Calcular km”."
-    :"Configure a chave do Google na aba Configurar para ter o autocompletar e os km automáticos. Até lá, use o botão do Google Maps e digite os km.";
+    ?"Escolha os endereços na lista ("+NOME_PROV[p]+") e os km aparecem sozinhos. Também dá para digitar o CEP. Se digitar sem escolher, clique em “Calcular km”."
+    :"Dá para buscar pelo CEP. Para ter o autocompletar completo e os km automáticos, coloque a chave do HERE na aba Configurar. Até lá, use o botão do Google Maps e digite os km.";
   if(document.activeElement!==$("gKey"))$("gKey").value=cfg.gkey||"";
+  if(document.activeElement!==$("hKey"))$("hKey").value=cfg.hkey||"";
+  $("mapProv").value=cfg.mapProv==="google"?"google":"here";
+  document.querySelectorAll("[data-prov]").forEach(el=>el.hidden=el.dataset.prov!==$("mapProv").value);
 }
 async function calcularKm(auto){
   const campos=[["Retirada",$("cColeta").value.trim()],...paradas().map((p,i)=>["Parada "+(i+1),p]),["Entrega",$("cEntrega").value.trim()]];
   const info=$("kmInfo");
-  if(!gkey())return;
+  const pv=prov();if(!pv)return;
   if(!campos[0][1]||!campos[campos.length-1][1]){if(!auto)info.innerHTML='<span class="warn">Preencha o endereço de retirada e o de entrega.</span>';return}
-  const b=$("btnKm");b.disabled=true;b.textContent="Calculando…";info.innerHTML='<span class="hint">Calculando a rota no Google…</span>';
+  const b=$("btnKm");b.disabled=true;b.textContent="Calculando…";info.innerHTML='<span class="hint">Calculando a rota no '+NOME_PROV[pv]+'…</span>';
   try{
     const pts=campos.map(([,t])=>{const g=geoSel[chaveEnd(t)];return g?{lat:g.lat,lng:g.lng,nome:g.nome,ok:true}:{endereco:comCidade(t)+", Brasil",nome:t,ok:false}});
-    const r=await gRota(pts,veicAtual());
-    if(!r){info.innerHTML='<span class="warn">O Google não achou rota entre esses endereços. Escolha os endereços na lista de sugestões.</span>';return}
+    if(pv==="here"){
+      for(let i=0;i<pts.length;i++){if(pts[i].lat!=null)continue;const g=await hGeocode(comCidade(campos[i][1]));
+        if(!g){info.innerHTML='<span class="warn">O HERE não achou: '+esc(campos[i][1])+'. Escolha o endereço na lista ou busque pelo CEP.</span>';return}
+        pts[i]=Object.assign(pts[i],{lat:g.lat,lng:g.lng,nome:g.nome+(g.rua?" (achou só a rua, sem o número: confira)":""),ok:true})}
+    }
+    const r=pv==="here"?await hRota(pts,veicAtual()):await gRota(pts,veicAtual());
+    if(!r){info.innerHTML='<span class="warn">O '+NOME_PROV[pv]+' não achou rota entre esses endereços. Escolha os endereços na lista de sugestões.</span>';return}
     const km=Math.round(r.metros/100)/10;
     $("cKm").value=String(km).replace(".",",");semExemplo();render();
     if(pts[0].lat!=null){centro={latitude:pts[0].lat,longitude:pts[0].lng};LS.set("centro",centro)}
-    info.innerHTML='<span class="okk">'+fmtKm(km)+' km · cerca de '+Math.max(1,Math.round(r.seg/60))+' min'+(r.modo==="TWO_WHEELER"?" de moto":" de carro")+'</span>'+
+    info.innerHTML='<span class="okk">'+fmtKm(km)+' km · cerca de '+Math.max(1,Math.round(r.seg/60))+' min'+" "+(MODO_TXT[r.modo]||"")+'</span>'+
       pts.map((p,i)=>'<div class="g"><b>'+campos[i][0]+'</b><span>'+esc(p.nome)+(p.ok?'':' <span class="warn">(digitado, sem escolher na lista: confira)</span>')+'</span></div>').join("");
-  }catch(e){info.innerHTML='<span class="warn">'+esc(erroGoogle(e))+'</span>'}
+  }catch(e){info.innerHTML='<span class="warn">'+esc(erroMapa(e))+'</span>'}
   finally{b.disabled=false;b.textContent="Calcular km"}
 }
 $("btnKm").addEventListener("click",()=>calcularKm(false));
@@ -988,7 +1105,7 @@ function autocompletar(input,aoEscolher){
     itens.forEach((it,i)=>{const li=document.createElement("li");li.className="ac-item"+(i===ativo?" on":"");li.setAttribute("role","option");li.id=ul.id+"-"+i;
       li.innerHTML="<b>"+esc(it.titulo)+"</b><small>"+it.sub+"</small>";
       li.addEventListener("mousedown",e=>{e.preventDefault();escolher(i)});ul.appendChild(li)});
-    if(carregando){const li=document.createElement("li");li.className="ac-load";li.textContent="Buscando no Google…";ul.appendChild(li)}
+    if(carregando){const li=document.createElement("li");li.className="ac-load";li.textContent="Buscando endereços…";ul.appendChild(li)}
     else if(aviso){const li=document.createElement("li");li.className="ac-load";li.style.color="var(--bad)";li.textContent=aviso;ul.appendChild(li)}
     if(ativo>=0)input.setAttribute("aria-activedescendant",ul.id+"-"+ativo);else input.removeAttribute("aria-activedescendant");
     ul.hidden=false;input.setAttribute("aria-expanded","true");
@@ -996,36 +1113,27 @@ function autocompletar(input,aoEscolher){
   const escolher=async i=>{
     const it=itens[i];if(!it)return;
     quieto=true;input.value=it.valor;fechar();input.dispatchEvent(new Event("input",{bubbles:true}));quieto=false;
-    if(it.rua){input.focus();try{input.setSelectionRange(input.value.length,input.value.length)}catch(e){}return}
+    if(it.rua){input.focus();const c=it.cursor!=null?it.cursor:input.value.length;try{input.setSelectionRange(c,c)}catch(e){}return}
     if(it.geo){geoSel[chaveEnd(it.valor)]=it.geo;if(aoEscolher)aoEscolher(it);return}
-    if(it.placeId){
+    if(it.placeId||it.hereLabel){
       try{
-        const d=await gDetalhe(it.placeId);
-        if(d&&d.location){const g={lat:d.location.latitude,lng:d.location.longitude,nome:semBrasil(d.formattedAddress||it.valor)};geoSel[chaveEnd(input.value)]=g;it.geo=g;if(aoEscolher)aoEscolher(it)}
-      }catch(e){toast(erroGoogle(e))}
+        const g=await detalhar(it);
+        if(g){geoSel[chaveEnd(input.value)]=g;it.geo=g;if(aoEscolher)aoEscolher(it)}
+      }catch(e){toast(erroMapa(e))}
     }
   };
   input.addEventListener("input",()=>{
     if(quieto)return;clearTimeout(timer);seq++;
     const q=input.value.trim();itens=locais(q);ativo=-1;carregando=false;aviso="";
-    if(gkey()&&q.length>=3){
+    if((prov()||ehCep(q))&&q.length>=3){
       carregando=true;
       timer=setTimeout(async()=>{const meu=++seq;
         try{
-          const ps=await gAuto(q);
+          const gs=(await sugerir(q)).slice(0,6);
           if(meu!==seq)return;
-          const gs=ps.slice(0,6).map(p=>{
-            const main=(p.structuredFormat&&p.structuredFormat.mainText&&p.structuredFormat.mainText.text)||(p.text&&p.text.text)||"";
-            const sec=semBrasil((p.structuredFormat&&p.structuredFormat.secondaryText&&p.structuredFormat.secondaryText.text)||"");
-            const tipos=p.types||[];
-            const rua=tipos.includes("route")&&!/\d/.test(main);
-            return rua
-              ?{titulo:main,sub:esc(sec)+' · <span style="color:var(--accent-ink);font-weight:600">escolha e digite o número</span>',valor:main+", ",rua:true}
-              :{titulo:main,sub:esc(sec),valor:sec?main+" - "+sec:main,placeId:p.placeId};
-          });
           itens=locais(q).concat(gs);
-          if(!gs.length&&!itens.length)aviso="O Google não achou. Tente com o nome da rua e o número.";
-        }catch(e){if(meu!==seq)return;aviso=erroGoogle(e)}
+          if(!gs.length&&!itens.length)aviso=ehCep(q)?"CEP não encontrado.":"Não achei. Tente com o nome da rua e o número, ou digite o CEP.";
+        }catch(e){if(meu!==seq)return;aviso=erroMapa(e)}
         carregando=false;if(document.activeElement===input)mostrar();
       },300);
     }
@@ -1057,19 +1165,22 @@ function renderFbStatus(msg){
   else box.innerHTML='<span class="hint">Sem nuvem: os dados ficam só neste aparelho.</span>';
 }
 $("btnGSalvar").addEventListener("click",async()=>{
-  cfg.gkey=$("gKey").value.trim();saveCfg(true);atualizarGoogle();
-  const box=$("gMsg");
-  if(!cfg.gkey){box.innerHTML='<span class="hint">Chave removida.</span>';return}
-  box.innerHTML='<span class="hint">Testando…</span>';
+  cfg.hkey=$("hKey").value.trim();cfg.gkey=$("gKey").value.trim();cfg.mapProv=$("mapProv").value;saveCfg(true);atualizarGoogle();
+  const box=$("gMsg"),p=prov();
+  if(!p){box.innerHTML='<span class="hint">Sem chave salva. A busca por CEP continua funcionando.</span>';return}
+  if(p!==$("mapProv").value)box.innerHTML='<span class="warn">Falta a chave do '+NOME_PROV[$("mapProv").value]+'. Usando o '+NOME_PROV[p]+'.</span>';
+  box.innerHTML+='<span class="hint">Testando o '+NOME_PROV[p]+'…</span>';
   let lugares="",rotas="";
-  try{const r=await gAuto("Praça da Sé São Paulo");lugares=r.length?'<span class="okk">✓ Autocompletar (Places API) funcionando</span>':'<span class="warn">Places API respondeu, mas sem resultados.</span>'}
-  catch(e){lugares='<span class="warn">✗ Autocompletar: '+esc(erroGoogle(e))+'</span>'}
+  try{const r=p==="here"?await hAuto("Praça da Sé, São Paulo"):await gAuto("Praça da Sé São Paulo");lugares=r.length?'<span class="okk">✓ Autocompletar de endereços funcionando</span>':'<span class="warn">O serviço respondeu, mas sem resultados.</span>'}
+  catch(e){lugares='<span class="warn">✗ Autocompletar: '+esc(erroMapa(e))+'</span>'}
   sessao=null;
-  try{const r=await gRota([{lat:-23.5503,lng:-46.6340},{lat:-23.5614,lng:-46.6559}]);rotas=r?'<span class="okk">✓ Cálculo de km (Routes API) funcionando</span>':'<span class="warn">Routes API respondeu, mas sem rota.</span>'}
-  catch(e){rotas='<span class="warn">✗ Km: '+esc(erroGoogle(e))+'</span>'}
+  const a1={lat:-23.5503,lng:-46.6340},a2={lat:-23.5614,lng:-46.6559};
+  try{const r=p==="here"?await hRota([a1,a2],"moto"):await gRota([a1,a2]);rotas=r?'<span class="okk">✓ Cálculo de km funcionando ('+fmtKm(Math.round(r.metros/100)/10)+' km no teste, '+(MODO_TXT[r.modo]||"")+')</span>':'<span class="warn">O serviço respondeu, mas sem rota.</span>'}
+  catch(e){rotas='<span class="warn">✗ Km: '+esc(erroMapa(e))+'</span>'}
   box.innerHTML=lugares+rotas;
 });
-$("btnGVer").addEventListener("click",()=>{const i=$("gKey");i.type=i.type==="password"?"text":"password"});
+document.querySelectorAll("[data-ver]").forEach(b=>b.addEventListener("click",()=>{const i=$(b.dataset.ver);i.type=i.type==="password"?"text":"password";b.textContent=i.type==="password"?"Mostrar":"Ocultar"}));
+$("mapProv").addEventListener("change",()=>{document.querySelectorAll("[data-prov]").forEach(el=>el.hidden=el.dataset.prov!==$("mapProv").value)});
 $("btnFbConectar").addEventListener("click",async()=>{
   const conf=parseFbConf($("fbConf").value);
   if(!conf){renderFbStatus("Não reconheci o código. Cole o bloco inteiro do firebaseConfig, com apiKey, projectId e appId.");return}
