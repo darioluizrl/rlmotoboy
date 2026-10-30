@@ -136,6 +136,29 @@ img{max-width:100%}
 .guia a{color:var(--accent-ink);font-weight:600}
 .cfgh{font-family:var(--display);font-size:16px;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px}
 .cfgh:first-of-type{margin-top:4px}
+.chat{display:flex;flex-direction:column;gap:12px;min-width:0}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.step{font:inherit;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 11px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--bg)}
+.step.feito{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.step.agora{background:var(--accent);color:#16202A;border-color:var(--accent)}
+button.step.prox{cursor:pointer;color:var(--ink);border:1px dashed var(--ink)}
+button.step.prox::before{content:"Marcar: "}
+.msgs{display:flex;flex-direction:column;gap:8px;min-height:240px;max-height:58vh;overflow-y:auto;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.b{max-width:82%;padding:8px 11px;border-radius:12px 12px 12px 4px;background:var(--surface);border:1px solid var(--line);align-self:flex-start;overflow-wrap:anywhere;font-size:14px}
+.b.eu{align-self:flex-end;background:var(--accent);border-color:var(--accent);color:#16202A;border-radius:12px 12px 4px 12px}
+.b .quem{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-ink);margin-bottom:2px}
+.b.eu .quem{display:none}
+.b time{display:block;font-size:11px;opacity:.65;margin-top:3px;text-align:right}
+.b img{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-top:4px;cursor:zoom-in}
+.b img.zoom{max-height:none;cursor:zoom-out}
+.b.sis{align-self:center;background:transparent;border:0;font-size:12px;color:var(--muted);text-align:center;max-width:100%}
+.chat-in{display:flex;gap:8px;align-items:center}
+.chat-in .txt{flex:1}
+.chat-in .foto{flex-direction:row;font-size:18px;padding:6px 10px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.chatrow{cursor:pointer;border-radius:8px;padding-inline:6px!important}
+.chatrow:hover,.chatrow.sel{background:var(--bg)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;vertical-align:middle}
+#chatPage{max-width:760px;margin-inline:auto}
 code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
 </style>
 </head>
@@ -149,6 +172,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
   <a href="#frete" data-tab="frete">Frete</a>
   <a href="#clientes" data-tab="clientes">Clientes<span class="ct" id="ctCli"></span></a>
   <a href="#motoboys" data-tab="motoboys">Equipe<span class="ct" id="ctMot"></span></a>
+  <a href="#chats" data-tab="chats">Chats<span class="ct" id="ctChat"></span></a>
   <a href="#config" data-tab="config">Configurar</a>
 </nav>
 
@@ -236,6 +260,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
           <select id="pMModo" data-cfgs="mbModo"><option value="total">Todos os km × R$ por km</option><option value="extra">Faixa 2 + km que passarem</option></select></label>
       </div>
       <p class="hint" style="margin-top:6px" id="pMHint"></p>
+      <label for="pGruposV" style="margin-top:12px">Grupos do WhatsApp das OS de <span data-edv>Moto</span> (um por linha)<textarea id="pGruposV" rows="2" placeholder="Ex.: Grupo Moto"></textarea></label>
       <h3 class="cfgh">Adicionais e geral (valem para todos os veículos)</h3>
       <p class="hint" style="margin-bottom:12px">Os adicionais (ida e volta, parada, espera, urgente, noturno, chuva, volume) ainda são valores de exemplo.</p>
       <div class="cfggrid">
@@ -256,7 +281,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
         <label for="pOsVal">Valor que vai na OS
           <select id="pOsVal" data-cfgs="osValor"><option value="motoboy">Pagamento do motoboy / motorista</option><option value="cliente">Valor cobrado do cliente</option></select></label>
       </div>
-      <label for="pGrupos" style="margin-top:12px">Grupos do WhatsApp que recebem a OS (um por linha)<textarea id="pGrupos" rows="3"></textarea></label>
+      <label for="pGrupos" style="margin-top:12px">Grupos que recebem todas as OS, de qualquer veículo (opcional, um por linha)<textarea id="pGrupos" rows="2" placeholder="Ex.: Controle / Financeiro"></textarea></label>
     </details>
   </div>
 
@@ -287,6 +312,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
       <div id="osBox" hidden style="display:flex;flex-direction:column;gap:12px">
         <pre class="msg" id="msgOS"></pre>
         <div class="actions" id="motoAct"></div>
+        <div id="chatAct" style="display:flex;flex-direction:column;gap:8px"></div>
         <div class="groups" id="grpList"></div>
         <p class="hint">Copie, abra o grupo no WhatsApp Web e cole (Ctrl+V). Cada grupo fica marcado depois de copiado.</p>
       </div>
@@ -349,6 +375,16 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
   </section>
 </main>
 
+<!-- ================= CHATS ================= -->
+<main class="grid" data-view="chats" hidden>
+  <section class="panel" aria-labelledby="hch1">
+    <div class="hd"><h2 id="hch1">Chats das corridas</h2></div>
+    <p class="hint">Cada OS tem um chat entre a RL e quem faz a corrida. O motoboy entra pelo link que você manda no WhatsApp, sem baixar nada. O cliente final não tem acesso.</p>
+    <ul class="list" id="lstChats"></ul>
+  </section>
+  <section class="panel" id="chatBox" aria-label="Conversa"><div class="empty">Escolha uma corrida para ver a conversa.</div></section>
+</main>
+
 <!-- ================= CONFIGURAR ================= -->
 <main class="grid" data-view="config" hidden>
   <div class="col">
@@ -365,7 +401,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
 
     <section class="panel" aria-labelledby="hg2">
       <h2 id="hg2"><span class="n">☁</span>Nuvem (Firebase)</h2>
-      <p class="hint">Guarda clientes, motoboys, OS e a tabela de preços na sua conta do Google, iguais no PC e no celular.</p>
+      <p class="hint">Já vem ligada à nuvem da RL Motoboy. Clique em <b>Entrar com Google</b> com o e-mail liberado para ver e salvar clientes, equipe, OS e tabela, iguais no PC e no celular. Só use o campo abaixo se for trocar de projeto do Firebase.</p>
       <label for="fbConf">Código de configuração do Firebase<textarea id="fbConf" rows="5" spellcheck="false" placeholder="Cole aqui o bloco const firebaseConfig = { … } ou o código copiado do outro aparelho" style="font-family:var(--mono);font-size:12px"></textarea></label>
       <div class="actions">
         <button class="btn primary" id="btnFbConectar" type="button">Conectar</button>
@@ -426,7 +462,7 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
       <summary>3. Ligar a nuvem (Firebase)</summary>
       <ol>
         <li>Entre em <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">console.firebase.google.com</a> → <b>Criar um projeto</b> novo, com o nome <b>rl-motoboy-dados</b>. Use um projeto separado do da chave do Google: assim ele fica no plano gratuito (Spark), sem cartão. Pode desligar o Google Analytics.</li>
-        <li><b>Authentication → Vamos começar → Google</b>: ative, escolha seu e-mail de suporte e salve.</li>
+        <li><b>Authentication → Vamos começar → Google</b>: ative, escolha seu e-mail de suporte e salve. Depois, em <b>Adicionar novo fornecedor</b>, ative também o <b>Anônimo</b> (é o que deixa o motoboy entrar no chat da corrida pelo link).</li>
         <li><b>Authentication → Configurações → Domínios autorizados → Adicionar domínio</b>: <code id="rgHost"></code> (o endereço do GitHub, sem https e sem /rlmotoboy).</li>
         <li><b>Firestore Database → Criar banco de dados</b>: local <b>southamerica-east1 (São Paulo)</b>, modo de <b>produção</b>.</li>
         <li>Na aba <b>Regras</b> do Firestore, apague tudo e cole as regras abaixo, com o seu e-mail do Google. Depois clique em <b>Publicar</b>.
@@ -443,26 +479,30 @@ code{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px so
     <details>
       <summary>4. Usar no celular</summary>
       <ol>
-        <li>No PC, clique em <b>Copiar código para o celular</b> e mande para você mesmo no WhatsApp.</li>
-        <li>No celular, abra <code>https://SEU-USUARIO.github.io/rlmotoboy/</code> no Chrome → aba <b>Configurar</b>.</li>
-        <li>Cole o código em <b>Nuvem (Firebase)</b>, clique em <b>Conectar</b> e entre com o mesmo e-mail. A chave do Google vem sozinha.</li>
+        <li>No celular, abra o endereço da Central no Chrome.</li>
+        <li>Toque em <b>Entrar com Google</b>, no alto, e entre com o mesmo e-mail do PC. A chave do Google e todos os cadastros vêm sozinhos.</li>
         <li>No menu <b>⋮</b> do Chrome, toque em <b>Adicionar à tela inicial</b> para ter o ícone como um app.</li>
       </ol>
     </details>
   </section>
 </main>
 </div>
+<div id="chatPage" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
 (function(){
 const $=id=>document.getElementById(id);
-const DEF={minimo:50,kmInclusos:10,porKm:3,kmRedondo:"sim",tabV:2,idaVoltaPct:80,parada:5,tolerancia:10,espera10:5,volume:5,urgPct:30,notPct:20,chuvaPct:20,arred:1,cidade:"",proxOS:1,mb1Lim:6,mb1Val:20,mb2Lim:16,mb2Val:25,mbKm:1.5,mbModo:"total",osValor:"motoboy",grupos:"Motoboys RL\nControle / Financeiro"};
+const modoChat=/^#c=/.test(location.hash);
+const DEF={minimo:50,kmInclusos:10,porKm:3,kmRedondo:"sim",tabV:2,idaVoltaPct:80,parada:5,tolerancia:10,espera10:5,volume:5,urgPct:30,notPct:20,chuvaPct:20,arred:1,cidade:"",proxOS:1,mb1Lim:6,mb1Val:20,mb2Lim:16,mb2Val:25,mbKm:1.5,mbModo:"total",osValor:"motoboy",grupos:"",gruposV:{moto:"Grupo Moto",carro:"Grupo carro",utilitario:"",caminhao:""}};
 const LS={get(k,d){try{const v=localStorage.getItem("rl_"+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem("rl_"+k,JSON.stringify(v))}catch(e){}}};
 let cfg=Object.assign({},DEF,LS.get("cfg",{}));
-function migrar(){if((cfg.tabV||0)<2){Object.assign(cfg,{minimo:50,kmInclusos:10,porKm:3,kmRedondo:"sim",tabV:2});return true}return false}
+function migrar(){let m=false;if((cfg.tabV||0)<2){Object.assign(cfg,{minimo:50,kmInclusos:10,porKm:3,kmRedondo:"sim",tabV:2});m=true}
+  if((cfg.tabV||0)<3){if(cfg.grupos==="Motoboys RL\nControle / Financeiro")cfg.grupos="";cfg.gruposV=Object.assign({moto:"Grupo Moto",carro:"Grupo carro",utilitario:"",caminhao:""},cfg.gruposV||{});cfg.tabV=3;m=true}
+  if(!cfg.gruposV||typeof cfg.gruposV!=="object"){cfg.gruposV={moto:"Grupo Moto",carro:"Grupo carro",utilitario:"",caminhao:""};m=true}
+  return m}
 if(migrar())LS.set("cfg",cfg);
-const data={clientes:LS.get("clientes",[]),motoboys:LS.get("motoboys",[]),os:LS.get("os",[])};
+const data={clientes:LS.get("clientes",[]),motoboys:LS.get("motoboys",[]),os:LS.get("os",[]),chats:[]};
 const VEIC={moto:"Moto",carro:"Carro",utilitario:"Utilitário",caminhao:"Caminhão"};
 const TABK=["minimo","kmInclusos","porKm","mb1Lim","mb1Val","mb2Lim","mb2Val","mbKm","mbModo"];
 let edVeic="moto";
@@ -483,6 +523,9 @@ const waLink=(tel,txt)=>{const d=digits(tel);if(!d)return null;return celular?"h
 
 /* ---------- armazenamento: Firebase (nuvem) quando configurado, senão este navegador ---------- */
 const FBB="https://www.gstatic.com/firebasejs/10.12.2/";
+// Configuração pública do Firebase da RL Motoboy (a proteção dos dados está nas regras do Firestore)
+const FB_PADRAO={apiKey:"AIzaSyDrY9RNE5XEenSzRRG0VtsGVq6F_lZUwkI",authDomain:"rl-motoboy.firebaseapp.com",projectId:"rl-motoboy",storageBucket:"rl-motoboy.firebasestorage.app",messagingSenderId:"566491805607",appId:"1:566491805607:web:e73944e64d5fc15a5d6882"};
+const fbConf=()=>LS.get("fbconf",null)||FB_PADRAO;
 let fb=null; // {db, st, au, auth, user}
 let unsubs=[];
 function nuvem(){return !!(fb&&fb.user)}
@@ -522,7 +565,7 @@ function statusSalvo(){
   st.classList.toggle("cloud",on);
   st.lastElementChild.textContent=on?"Salvo na nuvem":(fb?"Entre para sincronizar":"Salvo só neste aparelho");
   $("btnEntrar").hidden=!(fb&&!fb.user);
-  renderFbStatus();
+  renderFbStatus();renderChats();renderChatAct();
 }
 function parseFbConf(t){
   t=String(t||"");const o={};
@@ -531,7 +574,7 @@ function parseFbConf(t){
   return o.apiKey&&o.projectId&&o.appId?o:null;
 }
 async function iniciarFirebase(){
-  const conf=LS.get("fbconf",null);
+  const conf=fbConf();
   if(!conf){fb=null;statusSalvo();return}
   try{
     const [am,au,st]=await Promise.all([import(FBB+"firebase-app.js"),import(FBB+"firebase-auth.js"),import(FBB+"firebase-firestore.js")]);
@@ -543,14 +586,16 @@ async function iniciarFirebase(){
     fb={db,st,au,auth,user:null};
     statusSalvo();
     try{await au.getRedirectResult(auth)}catch(e){}
-    au.onAuthStateChanged(auth,u=>{
-      fb.user=u||null;unsubs.forEach(f=>f());unsubs=[];
+    au.onAuthStateChanged(auth,u0=>{
+      if(modoChat){if(!u0){au.signInAnonymously(auth).catch(erroChatExterno);return}abrirChatExterno();return}
+      const u=u0&&!u0.isAnonymous?u0:null;
+      fb.user=u;unsubs.forEach(f=>f());unsubs=[];data.chats=[];
       if(!u){data.clientes=LS.get("clientes",[]);data.motoboys=LS.get("motoboys",[]);data.os=LS.get("os",[]);["clientes","motoboys","os"].forEach(onData)}
       statusSalvo();
       if(u)ouvir();
     });
   }catch(e){
-    fb=null;statusSalvo();
+    fb=null;statusSalvo();if(modoChat){erroChatExterno(e);return}
     $("fbMsg").innerHTML='<span class="warn">Não deu para conectar ao Firebase: '+esc(e.message||e)+'. Confira o código colado.</span>';
   }
 }
@@ -562,6 +607,7 @@ function ouvir(){
   unsubs.push(st.onSnapshot(st.collection(db,"clientes"),s=>{data.clientes=lista(s).sort(sortNome);onData("clientes")},err));
   unsubs.push(st.onSnapshot(st.collection(db,"motoboys"),s=>{data.motoboys=lista(s).sort(sortNome);onData("motoboys")},err));
   unsubs.push(st.onSnapshot(st.query(st.collection(db,"os"),st.orderBy("criado","desc"),st.limit(300)),s=>{data.os=lista(s);onData("os")},err));
+  unsubs.push(st.onSnapshot(st.query(st.collection(db,"chats"),st.orderBy("criado","desc"),st.limit(80)),s=>{data.chats=lista(s);renderChats()},err));
   let primeira=true;
   unsubs.push(st.onSnapshot(st.doc(db,"config","geral"),s=>{
     if(s.exists()){
@@ -589,7 +635,8 @@ async function sair(){if(fb){try{await fb.au.signOut(fb.auth)}catch(e){}}}
 
 /* ---------- abas ---------- */
 function showTab(){
-  const t=(location.hash||"#frete").slice(1);const v=["frete","clientes","motoboys","config"].includes(t)?t:"frete";
+  if(modoChat)return;
+  const t=(location.hash||"#frete").slice(1);const v=["frete","clientes","motoboys","chats","config"].includes(t)?t:"frete";
   document.querySelectorAll("[data-view]").forEach(m=>m.hidden=m.dataset.view!==v);
   document.querySelectorAll("[data-tab]").forEach(a=>{if(a.dataset.tab===v)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
 }
@@ -599,9 +646,10 @@ addEventListener("hashchange",showTab);
 const alvoCfg=k=>TABK.includes(k)?tab(edVeic):cfg;
 document.querySelectorAll("[data-cfgs]").forEach(el=>el.addEventListener("change",()=>{const k=el.dataset.cfgs;alvoCfg(k)[k]=el.value;saveCfg();render()}));
 document.querySelectorAll("input[name=edVeic]").forEach(r=>r.addEventListener("change",()=>{edVeic=r.value;fillCfg();render()}));
-function fillCfg(){document.querySelectorAll("[data-edv]").forEach(e=>e.textContent=VEIC[edVeic]);document.querySelectorAll("[data-quem]").forEach(e=>e.textContent=quem(edVeic));document.querySelectorAll("[data-cfgs]").forEach(el=>{const k=el.dataset.cfgs;el.value=alvoCfg(k)[k]||""});document.querySelectorAll("[data-cfg]").forEach(el=>{if(document.activeElement===el)return;const k=el.dataset.cfg;const o=alvoCfg(k);el.value=typeof o[k]==="number"?String(o[k]).replace(".",","):(o[k]||"")});if(document.activeElement!==$("pGrupos"))$("pGrupos").value=cfg.grupos||""}
+function fillCfg(){document.querySelectorAll("[data-edv]").forEach(e=>e.textContent=VEIC[edVeic]);document.querySelectorAll("[data-quem]").forEach(e=>e.textContent=quem(edVeic));document.querySelectorAll("[data-cfgs]").forEach(el=>{const k=el.dataset.cfgs;el.value=alvoCfg(k)[k]||""});document.querySelectorAll("[data-cfg]").forEach(el=>{if(document.activeElement===el)return;const k=el.dataset.cfg;const o=alvoCfg(k);el.value=typeof o[k]==="number"?String(o[k]).replace(".",","):(o[k]||"")});if(document.activeElement!==$("pGrupos"))$("pGrupos").value=cfg.grupos||"";if(document.activeElement!==$("pGruposV"))$("pGruposV").value=(cfg.gruposV&&cfg.gruposV[edVeic])||""}
 document.querySelectorAll("[data-cfg]").forEach(el=>el.addEventListener("input",()=>{const k=el.dataset.cfg;alvoCfg(k)[k]=k==="cidade"?el.value:num(el.value);saveCfg();render()}));
 $("pGrupos").addEventListener("input",()=>{cfg.grupos=$("pGrupos").value;saveCfg();renderGrupos()});
+$("pGruposV").addEventListener("input",()=>{if(!cfg.gruposV||typeof cfg.gruposV!=="object")cfg.gruposV={};cfg.gruposV[edVeic]=$("pGruposV").value;saveCfg();renderGrupos()});
 
 /* ---------- frete ---------- */
 const EX={cNome:"Mercado Boa Vista",cTel:"13 99812-3344",cColeta:"Av. Harry Forssell, 1200, Belas Artes",cEntrega:"Rua Cunha Moreira, 85, Centro",cParadasEnd:"",cKm:"4,9",cEspera:"0",cObs:"2 caixas de pedido, entregar para o Sr. Paulo",cPrazo:"até 30 min"};
@@ -609,7 +657,7 @@ const campos=["cNome","cTel","cColeta","cEntrega","cParadasEnd","cKm","cEspera",
 let exemplo=true;
 function semExemplo(){if(exemplo){exemplo=false;$("exTag").hidden=true}}
 campos.forEach(id=>{$(id).value=EX[id];$(id).addEventListener("input",()=>{semExemplo();render()})});
-document.querySelectorAll('input[name=veic]').forEach(el=>el.addEventListener("change",()=>{fillMotoSelect();render();if(typeof calcularKm==="function"&&gkey()&&$("cColeta").value.trim()&&$("cEntrega").value.trim())calcularKm(true)}));
+document.querySelectorAll('input[name=veic]').forEach(el=>el.addEventListener("change",()=>{fillMotoSelect();render();renderGrupos();if(typeof calcularKm==="function"&&gkey()&&$("cColeta").value.trim()&&$("cEntrega").value.trim())calcularKm(true)}));
 document.querySelectorAll('input[name=tipo],#xUrg,#xNot,#xChu,#xVol,#cPag,#cCobrar').forEach(el=>el.addEventListener("change",render));
 $("cMoto").addEventListener("change",render);
 
@@ -734,20 +782,24 @@ function fillMotoSelect(){
   $("cMoto").innerHTML='<option value="">A definir (perguntar no grupo)</option>'+data.motoboys.filter(m=>m.ativo!==false&&(m.veic||"moto")===veicAtual()).map(m=>'<option value="'+esc(m.id)+'">'+esc(m.nome)+(m.moto?" · "+esc(m.moto):"")+'</option>').join("");
   $("cMoto").value=data.motoboys.some(m=>m.id===cur)?cur:"";
 }
-function resetOS(){osAtual=null;copiados={};$("osBox").hidden=true;$("osWait").hidden=false;$("stOS").textContent="Aguardando aceite";$("stOS").classList.remove("ok");$("stOrc").textContent="Rascunho"}
+function resetOS(){osAtual=null;if($("chatAct"))$("chatAct").innerHTML="";copiados={};$("osBox").hidden=true;$("osWait").hidden=false;$("stOS").textContent="Aguardando aceite";$("stOS").classList.remove("ok");$("stOrc").textContent="Rascunho"}
 $("btnAceite").addEventListener("click",async()=>{
   const n=Math.max(1,Math.round(cfg.proxOS||1));const d=new Date();
   osAtual={num:n,data:d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),id:newId("os")};
   cfg.proxOS=n+1;$("pNum").value=cfg.proxOS;saveCfg(true);
   copiados={};$("osWait").hidden=true;$("osBox").hidden=false;$("stOS").textContent="OS "+pad(n)+" aberta";$("stOS").classList.add("ok");$("stOrc").textContent="Aceito";
   render();renderGrupos();
-  const c=calc(),mb=motoSel();
-  await salvar("os",osAtual.id,{num:n,criado:d.getTime(),data:osAtual.data,clienteId:clienteSel||"",cliente:$("cNome").value.trim()||"Sem nome",tel:$("cTel").value.trim(),coleta:$("cColeta").value.trim(),entrega:$("cEntrega").value.trim(),km:c.km,veiculo:c.veic,total:c.total,pagMoto:pagMoto(c).valor,pag:$("cPag").value,motoboyId:mb?mb.id:"",motoboy:mb?mb.nome:"",status:"aberta",texto:$("msgOS").textContent});
+  const c=calc(),mb=motoSel(),osRef=osAtual;renderChatAct();
+  const cid=await criarChatOS({os:n,osId:osAtual.id,criado:d.getTime(),cliente:$("cNome").value.trim()||"Cliente",motoboy:mb?mb.nome:"",veiculo:c.veic,retirada:$("cColeta").value.trim(),entrega:$("cEntrega").value.trim(),paradas:paradas(),obs:$("cObs").value.trim()});
+  if(cid){osRef.chat=cid;if(osAtual===osRef)renderChatAct()}
+  await salvar("os",osRef.id,{chat:cid||"",num:n,criado:d.getTime(),data:osAtual.data,clienteId:clienteSel||"",cliente:$("cNome").value.trim()||"Sem nome",tel:$("cTel").value.trim(),coleta:$("cColeta").value.trim(),entrega:$("cEntrega").value.trim(),km:c.km,veiculo:c.veic,total:c.total,pagMoto:pagMoto(c).valor,pag:$("cPag").value,motoboyId:mb?mb.id:"",motoboy:mb?mb.nome:"",status:"aberta",texto:$("msgOS").textContent});
 });
 $("cMoto").addEventListener("change",()=>{
   if(!osAtual)return;const mb=motoSel();
   const os=data.os.find(o=>o.id===osAtual.id);
   if(os)salvar("os",os.id,Object.assign({},os,{motoboyId:mb?mb.id:"",motoboy:mb?mb.nome:"",texto:$("msgOS").textContent}));
+  if(osAtual.chat&&nuvem())fb.st.updateDoc(fb.st.doc(fb.db,"chats",osAtual.chat),{motoboy:mb?mb.nome:""}).catch(()=>{});
+  renderChatAct();
 });
 function renderMotoAct(){
   const box=$("motoAct");box.innerHTML="";const mb=motoSel();if(!mb)return;
@@ -756,8 +808,9 @@ function renderMotoAct(){
   const s=document.createElement("span");s.className="hint";s.textContent=mb.nome.split(" ")[0]+" recebe "+brl(pagMoto(calc()).valor)+(mb.pix?" · Pix: "+mb.pix:"");box.appendChild(s);
 }
 function renderGrupos(){
-  const gs=(cfg.grupos||"").split("\n").map(s=>s.trim()).filter(Boolean);const box=$("grpList");box.innerHTML="";
-  if(!gs.length){box.innerHTML='<p class="hint">Nenhum grupo cadastrado. Adicione em “Tabela de preços e grupos”.</p>';return}
+  const v=veicAtual(),linhas=t=>String(t||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  const gs=[...new Set([...linhas(cfg.gruposV&&cfg.gruposV[v]),...linhas(cfg.grupos)])];const box=$("grpList");box.innerHTML="";
+  if(!gs.length){box.innerHTML='<p class="hint">Nenhum grupo para '+esc(VEIC[v].toLowerCase())+'. Cadastre em “Tabela de preços e grupos”, escolhendo '+esc(VEIC[v])+'.</p>';return}
   gs.forEach(g=>{const d=document.createElement("div");d.className="grp"+(copiados[g]?" done":"");d.innerHTML="<b>"+esc(g)+"</b>";
     const b=document.createElement("button");b.type="button";b.className="btn primary sm";b.textContent="Copiar OS";
     b.addEventListener("click",()=>{copiar($("msgOS").textContent,"OS copiada para "+g,$("msgOS"));copiados[g]=true;d.classList.add("done")});
@@ -776,7 +829,9 @@ function renderHist(){
     const st=document.createElement("button");st.type="button";st.className="status"+(feita?" ok":"");st.style.cursor="pointer";st.textContent=feita?"Concluída":"Aberta";st.title="Clique para mudar o status";
     st.addEventListener("click",()=>salvar("os",o.id,Object.assign({},o,{status:feita?"aberta":"concluida"})));
     const b=document.createElement("button");b.className="btn ghost sm";b.type="button";b.textContent="Copiar";b.addEventListener("click",()=>copiar(o.texto||"","OS #"+o.num+" copiada",null));
-    r.append(st,b);li.appendChild(r);ul.appendChild(li)});
+    r.append(st,b);
+    if(o.chat){const ch=document.createElement("button");ch.className="btn ghost sm";ch.type="button";ch.textContent="Chat";ch.addEventListener("click",()=>abrirChatRL(o.chat));r.appendChild(ch)}
+    li.appendChild(r);ul.appendChild(li)});
 }
 
 /* ---------- cadastros ---------- */
@@ -994,7 +1049,7 @@ autocompletar($("fcEnd"),it=>{fcGeo=it.geo||null});
 function renderFbStatus(msg){
   const box=$("fbMsg");if(!box)return;
   const conf=LS.get("fbconf",null);
-  $("btnFbSair").hidden=!nuvem();$("btnFbEntrar").hidden=!(fb&&!fb.user);$("btnFbCopiar").hidden=!conf;$("btnFbDesligar").hidden=!conf;
+  $("btnFbSair").hidden=!nuvem();$("btnFbEntrar").hidden=!(fb&&!fb.user);$("btnFbCopiar").hidden=true;$("btnFbDesligar").hidden=!LS.get("fbconf",null);
   $("btnSubir").hidden=!nuvem();
   if(msg){box.innerHTML='<span class="warn">'+esc(msg)+'</span>';return}
   if(nuvem())box.innerHTML='<span class="okk">Conectado como '+esc(fb.user.email||"")+'. Clientes, motoboys, OS e tabela estão sincronizados.</span>';
@@ -1031,7 +1086,7 @@ $("btnFbDesligar").addEventListener("click",async()=>{await sair();try{localStor
 function regras(){
   const emails=$("rgEmail").value.split(/[\s,;]+/).map(s=>s.trim().toLowerCase()).filter(s=>s.includes("@"));
   const lista=emails.length?emails.map(e=>'"'+e+'"').join(", "):'"seu-email@gmail.com"';
-  return "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null\n        && request.auth.token.email_verified == true\n        && request.auth.token.email in ["+lista+"];\n    }\n  }\n}";
+  return "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function dono() {\n      return request.auth != null\n        && request.auth.token.email_verified == true\n        && request.auth.token.email in ["+lista+"];\n    }\n    match /{document=**} {\n      allow read, write: if dono();\n    }\n    match /chats/{chatId} {\n      allow get: if request.auth != null;\n      allow update: if request.auth != null\n        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusEm', 'ultimo']);\n      match /msgs/{msgId} {\n        allow read: if request.auth != null;\n        allow create: if request.auth != null\n          && request.resource.data.keys().hasOnly(['de', 'nome', 'texto', 'foto', 'em', 'tipo'])\n          && request.resource.data.de in ['motoboy', 'rl']\n          && request.resource.data.texto is string\n          && request.resource.data.texto.size() <= 2000\n          && (!('foto' in request.resource.data)\n              || (request.resource.data.foto is string && request.resource.data.foto.size() < 900000));\n      }\n    }\n  }\n}";
 }
 $("rgEmail").addEventListener("input",()=>{$("rgTxt").textContent=regras()});
 $("btnRg").addEventListener("click",()=>copiar(regras(),"Regras copiadas",$("rgTxt")));
@@ -1059,10 +1114,200 @@ $("btnSubir").addEventListener("click",async()=>{
 });
 if(celular)document.querySelectorAll("[data-wa]").forEach(s=>s.textContent="Abrir conversa no WhatsApp");
 
+/* ---------- chat por corrida (RL, cliente e motoboy) ---------- */
+const ETAPAS=[["aberta","Confirmada"],["a_caminho","A caminho da retirada"],["coletado","Coletado"],["entregue","Entregue"]];
+const segredo=()=>{const a=new Uint8Array(16);crypto.getRandomValues(a);return Array.from(a,b=>(b%36).toString(36)).join("")+Date.now().toString(36)};
+const baseUrl=()=>location.href.split("#")[0];
+const linkChat=(cid,p)=>baseUrl()+"#c="+cid+"&p="+p;
+const horaCurta=t=>{const d=new Date(t||0);return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+(new Date().toDateString()===d.toDateString()?"":" · "+d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}))};
+let tituloBase=document.title,naoVistas=0;
+addEventListener("focus",()=>{naoVistas=0;document.title=tituloBase});
+function avisarNova(){
+  if(document.hasFocus())return;
+  naoVistas++;document.title="("+naoVistas+") Nova mensagem · RL Motoboy";
+  try{const ac=new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=880;g.gain.value=.08;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.15)}catch(e){}
+  try{navigator.vibrate&&navigator.vibrate(120)}catch(e){}
+}
+async function fotoComprimida(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((ok,er)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=er;i.src=url});
+    let max=1280,q=.62,out="";
+    for(let t=0;t<5;t++){
+      const s=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");
+      c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      out=c.toDataURL("image/jpeg",q);if(out.length<850000)return out;max*=.75;q=Math.max(.35,q-.08);
+    }
+    return null;
+  }finally{URL.revokeObjectURL(url)}
+}
+function montarChat(box,cid,papel){
+  const {st,db}=fb;
+  box.innerHTML='<div class="chat"><div class="chat-hd"><p class="hint">Carregando a corrida…</p></div><div class="steps"></div>'+
+    (papel==="rl"?'<div class="actions chat-links"></div>':'')+
+    '<div class="msgs" aria-live="polite"></div>'+
+    '<form class="chat-in"><label class="btn ghost foto" title="Enviar foto (comprovante)" aria-label="Enviar foto">📷<input type="file" accept="image/*" hidden></label>'+
+    '<input class="txt" placeholder="Escreva uma mensagem" autocomplete="off" aria-label="Mensagem" maxlength="1500"><button class="btn primary" type="submit">Enviar</button></form></div>';
+  const hd=box.querySelector(".chat-hd"),steps=box.querySelector(".steps"),msgs=box.querySelector(".msgs"),form=box.querySelector(".chat-in"),txt=box.querySelector(".txt"),fin=box.querySelector("input[type=file]");
+  const ref=st.doc(db,"chats",cid);
+  let info=null,primeira=true,vistos=new Set();
+  const nomeDe=p=>p==="rl"?"RL Motoboy":p==="cliente"?((info&&info.cliente)||"Cliente"):((info&&info.motoboy)||"Motoboy");
+  const rotulo=p=>p==="rl"?"RL Motoboy":p==="cliente"?"Cliente · "+((info&&info.cliente)||""):(info&&info.veiculo&&info.veiculo!=="moto"?"Motorista":"Motoboy")+((info&&info.motoboy)?" · "+info.motoboy:"");
+  function renderInfo(){
+    const v=VEIC[info.veiculo]||"Moto";
+    const u="https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(info.retirada||"")+"&destination="+encodeURIComponent(info.entrega||"")+((info.paradas||[]).length?"&waypoints="+encodeURIComponent(info.paradas.join("|")):"");
+    hd.innerHTML='<div class="hd"><h2>OS '+pad(info.os)+' · '+esc(v)+'</h2>'+(papel!=="rl"?'<span class="status">Você faz a corrida</span>':'')+'</div>'+
+      '<div class="geo"><div class="g"><b>Retirada</b><span>'+esc(info.retirada||"—")+'</span></div>'+
+      (info.paradas||[]).map((p,i)=>'<div class="g"><b>Parada '+(i+1)+'</b><span>'+esc(p)+'</span></div>').join("")+
+      '<div class="g"><b>Entrega</b><span>'+esc(info.entrega||"—")+'</span></div>'+
+      '<div class="g"><b>Cliente</b><span>'+esc(info.cliente||"—")+'</span></div>'+
+      '<div class="g"><b>'+(info.veiculo&&info.veiculo!=="moto"?"Motorista":"Motoboy")+'</b><span>'+esc(info.motoboy||"a definir")+'</span></div>'+
+      (info.obs?'<div class="g"><b>Obs.</b><span>'+esc(info.obs)+'</span></div>':'')+'</div>'+
+      '<div class="actions"><a class="btn sm" href="'+u+'" target="_blank" rel="noopener">Ver rota no Google Maps ↗</a></div>';
+    const atual=Math.max(0,ETAPAS.findIndex(e=>e[0]===info.status));
+    const pode=true;
+    steps.innerHTML="";
+    ETAPAS.forEach(([k,n],i)=>{
+      const el=document.createElement(pode&&i===atual+1?"button":"span");
+      el.className="step"+(i<atual?" feito":i===atual?" agora":"")+(pode&&i===atual+1?" prox":"");
+      el.textContent=(i<atual?"✓ ":"")+n;
+      if(el.tagName==="BUTTON"){el.type="button";el.title="Marcar: "+n;el.addEventListener("click",()=>mudarStatus(k,n))}
+      steps.appendChild(el);
+    });
+    if(papel==="rl"){
+      const box2=box.querySelector(".chat-links");box2.innerHTML="";
+      [["motoboy","Copiar link do motoboy"]].forEach(([p,t])=>{const b=document.createElement("button");b.type="button";b.className="btn sm";b.textContent=t;b.addEventListener("click",()=>copiar(linkChat(cid,p),"Link copiado",null));box2.appendChild(b)});
+    }
+  }
+  async function mudarStatus(k,n){
+    try{
+      await st.updateDoc(ref,{status:k,statusEm:Date.now()});
+      await st.addDoc(st.collection(db,"chats",cid,"msgs"),{de:papel,nome:nomeDe(papel),texto:n,tipo:"status",em:Date.now()});
+      await st.updateDoc(ref,{ultimo:{de:papel,texto:"Status: "+n,em:Date.now()}});
+    }catch(e){toast("Não deu para atualizar: "+(e.code||e.message))}
+  }
+  async function enviar(texto,foto){
+    const m={de:papel,nome:nomeDe(papel),texto:texto||"",em:Date.now()};if(foto)m.foto=foto;
+    try{
+      await st.addDoc(st.collection(db,"chats",cid,"msgs"),m);
+      await st.updateDoc(ref,{ultimo:{de:papel,texto:foto?"📷 Foto"+(texto?" · "+texto:""):texto,em:m.em}});
+      if(papel==="rl"){try{const l=LS.get("lidos",{});l[cid]=Date.now();LS.set("lidos",l)}catch(e){}}
+      return true;
+    }catch(e){toast("Mensagem não enviada: "+(e.code||e.message));return false}
+  }
+  form.addEventListener("submit",async e=>{e.preventDefault();const t=txt.value.trim();if(!t)return;txt.value="";if(!(await enviar(t)))txt.value=t});
+  fin.addEventListener("change",async()=>{
+    const f=fin.files&&fin.files[0];fin.value="";if(!f)return;
+    toast("Enviando foto…");const d=await fotoComprimida(f).catch(()=>null);
+    if(!d){toast("Foto grande demais. Tente outra.");return}
+    await enviar(txt.value.trim(),d);txt.value="";
+  });
+  msgs.addEventListener("click",e=>{if(e.target.tagName==="IMG")e.target.classList.toggle("zoom")});
+  const un1=st.onSnapshot(ref,s=>{
+    if(!s.exists()){box.innerHTML='<div class="empty">Este chat não existe ou foi encerrado. Confira o link com a RL Motoboy.</div>';return}
+    info=s.data();renderInfo();
+  },e=>{box.innerHTML='<div class="empty">Não foi possível abrir este chat ('+esc(e.code||e.message)+'). Confira o link com a RL Motoboy.</div>'});
+  const un2=st.onSnapshot(st.query(st.collection(db,"chats",cid,"msgs"),st.orderBy("em"),st.limit(400)),s=>{
+    const fim=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<80;
+    msgs.innerHTML="";
+    if(!s.size)msgs.innerHTML='<p class="hint" style="text-align:center;margin:auto">Nenhuma mensagem ainda. Use este chat para combinar a coleta, avisar atrasos e mandar a foto da entrega.</p>';
+    let nova=false;
+    s.docs.forEach(d=>{
+      const m=d.data();
+      if(!vistos.has(d.id)){vistos.add(d.id);if(!primeira&&m.de!==papel)nova=true}
+      const el=document.createElement("div");
+      if(m.tipo==="status"){el.className="b sis";el.textContent="✓ "+(m.texto||"")+" · "+horaCurta(m.em)+" · "+rotulo(m.de).split(" · ")[0];msgs.appendChild(el);return}
+      el.className="b"+(m.de===papel?" eu":"");
+      const q=document.createElement("span");q.className="quem";q.textContent=rotulo(m.de);el.appendChild(q);
+      if(m.foto){const im=document.createElement("img");im.src=m.foto;im.alt="Foto enviada por "+rotulo(m.de);el.appendChild(im)}
+      if(m.texto){const p=document.createElement("div");p.textContent=m.texto;el.appendChild(p)}
+      const tm=document.createElement("time");tm.textContent=horaCurta(m.em);el.appendChild(tm);
+      msgs.appendChild(el);
+    });
+    if(fim||primeira)msgs.scrollTop=msgs.scrollHeight;
+    if(nova)avisarNova();
+    if(papel==="rl"){try{const l=LS.get("lidos",{});l[cid]=Date.now();LS.set("lidos",l)}catch(e){}renderChats()}
+    primeira=false;
+  },e=>{msgs.innerHTML='<p class="hint">Não deu para carregar as mensagens ('+esc(e.code||e.message)+').</p>'});
+  return ()=>{un1();un2()};
+}
+
+// --- página de chat por link (cliente e motoboy)
+let chatExternoAberto=false;
+function abrirChatExterno(){
+  if(chatExternoAberto)return;chatExternoAberto=true;
+  const p=new URLSearchParams(location.hash.slice(1));
+  const cid=p.get("c")||"",papel="motoboy";
+  const pg=$("chatPage");
+  pg.innerHTML='<header class="top"><div class="brand"><b>RL Motoboy</b><span>Sua corrida</span></div></header><section class="panel" id="chatExt"></section>';
+  if(!/^[a-z0-9]{16,40}$/.test(cid)){$("chatExt").innerHTML='<div class="empty">Link de chat incompleto. Peça o link de novo para a RL Motoboy.</div>';return}
+  montarChat($("chatExt"),cid,papel);
+}
+function prepararModoChat(){
+  if(!modoChat)return;
+  document.querySelector(".wrap").hidden=true;
+  $("chatPage").hidden=false;
+  $("chatPage").innerHTML='<header class="top"><div class="brand"><b>RL Motoboy</b><span>Abrindo o chat…</span></div></header>';
+  tituloBase=document.title="Chat da corrida · RL Motoboy";
+}
+function erroChatExterno(e){
+  $("chatPage").innerHTML='<header class="top"><div class="brand"><b>RL Motoboy</b></div></header><div class="empty">Não foi possível abrir o chat agora ('+esc((e&&(e.code||e.message))||"sem conexão")+'). Confira a internet e abra o link de novo.</div>';
+}
+
+// --- aba Chats da RL
+let chatAberto=null,unChat=null;
+function lidos(){return LS.get("lidos",{})}
+function naoLido(c){return c.ultimo&&c.ultimo.de!=="rl"&&(c.ultimo.em||0)>(lidos()[c.id]||0)}
+function renderChats(){
+  const ul=$("lstChats");if(!ul)return;
+  const n=(data.chats||[]).filter(naoLido).length;$("ctChat").textContent=n||"";
+  if(!nuvem()){ul.innerHTML='<li class="empty" style="display:block">Entre com Google para usar os chats das corridas.</li>';return}
+  const list=data.chats||[];
+  if(!list.length){ul.innerHTML='<li class="empty" style="display:block">Cada OS gerada cria um chat aqui com quem faz a corrida. Gere uma OS na aba Frete para começar.</li>';return}
+  ul.innerHTML="";
+  list.forEach(c=>{
+    const li=document.createElement("li");li.className="chatrow"+(c.id===chatAberto?" sel":"");li.tabIndex=0;li.setAttribute("role","button");
+    const et=(ETAPAS.find(e=>e[0]===c.status)||ETAPAS[0])[1];
+    li.innerHTML='<div class="who"><b>'+(naoLido(c)?'<span class="dot" aria-label="Mensagem nova"></span> ':'')+'<span class="no">#'+pad(c.os)+'</span> '+esc(c.cliente||"")+'</b><small>'+esc(c.motoboy?((c.veiculo&&c.veiculo!=="moto"?"🚚 ":"🏍️ ")+c.motoboy):"Sem motoboy")+' · '+esc(c.entrega||"")+'</small>'+(c.ultimo?'<small>'+esc((c.ultimo.de==="rl"?"Você: ":"Motoboy: ")+(c.ultimo.texto||""))+'</small>':'')+'</div><span class="status'+(c.status==="entregue"?" ok":"")+'">'+esc(et)+'</span>';
+    const abrir=()=>{abrirChatRL(c.id)};li.addEventListener("click",abrir);li.addEventListener("keydown",e=>{if(e.key==="Enter")abrir()});
+    ul.appendChild(li);
+  });
+}
+function abrirChatRL(cid){
+  if(!nuvem()){toast("Entre com Google para abrir o chat");return}
+  if(location.hash!=="#chats")location.hash="chats";
+  if(unChat){unChat();unChat=null}
+  chatAberto=cid;const l=lidos();l[cid]=Date.now();LS.set("lidos",l);
+  unChat=montarChat($("chatBox"),cid,"rl");renderChats();
+  if(innerWidth<960)$("chatBox").scrollIntoView({behavior:"smooth"});
+}
+async function criarChatOS(osInfo){
+  if(!nuvem())return null;
+  const cid=segredo();
+  try{await fb.st.setDoc(fb.st.doc(fb.db,"chats",cid),limpo(Object.assign({status:"aberta",statusEm:Date.now(),ultimo:null},osInfo)));return cid}
+  catch(e){toast("Chat não criado: "+erroFb(e));return null}
+}
+function renderChatAct(){
+  const box=$("chatAct");if(!box)return;box.innerHTML="";
+  if(!osAtual)return;
+  if(!osAtual.chat){box.innerHTML='<p class="hint">'+(nuvem()?"Criando o chat da corrida…":"Entre com Google para criar o chat desta corrida com quem vai fazer a entrega.")+'</p>';return}
+  const cid=osAtual.chat,mb=motoSel(),n=pad(osAtual.num);
+  const t=document.createElement("p");t.className="hint";t.innerHTML="<b>Chat da corrida:</b> mande o link para quem vai fazer a entrega. Só vocês dois têm acesso.";box.appendChild(t);
+  const row=document.createElement("div");row.className="actions";box.appendChild(row);
+  const add=(txt,fn,cls)=>{const b=document.createElement("button");b.type="button";b.className="btn sm "+(cls||"");b.textContent=txt;b.addEventListener("click",fn);row.appendChild(b)};
+  const addLink=(txt,url)=>{if(!url)return;const a=document.createElement("a");a.className="btn sm";a.href=url;a.target="_blank";a.rel="noopener";a.textContent=txt;row.appendChild(a)};
+  if(!mb){const h=document.createElement("p");h.className="hint";h.textContent="Escolha acima quem faz a corrida para mandar o link direto no WhatsApp dele, ou copie o link.";box.insertBefore(h,row)}
+  if(mb)addLink("Link ao "+(veicAtual()==="moto"?"motoboy":"motorista")+" no WhatsApp ↗",waLink(mb.tel,"OS "+n+" é sua. Por este link você fala com a RL, atualiza a corrida e manda a foto da entrega:\n"+linkChat(cid,"motoboy")));
+  add("Copiar link do motoboy",()=>copiar(linkChat(cid,"motoboy"),"Link do motoboy copiado",null));
+  add("Abrir chat",()=>abrirChatRL(cid),"primary");
+}
+
 /* ---------- início ---------- */
+prepararModoChat();
 fillCfg();fillMotoSelect();fillDatalist();showTab();render();renderGrupos();
 ["clientes","motoboys","os"].forEach(onData);checkCliente();
 atualizarGoogle();$("rgTxt").textContent=regras();
+renderChats();
 iniciarFirebase();
 })();
 </script>
