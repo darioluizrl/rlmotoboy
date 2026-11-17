@@ -149,6 +149,16 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .trend{font-size:11.5px;font-weight:700}.trend.up{color:#0f7a43}.trend.dn{color:#b42318}
 .lnk{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer;text-align:left}
 .lnk:hover{color:var(--brand-d);text-decoration:underline}
+.rt-list{display:flex;flex-direction:column;gap:6px}
+.rt-row{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center}
+.rt-n{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#16181d;color:#fff;font-weight:800;font-size:12px}
+.rt-n.o{background:var(--brand)}
+.rt-btns{display:flex;gap:2px}
+.rt-res{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.rt-res .it{display:grid;grid-template-columns:30px 1fr auto;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);align-items:center;font-size:13px}
+.rt-res .it:last-child{border-bottom:0}
+.rt-res .it small{display:block;color:var(--muted);font-size:11.5px}
+.eco{background:var(--in-l);color:var(--in);font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px}
 .r-motoboy{background:var(--brand-l);color:var(--brand-d)}
 .r-motorista{background:#efe9ff;color:#6d28d9}
 .empty{padding:28px;text-align:center;color:var(--muted)}
@@ -405,6 +415,7 @@ textarea{resize:vertical;min-height:60px}
 
 <!-- MODAL GENÉRICO -->
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
+<div class="overlay" id="ov2" style="z-index:55"><div class="modal" id="modal2" style="max-width:860px"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -689,7 +700,7 @@ function renderRelatorios(){
 function openModal(html){ $("#modal").innerHTML=html; $("#ov").classList.add("show"); const f=$("#modal").querySelector("input,select"); if(f) setTimeout(()=>f.focus(),30); }
 function closeModal(){ $("#ov").classList.remove("show"); $("#modal").style.maxWidth=""; }
 $("#ov").addEventListener("mousedown",e=>{ if(e.target.id==="ov") closeModal(); });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return; if($("#ov2").classList.contains("show")) closeModal2(); else closeModal(); });
 const val = id => ($("#"+id)?.value ?? "").trim();
 
 function segPick(group, v){ document.querySelectorAll(`[data-seg="${group}"] button`).forEach(b=>b.classList.toggle("on",b.dataset.val===v)); $("#"+group).value=v; }
@@ -710,6 +721,7 @@ function openMov(tipo, id){
     <div class="full"><label>Origem (coleta)</label><input id="mOrig" value="${esc(m ? (m.origem||"") : (S.config.base||""))}" placeholder="Rua, número, bairro, cidade"></div>
     <div class="full"><label>Destino (entrega)</label><input id="mEnd" value="${esc(m?.endereco||"")}" placeholder="Rua, número, bairro, cidade"></div>
     <div><label>Distância (km)</label><div class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.1" id="mKm" value="${esc(m?.km||"")}"><button type="button" class="btn sec" id="mCalc" onclick="calcMov()">Calcular</button></div></div>
+    <div class="full"><button type="button" class="btn sec" onclick="rotaMov()">🗺 Várias paradas / roteirizar menor percurso</button> <span class="muted small" id="mRotaInfo">${m?.paradas?.length>1?`Rota com ${m.paradas.length} paradas${m.otimizada?" (otimizada)":""}`:""}</span></div>
     <div style="align-self:end"><input type="hidden" id="mMaps" value="${esc(m?.mapsUrl||"")}"><div class="geo" id="mGeo" style="padding:0 0 10px">${m?.mapsUrl?gmapsLink(m.mapsUrl):""}</div></div>
     <div><label>Volumes</label><input type="number" min="0" id="mVol" value="${esc(m?.volumes||"")}"></div>
     <div><label>Valor cobrado do cliente (R$)</label><input type="number" min="0" step="0.01" id="mVal" value="${esc(m?.valor||"")}"></div>
@@ -735,7 +747,8 @@ function openMov(tipo, id){
   segPick("mPgMot", m?.pgMot || "avista");
   $("#mCli").addEventListener("change",()=>{ const c=S.clientes.find(x=>x.id===val("mCli")); if(c&&c.pgPadrao) segPick("mPgCli",c.pgPadrao); });
   $("#mKm").addEventListener("change",applyTabMov);
-  ["mOrig","mEnd"].forEach(k=>$("#"+k).addEventListener("input",()=>{ $("#mMaps").value=""; $("#mGeo").innerHTML=""; }));
+  MOVROTA = m?.paradas ? {paradas:m.paradas, otimizada:!!m.otimizada, retorno:!!m.retorno, origemPt:m.origemPt||null} : null;
+  ["mOrig","mEnd"].forEach(k=>$("#"+k).addEventListener("input",()=>{ $("#mMaps").value=""; $("#mGeo").innerHTML=""; MOVROTA=null; $("#mRotaInfo").textContent=""; }));
   if(m && m.orcamentoId) $("#modal").dataset.orc="1";
   $("#fm").addEventListener("submit", async e=>{
     e.preventDefault();
@@ -750,6 +763,7 @@ function openMov(tipo, id){
       clienteId:cli.id, clienteNome:cli.nome||"",
       entregadorId:ent.id, entregadorNome:ent.nome||"", entregadorTipo:ent.tipo||"",
       descricao:val("mDesc"), endereco:val("mEnd"), origem:val("mOrig"), km:Number(val("mKm"))||0,
+      paradas:MOVROTA?MOVROTA.paradas:null, otimizada:MOVROTA?MOVROTA.otimizada:false, retorno:MOVROTA?MOVROTA.retorno:false,
       mapsUrl: val("mMaps") || ((val("mOrig")&&val("mEnd")) ? gmapsUrl(null,null,val("mOrig"),val("mEnd")) : ""), volumes:val("mVol")?Number(val("mVol")):"", valor:val("mVal")?Number(val("mVal")):0, repasse:val("mRep")?Number(val("mRep")):0,
       pgCli:val("mPgCli")||"avista", recebido:$("#mRecebido").checked, recebidoEm:$("#mRecebido").checked?(m?.recebidoEm||today()):"", formaRec:m?.formaRec||"",
       pgMot:val("mPgMot")||"avista", pago:$("#mPago").checked, pagoEm:$("#mPago").checked?(m?.pagoEm||today()):"", formaPag:m?.formaPag||"",
@@ -1016,6 +1030,164 @@ async function saveCfg(){
   $("#cfgSave").disabled=false;
 }
 
+
+/* ---------- rota com várias paradas e roteirização ---------- */
+let MOVROTA=null, RT=null;
+function openModal2(html){ $("#modal2").innerHTML=html; $("#ov2").classList.add("show"); }
+function closeModal2(){ $("#ov2").classList.remove("show"); }
+function parseJSONResult(r){
+  const p=r&&r.payload; if(p && typeof p==="object") return p;
+  const t= typeof p==="string" ? p : resText(r);
+  try{ const i=t.indexOf("{"), j=t.lastIndexOf("}"); return JSON.parse(t.slice(i,j+1)); }catch(e){ return null; }
+}
+async function matriz(pts){
+  if(OFFLINE){
+    if(!MAPBOX_TOKEN) throw {code:"tool_error",message:"Chave do Mapbox não configurada."};
+    const c=pts.map(p=>`${p.lon},${p.lat}`).join(";");
+    let r; try{ r=await fetch(`https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${c}?annotations=distance,duration&access_token=${MAPBOX_TOKEN}`); }catch(e){ throw {code:"server_unavailable"}; }
+    if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
+    const j=await r.json(); return {dist:j.distances, dur:j.durations};
+  }
+  const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
+  const r=await mcp.callTool("Mapbox","matrix_tool",{coordinates:pts.map(p=>({longitude:p.lon,latitude:p.lat})),profile:"mapbox/driving",annotations:"distance,duration"},{cache:{staleTime:864e5,gcTime:864e5}});
+  const j=parseJSONResult(r); if(!j||!j.distances) throw {code:"tool_error",message:"Resposta inesperada do Mapbox (matriz)."};
+  return {dist:j.distances, dur:j.durations||[]};
+}
+async function rotaMulti(pts){
+  if(OFFLINE){
+    const c=pts.map(p=>`${p.lon},${p.lat}`).join(";");
+    let r; try{ r=await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${c}?overview=false&access_token=${MAPBOX_TOKEN}`); }catch(e){ throw {code:"server_unavailable"}; }
+    if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
+    const j=await r.json(); const rt=(j.routes||[])[0]; if(!rt) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
+    return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60), legs:(rt.legs||[]).map(l=>l.distance)};
+  }
+  const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
+  const r=await mcp.callTool("Mapbox","directions_tool",{coordinates:pts.map(p=>({longitude:p.lon,latitude:p.lat})),routing_profile:"mapbox/driving"},{cache:{staleTime:864e5,gcTime:864e5}});
+  const j=parseJSONResult(r); const rt=j&&j.routes&&j.routes[0];
+  if(!rt||rt.distance==null) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
+  return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60), legs:null};
+}
+/* menor percurso: começa no ponto 0; com retorno, volta ao 0. Exato até 13 paradas, heurística acima disso */
+function melhorOrdem(D, retorno){
+  const n=D.length; const S=[...Array(n-1)].map((_,i)=>i+1);
+  if(n<=2) return S;
+  const custo=ord=>{ let c=0,a=0; for(const b of ord){ c+=D[a][b]; a=b; } if(retorno) c+=D[a][0]; return c; };
+  if(n-1<=13){
+    const m=n-1, FULL=1<<m, INF=1e18;
+    const dp=new Float64Array(FULL*m).fill(INF), par=new Int8Array(FULL*m).fill(-1);
+    for(let j=0;j<m;j++) dp[(1<<j)*m+j]=D[0][j+1];
+    for(let mask=1;mask<FULL;mask++) for(let j=0;j<m;j++){ const v=dp[mask*m+j]; if(v>=INF||!(mask&(1<<j))) continue;
+      for(let k=0;k<m;k++){ if(mask&(1<<k)) continue; const nm=mask|(1<<k), nv=v+D[j+1][k+1]; if(nv<dp[nm*m+k]){ dp[nm*m+k]=nv; par[nm*m+k]=j; } } }
+    let best=INF, last=0; for(let j=0;j<m;j++){ const v=dp[(FULL-1)*m+j]+(retorno?D[j+1][0]:0); if(v<best){ best=v; last=j; } }
+    const ord=[]; let mask=FULL-1, j=last; while(j>=0){ ord.push(j+1); const pj=par[mask*m+j]; mask&=~(1<<j); j=pj; }
+    return ord.reverse();
+  }
+  // vizinho mais próximo + 2-opt
+  let ord=[], rest=new Set(S), a=0; while(rest.size){ let b=null,bd=Infinity; rest.forEach(k=>{ if(D[a][k]<bd){ bd=D[a][k]; b=k; } }); ord.push(b); rest.delete(b); a=b; }
+  let melhorou=true; while(melhorou){ melhorou=false; for(let i=0;i<ord.length-1;i++) for(let k=i+1;k<ord.length;k++){ const nv=[...ord.slice(0,i),...ord.slice(i,k+1).reverse(),...ord.slice(k+1)]; if(custo(nv)<custo(ord)-1e-6){ ord=nv; melhorou=true; } } }
+  return ord;
+}
+function gmapsMulti(pts, retorno){
+  const f=p=>`${p.lat},${p.lon}`; const o=pts[0];
+  const paradas=pts.slice(1); const dest = retorno ? o : paradas[paradas.length-1];
+  const wps = (retorno ? paradas : paradas.slice(0,-1)).slice(0,9);
+  return `https://www.google.com/maps/dir/?api=1&origin=${f(o)}&destination=${f(dest)}${wps.length?`&waypoints=${wps.map(f).join("|")}`:""}&travelmode=driving`;
+}
+const resumoParadas = ps => ps.length<=1 ? (ps[0]?.end||"") : `${ps.length} paradas: `+ps.map(p=>p.end).join(" | ");
+
+function openRota(cfg, onApply){
+  RT={origem:cfg.origem||S.config.base||"", paradas:(cfg.paradas&&cfg.paradas.length?cfg.paradas.map(p=>typeof p==="string"?p:p.end):[""]).concat(cfg.paradas&&cfg.paradas.length?[]:[]),
+      otimizar: cfg.otimizada!==undefined?cfg.otimizada:true, retorno:!!cfg.retorno, res:null, onApply};
+  if(RT.paradas.length<2) RT.paradas.push("");
+  drawRota();
+}
+function drawRota(){
+  const r=RT.res;
+  openModal2(`<div class="modal-h">🗺 Rota com várias paradas</div>
+  <div class="modal-b" style="grid-template-columns:1fr">
+    <div class="rt-list">
+      <div class="rt-row"><span class="rt-n o">S</span><input id="rtO" value="${esc(RT.origem)}" placeholder="Saída (coleta / base)" oninput="RT.origem=this.value;RT.res=null"><span></span></div>
+      ${RT.paradas.map((p,i)=>`<div class="rt-row"><span class="rt-n">${i+1}</span><input value="${esc(p)}" placeholder="Endereço da parada ${i+1} (rua, número, bairro, cidade)" oninput="RT.paradas[${i}]=this.value;RT.res=null">
+        <span class="rt-btns"><button type="button" class="btn ghost sm" title="Subir" onclick="rtMove(${i},-1)">↑</button><button type="button" class="btn ghost sm" title="Descer" onclick="rtMove(${i},1)">↓</button><button type="button" class="btn ghost sm" title="Remover" onclick="rtDel(${i})">✕</button></span></div>`).join("")}
+    </div>
+    <div class="row"><button type="button" class="btn sec sm" onclick="RT.paradas.push('');RT.res=null;drawRota()">+ Adicionar endereço</button><span class="muted small">até 24 paradas</span></div>
+    <div class="row" style="gap:18px">
+      <label class="ck" style="margin:0"><input type="checkbox" ${RT.otimizar?"checked":""} onchange="RT.otimizar=this.checked;RT.res=null"> Roteirizar automaticamente (menor percurso)</label>
+      <label class="ck" style="margin:0"><input type="checkbox" ${RT.retorno?"checked":""} onchange="RT.retorno=this.checked;RT.res=null"> Voltar para a saída no final</label>
+    </div>
+    <div id="rtOut">${r?rotaResHTML(r):'<p class="muted small" style="margin:0">Preencha os endereços e clique em <b>Calcular rota</b>. Com a roteirização ligada, o sistema reorganiza as paradas para o menor percurso; desligada, segue a ordem digitada.</p>'}</div>
+  </div>
+  <div class="modal-f"><button class="btn sec" onclick="closeModal2()">Cancelar</button><button class="btn sec" id="rtCalc" onclick="rtCalcular()">Calcular rota</button><button class="btn" id="rtOk" ${r?"":"disabled"} onclick="rtAplicar()">Usar esta rota</button></div>`);
+}
+function rtMove(i,d){ const j=i+d; if(j<0||j>=RT.paradas.length) return; [RT.paradas[i],RT.paradas[j]]=[RT.paradas[j],RT.paradas[i]]; RT.res=null; drawRota(); }
+function rtDel(i){ RT.paradas.splice(i,1); if(!RT.paradas.length) RT.paradas.push(""); RT.res=null; drawRota(); }
+function rotaResHTML(r){
+  return `${r.economia>0.05?`<div class="eco" style="margin-bottom:8px">✓ Roteirização economizou ${fmtKm(Math.round(r.economia*10)/10)} em relação à ordem digitada (${fmtKm(r.kmDigitada)} → ${fmtKm(r.km)})</div>`:""}
+  <div class="rt-res">
+    <div class="it"><span class="rt-n o">S</span><div>${esc(r.origem.end)}<small>${esc(r.origem.nome)}</small></div><span></span></div>
+    ${r.paradas.map((p,i)=>`<div class="it"><span class="rt-n">${i+1}</span><div>${esc(p.end)}<small>${esc(p.nome)}</small></div><span class="muted small">${p.kmTrecho?"+"+fmtKm(p.kmTrecho):""}</span></div>`).join("")}
+    ${r.retorno?`<div class="it"><span class="rt-n o">S</span><div>Retorno à saída</div><span class="muted small">${r.kmRetorno?"+"+fmtKm(r.kmRetorno):""}</span></div>`:""}
+  </div>
+  <div class="row" style="margin-top:10px;gap:14px"><span style="font-size:15px"><b>Total: ${fmtKm(r.km)}</b>${r.min?` · ~${r.min} min`:""}</span>
+    <span class="muted">Cliente <b style="color:var(--ink)">${brl(precoCliente(r.km))}</b> · Motoboy <b style="color:var(--ink)">${brl(precoMotoboy(r.km))}</b></span>
+    <span class="spacer"></span>${gmapsLink(r.url,"Abrir rota no Google Maps")}</div>
+  ${r.paradas.length>(r.retorno?9:10)?`<p class="muted small" style="margin:6px 0 0">O link do Google Maps mostra até 10 paradas; o cálculo de km considera todas.</p>`:""}`;
+}
+async function rtCalcular(){
+  const ends=RT.paradas.map(x=>x.trim()).filter(Boolean);
+  if(!RT.origem.trim()){ $("#rtOut").innerHTML='<span class="err" style="color:var(--bad)">Informe o endereço de saída.</span>'; return; }
+  if(!ends.length){ $("#rtOut").innerHTML='<span style="color:var(--bad)">Informe pelo menos um endereço de parada.</span>'; return; }
+  if(ends.length>24){ $("#rtOut").innerHTML='<span style="color:var(--bad)">Máximo de 24 paradas por rota.</span>'; return; }
+  $("#rtCalc").disabled=true; $("#rtOut").innerHTML='<p class="muted" style="margin:0">Localizando endereços…</p>';
+  try{
+    const geos=await Promise.all([RT.origem.trim(),...ends].map(q=>geocode(q).catch(e=>({erro:e, q}))));
+    const ruins=geos.filter(g=>g.erro);
+    if(ruins.length) throw {code:"not_found",message:"Não encontrei: "+ruins.map(g=>`“${g.q}”`).join(", ")+". Inclua número, bairro e cidade."};
+    const pts=geos; const n=pts.length;
+    let ordem=[...Array(n-1)].map((_,i)=>i+1), D=null, kmDig=0;
+    if(n>2 || RT.retorno){
+      $("#rtOut").innerHTML='<p class="muted" style="margin:0">Calculando distâncias entre as paradas…</p>';
+      D=(await matriz(pts)).dist.map(l=>l.map(v=>v==null?1e9:v));
+      const custo=ord=>{ let c=0,a=0; for(const b of ord){ c+=D[a][b]; a=b; } if(RT.retorno) c+=D[a][0]; return c; };
+      kmDig=custo(ordem)/1000;
+      if(RT.otimizar && n>2) ordem=melhorOrdem(D, RT.retorno);
+    }
+    const seq=[pts[0],...ordem.map(i=>pts[i])].concat(RT.retorno?[pts[0]]:[]);
+    $("#rtOut").innerHTML='<p class="muted" style="margin:0">Traçando a rota…</p>';
+    const rr=await rotaMulti(seq);
+    const legKm=(a,b,idx)=> rr.legs ? Math.round(rr.legs[idx]/100)/10 : (D?Math.round(D[a][b]/100)/10:rr.km);
+    let prev=0; const paradas=ordem.map((i,idx)=>{ const p={end:ends[i-1], nome:pts[i].nome, lat:pts[i].lat, lon:pts[i].lon, kmTrecho:legKm(prev,i,idx)}; prev=i; return p; });
+    RT.res={origem:{end:RT.origem.trim(), nome:pts[0].nome, lat:pts[0].lat, lon:pts[0].lon}, paradas, retorno:RT.retorno, km:rr.km, min:rr.min,
+      kmRetorno: RT.retorno ? legKm(prev,0,ordem.length) : 0,
+      kmDigitada: Math.round(kmDig*10)/10, economia: (RT.otimizar && D) ? (kmDig - rr.km) : 0, otimizada: RT.otimizar && n>2,
+      url: gmapsMulti([pts[0],...ordem.map(i=>pts[i])], RT.retorno)};
+    // reflete a ordem otimizada no formulário
+    RT.paradas=paradas.map(p=>p.end);
+    drawRota();
+  }catch(e){ $("#rtOut").innerHTML=`<span style="color:var(--bad)">${esc(mapboxErr(e))}</span>`; const b=$("#rtCalc"); if(b) b.disabled=false; }
+}
+function rtAplicar(){ const r=RT.res; if(!r) return; closeModal2(); RT.onApply && RT.onApply(r); }
+
+function rotaMov(){
+  const ini = MOVROTA && MOVROTA.paradas ? MOVROTA.paradas.map(p=>p.end) : [val("mEnd")].filter(Boolean);
+  openRota({origem:val("mOrig"), paradas:ini, otimizada:MOVROTA?MOVROTA.otimizada:true, retorno:MOVROTA?MOVROTA.retorno:false}, r=>{
+    MOVROTA={paradas:r.paradas, otimizada:r.otimizada, retorno:r.retorno};
+    $("#mOrig").value=r.origem.end; $("#mEnd").value=resumoParadas(r.paradas)+(r.retorno?" | retorno à saída":"");
+    $("#mKm").value=r.km; $("#mMaps").value=r.url; applyTabMov();
+    $("#mGeo").innerHTML=`<b>${fmtKm(r.km)}</b>${r.min?` · ~${r.min} min`:""} ${gmapsLink(r.url)}`;
+    $("#mRotaInfo").textContent=`Rota com ${r.paradas.length} parada(s)${r.otimizada?" (otimizada)":""}${r.retorno?" + retorno":""}`;
+  });
+}
+function rotaItem(idx){
+  const i=orcItens[idx]; if(!i) return;
+  const ini = i.paradas&&i.paradas.length ? i.paradas.map(p=>p.end) : [i.destino].filter(Boolean);
+  openRota({origem:i.origem, paradas:ini, otimizada:i.paradas?!!i.otimizada:true, retorno:!!i.retorno}, r=>{
+    Object.assign(i,{origem:r.origem.end, destino:resumoParadas(r.paradas)+(r.retorno?" | retorno":""), paradas:r.paradas, otimizada:r.otimizada, retorno:r.retorno,
+      km:r.km, min:r.min, mapsUrl:r.url, origemEnd:"", destinoEnd:"", qtd:1, valor:precoCliente(r.km), repasse:precoMotoboy(r.km), _err:""});
+    drawItens();
+  });
+}
+
 /* ---------- orçamentos ---------- */
 const addDays = (iso,n) => { const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
 function orcStatus(o){ return (o.status==="Aberto"||o.status==="Enviado") && o.validade && o.validade<today() ? "Vencido" : o.status; }
@@ -1056,7 +1228,7 @@ function itemRow(i,idx){ return `<tr>
   <td><input data-k="descricao" data-i="${idx}" value="${esc(i.descricao)}" placeholder="Ex.: Entrega expressa"></td>
   <td><input data-k="origem" data-i="${idx}" value="${esc(i.origem)}" placeholder="Origem"></td>
   <td><input data-k="destino" data-i="${idx}" value="${esc(i.destino)}" placeholder="Destino"></td>
-  <td style="width:44px"><button type="button" class="btn sec sm" title="Calcular km pelo Mapbox" onclick="calcItem(${idx})" id="it-calc-${idx}">km</button></td>
+  <td style="width:44px"><button type="button" class="btn sec sm" title="Calcular km pelo Mapbox" onclick="calcItem(${idx})" id="it-calc-${idx}">km</button><button type="button" class="btn sec sm" style="margin-top:3px" title="Várias paradas / roteirizar" onclick="rotaItem(${idx})">🗺</button></td>
   <td style="width:74px"><input type="number" min="0" step="1" data-k="qtd" data-i="${idx}" value="${esc(i.qtd)}"></td>
   <td style="width:96px"><input type="number" min="0" step="0.01" data-k="valor" data-i="${idx}" value="${esc(i.valor)}"></td>
   <td class="num" style="width:90px" id="it-sub-${idx}">${brl((Number(i.qtd)||0)*(Number(i.valor)||0))}</td>
@@ -1065,7 +1237,7 @@ function itemRow(i,idx){ return `<tr>
 function geoInfo(i){
   if(i._err) return `<span class="err">${esc(i._err)}</span>`;
   if(i._loading) return `Calculando rota…`;
-  if(i.km) return `<b>${fmtKm(i.km)}</b>${i.min?` · ~${i.min} min`:""} · Cliente <b>${brl(precoCliente(i.km))}</b> · Motoboy <b>${brl(precoMotoboy(i.km))}</b> ${gmapsLink(i.mapsUrl)}${i.origemEnd?` <span>· ${esc(i.origemEnd)} → ${esc(i.destinoEnd)}</span>`:""}`;
+  if(i.km) return `${i.paradas&&i.paradas.length>1?`<b>🗺 ${i.paradas.length} paradas${i.otimizada?" (otimizada)":""}${i.retorno?" + retorno":""}</b> · `:""}<b>${fmtKm(i.km)}</b>${i.min?` · ~${i.min} min`:""} · Cliente <b>${brl(precoCliente(i.km))}</b> · Motoboy <b>${brl(precoMotoboy(i.km))}</b> ${gmapsLink(i.mapsUrl)}${i.origemEnd?` <span>· ${esc(i.origemEnd)} → ${esc(i.destinoEnd)}</span>`:""}`;
   if(i.origem && i.destino) return `<span>Clique em <b>km</b> para calcular a distância.</span> ${gmapsLink(gmapsUrl(null,null,i.origem,i.destino),"Ver no Maps")}`;
   return "";
 }
@@ -1121,13 +1293,13 @@ function openOrc(id){
   const togAv=()=>{ $("#oAvulso").style.display=$("#oCli").value?"none":"grid"; };
   $("#oCli").addEventListener("change",togAv); togAv();
   $("#oItens").addEventListener("input",e=>{ const t=e.target; if(t.dataset.k){ const it=orcItens[+t.dataset.i]; it[t.dataset.k]=t.value;
-    if(t.dataset.k==="origem"||t.dataset.k==="destino"){ it.km=0; it.repasse=0; it.min=0; it.mapsUrl=""; it.origemEnd=""; it.destinoEnd=""; it._err=""; const g=$("#it-geo-"+t.dataset.i); if(g) g.innerHTML=geoInfo(it); }
+    if(t.dataset.k==="origem"||t.dataset.k==="destino"){ it.km=0; it.repasse=0; it.paradas=null; it.min=0; it.mapsUrl=""; it.origemEnd=""; it.destinoEnd=""; it._err=""; const g=$("#it-geo-"+t.dataset.i); if(g) g.innerHTML=geoInfo(it); }
     updTot(); } });
   $("#oDesc").addEventListener("input",updTot); $("#oTaxa").addEventListener("input",updTot);
   $("#fo").addEventListener("submit", async e=>{
     e.preventDefault();
     const itens=orcItens.filter(i=>(i.descricao||"").trim()).map(i=>({descricao:i.descricao.trim(),origem:(i.origem||"").trim(),destino:(i.destino||"").trim(),qtd:Number(i.qtd)||0,valor:Number(i.valor)||0,
-      km:Number(i.km)||0,min:Number(i.min)||0,repasse:i.km?r2(precoMotoboy(i.km)*(Number(i.qtd)||1)):0,mapsUrl:i.mapsUrl||((i.origem&&i.destino)?gmapsUrl(null,null,i.origem.trim(),i.destino.trim()):""),origemEnd:i.origemEnd||"",destinoEnd:i.destinoEnd||""}));
+      km:Number(i.km)||0,min:Number(i.min)||0,paradas:i.paradas||null,otimizada:!!i.otimizada,retorno:!!i.retorno,repasse:i.km?r2(precoMotoboy(i.km)*(Number(i.qtd)||1)):0,mapsUrl:i.mapsUrl||((i.origem&&i.destino)?gmapsUrl(null,null,i.origem.trim(),i.destino.trim()):""),origemEnd:i.origemEnd||"",destinoEnd:i.destinoEnd||""}));
     if(!itens.length){ toast("Adicione pelo menos um item com descrição."); return; }
     if(val("oSt")==="Aprovado" && !val("oCli") && o?.status!=="Aprovado"){ toast("Para aprovar, use o botão Aprovado em “Ver / enviar” — lá você informa o cliente."); return; }
     const cli=S.clientes.find(c=>c.id===val("oCli"));
@@ -1244,7 +1416,7 @@ function convertOrc(id){
         endereco:it.map(i=>[i.origem,i.destino].filter(Boolean).join(" → ")).filter(Boolean).join(" | "),
         pgCli:(String(o.pagamento||"").startsWith("Faturado")||S.clientes.find(c=>c.id===cliId)?.pgPadrao==="faturado")?"faturado":"avista", recebido:false, pgMot:"avista", pago:false,
         volumes:"",valor:orcTotal(o),status:"Pendente",recebedor:"",obs:o.obs||"",orcamentoId:o.id,criadoEm:Date.now(),atualizadoEm:Date.now(),
-        origem:it[0]?.origem||"", repasse:r2(it.reduce((s,i)=>s+(i.km?precoMotoboy(i.km)*(Number(i.qtd)||1):(Number(i.repasse)||0)),0)), km:Math.round(it.reduce((s,i)=>s+(Number(i.km)||0),0)*10)/10, mapsUrl:it.find(i=>i.mapsUrl)?.mapsUrl||""};
+        origem:it[0]?.origem||"", paradas:it.length===1?(it[0].paradas||null):null, otimizada:it.length===1?!!it[0].otimizada:false, retorno:it.length===1?!!it[0].retorno:false, repasse:r2(it.reduce((s,i)=>s+(i.km?precoMotoboy(i.km)*(Number(i.qtd)||1):(Number(i.repasse)||0)),0)), km:Math.round(it.reduce((s,i)=>s+(Number(i.km)||0),0)*10)/10, mapsUrl:it.find(i=>i.mapsUrl)?.mapsUrl||""};
       movId = await save("movs", null, mov);
       if(!movId){ $("#cvOk").disabled=false; return; }
     }
