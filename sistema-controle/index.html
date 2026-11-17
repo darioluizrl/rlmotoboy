@@ -144,6 +144,11 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .rc .ft .vt{display:flex;justify-content:space-between;font-weight:700;font-size:14px}
 .rc .sig{margin:46px auto 0;width:55%;border-top:1px solid #111;text-align:center;font-size:11.5px;padding-top:4px}
 .rc .rod{text-align:center;margin-top:26px;font-size:13px;line-height:1.6}
+.rk1,.rk2,.rk3,.rkn{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;font-weight:800;font-size:12px}
+.rk1{background:#fde68a;color:#854d0e}.rk2{background:#e5e7eb;color:#374151}.rk3{background:#fed7aa;color:#9a3412}.rkn{background:#f3f4f6;color:var(--muted)}
+.trend{font-size:11.5px;font-weight:700}.trend.up{color:#0f7a43}.trend.dn{color:#b42318}
+.lnk{background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer;text-align:left}
+.lnk:hover{color:var(--brand-d);text-decoration:underline}
 .r-motoboy{background:var(--brand-l);color:var(--brand-d)}
 .r-motorista{background:#efe9ff;color:#6d28d9}
 .empty{padding:28px;text-align:center;color:var(--muted)}
@@ -348,7 +353,15 @@ textarea{resize:vertical;min-height:60px}
       <input class="search" id="cBusca" placeholder="Buscar cliente…">
       <button class="btn" onclick="openCli()">+ Novo cliente</button>
     </div>
-    <div class="panel"><div class="tbl-wrap"><table id="tCli"></table></div></div>
+    <div class="panel">
+      <div class="panel-h" style="flex-wrap:wrap">🏆 Ranking de clientes que mais pedem corridas
+        <div class="spacer"></div>
+        <div class="chips" id="rkPer"><button data-p="30">30 dias</button><button data-p="mes" class="on">Este mês</button><button data-p="mesant">Mês passado</button><button data-p="90">90 dias</button><button data-p="ano">Este ano</button><button data-p="tudo">Tudo</button></div>
+      </div>
+      <div class="muted small" style="padding:8px 16px 0" id="rkSub"></div>
+      <div class="tbl-wrap"><table id="tRank"></table></div>
+    </div>
+    <div class="panel"><div class="panel-h">Todos os clientes</div><div class="tbl-wrap"><table id="tCli"></table></div></div>
   </section>
 
   <!-- EQUIPE -->
@@ -521,7 +534,7 @@ function render(){
   if(v==="v-dashboard") renderDashboard();
   if(v==="v-movs") renderMovs();
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); }
-  if(v==="v-clientes") renderClientes();
+  if(v==="v-clientes"){ renderRanking(); renderClientes(); }
   if(v==="v-equipe") renderEquipe();
   if(v==="v-relatorios") renderRelatorios();
   if(v==="v-financeiro") renderFinanceiro();
@@ -630,8 +643,8 @@ function renderClientes(){
   const cnt = id => S.movs.filter(m=>m.clienteId===id && m.status!=="Cancelada").length;
   $("#tCli").innerHTML = list.length
     ? `<tr><th>Nome / empresa</th><th>WhatsApp</th><th>Endereço</th><th>Último serviço</th><th class="num">Serviços</th><th class="num">Faturado</th><th></th></tr>`+list.map(c=>{ const ms=S.movs.filter(m=>m.clienteId===c.id && m.status!=="Cancelada"); const ult=ms.reduce((a,m)=>m.data>a?m.data:a,""); return `<tr>
-      <td><b>${esc(c.nome)}</b>${c.doc?`<div class="muted small">${esc(c.doc)}</div>`:""}</td><td>${esc(c.telefone)}</td><td class="wrap">${esc(c.endereco)}</td><td>${ult?fmtD(ult):'<span class="muted">—</span>'}</td><td class="num">${ms.length}</td><td class="num">${brl(ms.reduce((s,m)=>s+(Number(m.valor)||0),0))}</td>
-      <td><button class="btn ghost sm" onclick="openCli('${esc(c.id)}')">Editar</button><button class="btn ghost sm" onclick="askDel('clientes','${esc(c.id)}','o cliente ${esc(c.nome)}')">Excluir</button></td></tr>`;}).join("")
+      <td><button class="lnk" onclick="openHist('${esc(c.id)}')">${esc(c.nome)}</button>${c.doc?`<div class="muted small">${esc(c.doc)}</div>`:""}</td><td>${esc(c.telefone)}</td><td class="wrap">${esc(c.endereco)}</td><td>${ult?fmtD(ult):'<span class="muted">—</span>'}</td><td class="num">${ms.length}</td><td class="num">${brl(ms.reduce((s,m)=>s+(Number(m.valor)||0),0))}</td>
+      <td><button class="btn sec sm" onclick="openHist('${esc(c.id)}')">📋 Histórico</button> <button class="btn ghost sm" onclick="openCli('${esc(c.id)}')">Editar</button><button class="btn ghost sm" onclick="askDel('clientes','${esc(c.id)}','o cliente ${esc(c.nome)}')">Excluir</button></td></tr>`;}).join("")
     : `<tr><td class="empty">${S.clientes.length?"Nenhum cliente encontrado.":"Nenhum cliente cadastrado ainda. Você também pode cadastrar na hora de lançar o serviço."}</td></tr>`;
 }
 $("#cBusca").addEventListener("input",renderClientes);
@@ -1400,6 +1413,98 @@ async function renderDashboard(){
 $("#dPer").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; DP=b.dataset.p; document.querySelectorAll("#dPer button").forEach(x=>x.classList.toggle("on",x===b)); if(DP==="custom"){ if(!$("#dDe").value) $("#dDe").value=firstOfMonth(); if(!$("#dAte").value) $("#dAte").value=today(); } renderDashboard(); });
 ["#dDe","#dAte","#dFun"].forEach(id=>$(id).addEventListener("change",renderDashboard));
 
+
+
+/* ---------- ranking e histórico de clientes ---------- */
+let RKP="mes";
+function rangeDe(p){
+  const t=dOf(today()); let de, ate=today();
+  if(p==="tudo") return {de:"0000-00-00", ate:"9999-12-31", prev:null};
+  if(p==="mes") de=today().slice(0,8)+"01";
+  else if(p==="mesant"){ const a=new Date(t.getFullYear(),t.getMonth()-1,1,12), b=new Date(t.getFullYear(),t.getMonth(),0,12); de=isoD(a); ate=isoD(b); }
+  else if(p==="ano") de=today().slice(0,4)+"-01-01";
+  else { const a=new Date(t); a.setDate(a.getDate()-(+p-1)); de=isoD(a); }
+  const dias=Math.round((dOf(ate)-dOf(de))/864e5)+1; const pa=dOf(de); pa.setDate(pa.getDate()-1); const pd=new Date(pa); pd.setDate(pd.getDate()-(dias-1));
+  return {de,ate,prev:{de:isoD(pd),ate:isoD(pa)}};
+}
+const cliKey = m => m.clienteId || ("_"+(m.clienteNome||""));
+function renderRanking(){
+  const R=rangeDe(RKP);
+  const ok=m=>m.status!=="Cancelada";
+  const cur=S.movs.filter(m=>ok(m)&&m.data>=R.de&&m.data<=R.ate);
+  const prev=R.prev?S.movs.filter(m=>ok(m)&&m.data>=R.prev.de&&m.data<=R.prev.ate):[];
+  const g={}; cur.forEach(m=>{ const k=cliKey(m); const x=g[k]=g[k]||{k,m,n:0,fat:0,km:0,ult:""}; x.n++; x.fat+=Number(m.valor)||0; x.km+=Number(m.km)||0; if(m.data>x.ult) x.ult=m.data; });
+  const pv={}; prev.forEach(m=>{ const k=cliKey(m); pv[k]=(pv[k]||0)+1; });
+  const lst=Object.values(g).sort((a,b)=>b.n-a.n||b.fat-a.fat);
+  const tot=cur.length, max=Math.max(1,...lst.map(x=>x.n));
+  $("#rkSub").textContent = R.prev ? `${fmtD(R.de)} a ${fmtD(R.ate)} · ${tot} corrida(s) de ${lst.length} cliente(s) · tendência comparada ao período anterior` : `Todo o histórico · ${tot} corrida(s) de ${lst.length} cliente(s)`;
+  $("#tRank").innerHTML = lst.length ? `<tr><th style="width:46px">#</th><th>Cliente</th><th class="num">Corridas</th><th style="width:22%"></th><th class="num">% do total</th>${R.prev?'<th class="num">vs. anterior</th>':""}<th class="num">Faturado</th><th class="num">Ticket médio</th><th class="num">Km</th><th>Última</th><th></th></tr>`+
+    lst.slice(0,20).map((x,i)=>{ const p=pv[x.k]||0; const d=x.n-p;
+      const tr = !R.prev ? "" : (p===0 ? `<span class="trend up">novo</span>` : d===0 ? `<span class="muted">=</span>` : `<span class="trend ${d>0?"up":"dn"}">${d>0?"▲":"▼"} ${Math.abs(d)}</span>`);
+      const id=x.m.clienteId||"";
+      return `<tr><td><span class="${i<3?"rk"+(i+1):"rkn"}">${i+1}</span></td>
+      <td>${id?`<button class="lnk" onclick="openHist('${esc(id)}')">${esc(movCli(x.m))}</button>`:`<b>${esc(movCli(x.m))}</b>`}</td>
+      <td class="num"><b>${x.n}</b></td><td><div class="bar"><i style="width:${x.n/max*100}%"></i></div></td><td class="num">${pct(x.n/tot)}</td>${R.prev?`<td class="num">${tr}</td>`:""}
+      <td class="num">${brl(x.fat)}</td><td class="num">${brl(x.fat/x.n)}</td><td class="num">${x.km?kmTxt(x.km):"—"}</td><td>${fmtD(x.ult)}</td>
+      <td>${id?`<button class="btn ghost sm" onclick="openHist('${esc(id)}')">Histórico</button>`:""}</td></tr>`; }).join("")+
+    (lst.length>20?`<tr><td colspan="11" class="muted small">+ ${lst.length-20} cliente(s) com menos corridas</td></tr>`:"")
+    : `<tr><td class="empty">Nenhuma corrida no período.</td></tr>`;
+  // clientes que sumiram: pediam no período anterior e não pediram agora
+  if(R.prev){ const sumiram=Object.keys(pv).filter(k=>!g[k]).length;
+    if(sumiram) $("#rkSub").textContent += ` · ${sumiram} cliente(s) do período anterior ainda não pediram neste`; }
+}
+$("#rkPer").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return; RKP=b.dataset.p; document.querySelectorAll("#rkPer button").forEach(x=>x.classList.toggle("on",x===b)); renderRanking(); });
+
+let HC={};
+function openHist(cid){
+  HC={cid, de:"", ate:""};
+  const c=S.clientes.find(x=>x.id===cid); if(!c) return;
+  $("#modal").style.maxWidth="1000px";
+  openModal(`<div class="modal-h">📋 Histórico de corridas · ${esc(c.nome)}</div>
+  <div class="modal-b" style="grid-template-columns:1fr">
+    <div class="row small muted" style="gap:14px">${c.telefone?`<span>📱 ${esc(c.telefone)}</span>`:""}${c.endereco?`<span>📍 ${esc(c.endereco)}</span>`:""}${c.pgPadrao==="faturado"?`<span class="pgt pg-fat" style="cursor:default">Cliente faturado</span>`:""}</div>
+    <div class="row" style="align-items:end">
+      <div><label>De</label><input type="date" id="hcDe" onchange="HC.de=this.value;drawHist()"></div>
+      <div><label>Até</label><input type="date" id="hcAte" onchange="HC.ate=this.value;drawHist()"></div>
+      <div class="chips" style="margin-bottom:4px"><button onclick="histPer('mes')">Este mês</button><button onclick="histPer('mesant')">Mês passado</button><button onclick="histPer('90')">90 dias</button><button onclick="histPer('tudo')" class="on">Tudo</button></div>
+    </div>
+    <div class="kgrid" id="hcK" style="margin:0"></div>
+    <div class="tbl-wrap" style="border:1px solid var(--line);border-radius:10px;max-height:46vh;overflow:auto"><table id="hcT"></table></div>
+  </div>
+  <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button><button class="btn sec" onclick="histCopy()">Copiar lista (CSV)</button><button class="btn out" onclick="closeModal();openMov('saida');const sel=$('#mCli');if(sel){sel.value=HC.cid;sel.dispatchEvent(new Event('change'));}">+ Nova saída</button></div>`);
+  drawHist();
+}
+function histPer(p){
+  const R=rangeDe(p); HC.de = p==="tudo"?"":R.de; HC.ate = p==="tudo"?"":R.ate;
+  $("#hcDe").value=HC.de; $("#hcAte").value=HC.ate;
+  document.querySelectorAll("#modal .chips button").forEach(b=>b.classList.toggle("on", b.getAttribute("onclick")===`histPer('${p}')`));
+  drawHist();
+}
+function histLista(){ return sortMovs(S.movs.filter(m=>m.clienteId===HC.cid && (!HC.de||m.data>=HC.de) && (!HC.ate||m.data<=HC.ate))); }
+function drawHist(){
+  const l=histLista(), ok=l.filter(m=>m.status!=="Cancelada");
+  const fat=ok.reduce((s,m)=>s+(Number(m.valor)||0),0), km=ok.reduce((s,m)=>s+(Number(m.km)||0),0);
+  const arec=ok.filter(aReceber).reduce((s,m)=>s+(Number(m.valor)||0),0);
+  const datas=ok.map(m=>m.data).sort(); const prim=datas[0], ult=datas[datas.length-1];
+  let freq="—"; if(ok.length>1){ const dias=Math.max(1,Math.round((dOf(ult)-dOf(prim))/864e5)); const porSem=ok.length/(dias/7); freq = porSem>=1 ? `${porSem.toFixed(1).replace(".",",")} por semana` : `1 a cada ${Math.round(dias/(ok.length-1))} dias`; }
+  const em={}; ok.forEach(m=>{ const n=movEnt(m); em[n]=(em[n]||0)+1; }); const top=Object.entries(em).sort((a,b)=>b[1]-a[1])[0];
+  $("#hcK").innerHTML=[
+    ["Corridas",ok.length,`${l.length-ok.length} cancelada(s)`,true],["Faturado",brl(fat),`ticket ${brl(ok.length?fat/ok.length:0)}`],
+    ["Km rodados",km?kmTxt(km):"—",""],["A receber",brl(arec),arec?"em aberto":"tudo pago"],
+    ["Frequência",freq,ult?`última em ${fmtD(ult)}`:""],["Motoboy mais usado",top?esc(top[0]):"—",top?`${top[1]} corrida(s)`:""]
+  ].map(([l2,v,d,h])=>`<div class="kt${h?" hl":""}"><div class="l">${l2}</div><div class="v" style="font-size:19px">${v}</div><div class="d">${d}</div></div>`).join("");
+  $("#hcT").innerHTML = l.length ? `<tr><th>Data</th><th>Tipo</th><th>Motoboy / motorista</th><th>Descrição / rota</th><th class="num">Km</th><th class="num">Valor</th><th>Status</th><th></th></tr>`+
+    l.map(m=>`<tr><td>${fmtD(m.data)}<div class="muted small">${esc(m.hora||"")}</div></td><td><span class="tag t-${m.tipo}">${m.tipo==="entrada"?"Entrada":"Saída"}</span></td><td>${esc(movEnt(m))}</td>
+      <td class="wrap">${esc(m.descricao||"")}${(m.origem||m.endereco)?`<div class="muted small">${m.origem?esc(m.origem)+" → ":""}${esc(m.endereco||"")}</div>`:""}${m.mapsUrl?`<div class="small">${gmapsLink(m.mapsUrl,"Rota")}</div>`:""}</td>
+      <td class="num">${m.km?fmtKm(m.km):""}</td><td class="num">${m.valor?brl(m.valor):""}${m.valor&&m.status!=="Cancelada"?`<div>${pgTag(m,"cli")}</div>`:""}</td>
+      <td><span class="tag s-${esc(m.status)}">${esc(m.status)}</span></td><td><button class="btn ghost sm" onclick="openRecibo('${esc(m.id)}')">🧾</button></td></tr>`).join("")
+    : `<tr><td class="empty">Nenhuma corrida ${HC.de||HC.ate?"no período":"ainda"}.</td></tr>`;
+}
+async function histCopy(){
+  const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=[["Data","Hora","Tipo","Motoboy","Descrição","Origem","Destino","Km","Valor","Pagamento","Recebido","Status"]].concat(histLista().map(m=>[fmtD(m.data),m.hora,m.tipo==="entrada"?"Entrada":"Saída",movEnt(m),m.descricao,m.origem,m.endereco,m.km?String(m.km).replace(".",","):"",(Number(m.valor)||0).toFixed(2).replace(".",","),m.pgCli==="faturado"?"Faturado":"À vista",m.recebido?"Sim":"Não",m.status]));
+  try{ await navigator.clipboard.writeText(rows.map(r=>r.map(q).join(";")).join("\n")); toast("Histórico copiado — cole no Excel"); }catch(e){ toast("Não foi possível copiar."); }
+}
 
 /* ---------- pagamentos (à vista / faturado) ---------- */
 const aReceber = m => m.status!=="Cancelada" && (Number(m.valor)||0)>0 && !m.recebido;
