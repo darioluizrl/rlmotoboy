@@ -1,0 +1,14 @@
+# nunca enviar dados de clientes ou backups
+dados*.json
+backup*.json
+*.json.tmp
+backups/
+# arquivos gerados
+sistema-controle/desktop/dist/
+sistema-controle/desktop/app/index.html
+node_modules/
+*.zip
+
+# chave do Mapbox (nunca enviar)
+mapbox-token.txt
+.env
