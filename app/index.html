@@ -901,7 +901,7 @@ function openMov(tipo, id){
     <div style="align-self:end"><input type="hidden" id="mMaps" value="${esc(m?.mapsUrl||"")}"><div class="geo" id="mGeo" style="padding:0 0 10px">${m?.mapsUrl?gmapsLink(m.mapsUrl):""}</div></div>
     <div><label>Volumes</label><input type="number" min="0" id="mVol" value="${esc(m?.volumes||"")}"></div>
     <div><label>Valor cobrado do cliente (R$)</label><input type="number" min="0" step="0.01" id="mVal" value="${esc(m?.valor||"")}"></div>
-    <div><label>Pagar ao motoboy (R$)</label><input type="number" min="0" step="0.01" id="mRep" value="${esc(m?.repasse||"")}"></div>
+    <div><label>Pagar ao motoboy (R$)</label><input type="number" min="0" step="0.01" id="mRep" value="${esc(m?.repasse||"")}" oninput="repHint('mKm','mRep','mRepHint')"><div class="small muted" id="mRepHint"></div></div>
     <div><label>Status</label><select id="mSt">${["Pendente","Em rota","Concluída","Cancelada"].map(s=>`<option ${s===(m?.status||"Pendente")?"selected":""}>${s}</option>`).join("")}</select></div>
     <div class="pgbox">
       <div><h5>Pagamento do cliente</h5><input type="hidden" id="mPgCli"><div class="seg" data-seg="mPgCli">
@@ -923,11 +923,13 @@ function openMov(tipo, id){
   segPick("mPgMot", m?.pgMot || "avista");
   $("#mCli").addEventListener("change",()=>{ const c=S.clientes.find(x=>x.id===val("mCli")); if(c&&c.pgPadrao) segPick("mPgCli",c.pgPadrao); });
   $("#mKm").addEventListener("change",applyTabMov);
+  repHint("mKm","mRep","mRepHint");
   MOVROTA = m?.paradas ? {paradas:m.paradas, otimizada:!!m.otimizada, retorno:!!m.retorno, origemPt:m.origemPt||null} : null;
   ["mOrig","mEnd"].forEach(k=>$("#"+k).addEventListener("input",()=>{ $("#mMaps").value=""; $("#mGeo").innerHTML=""; MOVROTA=null; $("#mRotaInfo").textContent=""; }));
   if(m && m.orcamentoId) $("#modal").dataset.orc="1";
   $("#fm").addEventListener("submit", async e=>{
     e.preventDefault();
+    if(!repHint("mKm","mRep","mRepHint")){ toast(`O valor do motoboy não pode ser menor que ${brl(repMin(val("mKm")))} (tabela).`); $("#mRep").focus(); return; }
     if(!val("mEnt") && (val("mSt")==="Em rota" || val("mSt")==="Concluída")){ toast("Para colocar em rota ou concluir, escolha o motoboy ou motorista."); $("#mEnt").focus(); return; }
     $("#mSave").disabled=true;
     if(val("mCli")==="__novo" && !val("mCliNome")){ toast("Informe o nome do novo cliente."); $("#mCliNome").focus(); return; }
@@ -1526,7 +1528,8 @@ function openOrc(id){
     otimizar: rItem ? (rItem.paradas ? !!rItem.otimizada : true) : true, retorno: !!rItem?.retorno,
     res: rItem && rItem.km ? { origem:{end:rItem.origem||"", nome:""}, paradas:(rItem.paradas&&rItem.paradas.length?rItem.paradas:[{end:rItem.destino||"", nome:rItem.destinoEnd||""}]),
       retorno:!!rItem.retorno, km:rItem.km, min:rItem.min, url:rItem.mapsUrl, economia:0, otimizada:!!rItem.otimizada, salvo:true } : null,
-    valor: rItem ? (Number(rItem.valor)||0)*(Number(rItem.qtd)||1) : "" };
+    valor: rItem ? (Number(rItem.valor)||0)*(Number(rItem.qtd)||1) : "",
+    repasse: rItem ? (Number(rItem.repasse)|| (rItem.km?precoMotoboy(rItem.km):"")) : "" };
   orcItens = its;
   const d0=o?.data||today();
   $("#modal").style.maxWidth="900px";
@@ -1572,10 +1575,11 @@ function openOrc(id){
       itens.push({descricao:(OR.desc||"Entrega").trim(), origem:OR.origem.trim(), destino: r ? resumoParadas(r.paradas)+(r.retorno?" | retorno":"") : resumoParadas(ends.map(x=>({end:x}))),
         paradas: r ? r.paradas : null, otimizada: r ? !!r.otimizada : false, retorno: r ? !!r.retorno : OR.retorno,
         km: r ? r.km : 0, min: r ? (r.min||0) : 0, mapsUrl: r ? r.url : (OR.origem&&ends.length ? gmapsUrl(null,null,OR.origem.trim(),ends[ends.length-1]) : ""),
-        qtd:1, valor:Number(OR.valor)||0, repasse: r&&r.km ? precoMotoboy(r.km) : 0, origemEnd:"", destinoEnd:""});
+        qtd:1, valor:Number(OR.valor)||0, repasse: Number(OR.repasse) || (r&&r.km ? precoMotoboy(r.km) : 0), origemEnd:"", destinoEnd:""});
     }
     orcItens.filter(i=>(i.descricao||"").trim()).forEach(i=>itens.push({descricao:i.descricao.trim(), qtd:Number(i.qtd)||0, valor:Number(i.valor)||0, km:0, repasse:0, origem:"", destino:""}));
     if(!itens.length){ toast("Preencha a rota ou adicione pelo menos um item."); return; }
+    if($("#orRep") && !repHint("orKm","orRep","orRepHint")){ toast(`O valor do motoboy não pode ser menor que ${brl(repMin(OR.res&&OR.res.km))} (tabela).`); $("#orRep").focus(); return; }
     if(val("oSt")==="Aprovado" && !val("oCli") && o?.status!=="Aprovado"){ toast("Para aprovar, use o botão Aprovado em “Ver / enviar” — lá você informa o cliente."); return; }
     const cli=S.clientes.find(c=>c.id===val("oCli"));
     const numero = o?.numero || (Math.max(0,...S.orcamentos.map(x=>x.numero||0))+1);
@@ -1601,7 +1605,11 @@ function drawOrcRota(){
       <span class="spacer"></span><button type="button" class="btn" id="orCalc" onclick="orCalcular()">Calcular rota</button>
     </div>
     <div id="orOut" style="margin-top:10px">${r?rotaResHTML(r):`<p class="muted small" style="margin:0">Digite a saída e os endereços de entrega e clique em <b>Calcular rota</b>. O valor é preenchido pela tabela de preços.</p>`}</div>
-    <div class="row" style="margin-top:10px;justify-content:flex-end;gap:8px"><label style="margin:0">Valor da rota (R$)</label><input type="number" min="0" step="0.01" id="orVal" style="width:130px" value="${esc(OR.valor)}" oninput="OR.valor=this.value;updTot()"></div>`;
+    <div class="row" style="margin-top:10px;justify-content:flex-end;gap:8px;flex-wrap:wrap">
+      <label style="margin:0">Valor da rota (R$)</label><input type="number" min="0" step="0.01" id="orVal" style="width:120px" value="${esc(OR.valor)}" oninput="OR.valor=this.value;updTot()">
+      <label style="margin:0 0 0 10px">Pagar ao motoboy (R$)</label><input type="number" min="0" step="0.01" id="orRep" style="width:120px" value="${esc(OR.repasse)}" oninput="OR.repasse=this.value;updTot()">
+      <input type="hidden" id="orKm" value="${esc(r?r.km:"")}"></div>
+    <div class="small muted" id="orRepHint" style="text-align:right;margin-top:4px"></div>`;
   updTot();
 }
 function orSujo(){ if(OR.res){ OR.res=null; const o=$("#orOut"); if(o) o.innerHTML='<p class="muted small" style="margin:0">Endereços alterados — clique em <b>Calcular rota</b> de novo.</p>'; updTot(); } }
@@ -1612,6 +1620,7 @@ async function orCalcular(){
   try{
     OR.res=await calcRotaCore(OR.origem, OR.paradas, OR.otimizar, OR.retorno, t=>{ $("#orOut").innerHTML=`<p class="muted" style="margin:0">${t}</p>`; });
     OR.paradas=OR.res.paradas.map(p=>p.end); OR.valor=precoCliente(OR.res.km);
+    { const min=precoMotoboy(OR.res.km), at=Number(OR.repasse)||0; OR.repasse = at>min ? at : min; }
     drawOrcRota();
   }catch(e){ $("#orOut").innerHTML=`<span style="color:var(--bad)">${esc(mapboxErr(e))}</span>`; const b=$("#orCalc"); if(b) b.disabled=false; }
 }
@@ -1632,7 +1641,8 @@ function updTot(){
   const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
   const tot=Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
   $("#oTot").textContent=brl(tot);
-  const rep = OR?.res?.km ? precoMotoboy(OR.res.km) : 0;
+  if($("#orRep")){ $("#orKm").value = OR?.res?.km || ""; repHint("orKm","orRep","orRepHint"); }
+  const rep = Number(OR?.repasse) || (OR?.res?.km ? precoMotoboy(OR.res.km) : 0);
   $("#oRep").innerHTML = rep ? `Motoboy ${brl(rep)} · Margem ${brl(tot-rep)}` : "";
 }
 
@@ -1740,7 +1750,7 @@ function convertOrc(id){
         endereco:it.map(i=>[i.origem,i.destino].filter(Boolean).join(" → ")).filter(Boolean).join(" | "),
         pgCli:(String(o.pagamento||"").startsWith("Faturado")||S.clientes.find(c=>c.id===cliId)?.pgPadrao==="faturado")?"faturado":"avista", recebido:false, pgMot:"avista", pago:false,
         volumes:"",valor:orcTotal(o),status:"Pendente",recebedor:"",obs:o.obs||"",orcamentoId:o.id,criadoEm:Date.now(),atualizadoEm:Date.now(),
-        origem:it[0]?.origem||"", paradas:it.length===1?(it[0].paradas||null):null, otimizada:it.length===1?!!it[0].otimizada:false, retorno:it.length===1?!!it[0].retorno:false, repasse:r2(it.reduce((s,i)=>s+(i.km?precoMotoboy(i.km)*(Number(i.qtd)||1):(Number(i.repasse)||0)),0)), km:Math.round(it.reduce((s,i)=>s+(Number(i.km)||0),0)*10)/10, mapsUrl:it.find(i=>i.mapsUrl)?.mapsUrl||""};
+        origem:it[0]?.origem||"", paradas:it.length===1?(it[0].paradas||null):null, otimizada:it.length===1?!!it[0].otimizada:false, retorno:it.length===1?!!it[0].retorno:false, repasse:r2(it.reduce((s,i)=>s+Math.max(Number(i.repasse)||0, i.km?precoMotoboy(i.km)*(Number(i.qtd)||1):0),0)), km:Math.round(it.reduce((s,i)=>s+(Number(i.km)||0),0)*10)/10, mapsUrl:it.find(i=>i.mapsUrl)?.mapsUrl||""};
       movId = await save("movs", null, mov);
       if(!movId){ $("#cvOk").disabled=false; return; }
     }
@@ -1751,9 +1761,23 @@ function convertOrc(id){
   });
 }
 
+/* valor do motoboy: a tabela define o mínimo; pode ser aumentado, nunca reduzido */
+const repMin = km => (Number(km)||0)>0 ? precoMotoboy(km) : 0;
+function repHint(kmId, repId, hintId){
+  const km=Number($("#"+kmId)?.value)||0, h=$("#"+hintId); if(!h) return true;
+  const min=repMin(km), v=Number($("#"+repId).value)||0;
+  if(!min){ h.textContent=""; return true; }
+  const ok = v>=min-0.001;
+  h.innerHTML = ok ? `Tabela: ${brl(min)}${v>min+0.001?` · <b style="color:var(--in)">+${brl(v-min)} acima</b>`:""} (só pode aumentar)` : `<span style="color:var(--bad)">Mínimo pela tabela: ${brl(min)} — não é permitido valor menor</span>`;
+  $("#"+repId).style.borderColor = ok ? "" : "var(--bad)";
+  return ok;
+}
 function applyTabMov(){
   const km=Number($("#mKm").value)||0; if(!km) return;
-  $("#mVal").value=precoCliente(km); $("#mRep").value=precoMotoboy(km);
+  $("#mVal").value=precoCliente(km);
+  const atual=Number($("#mRep").value)||0, min=precoMotoboy(km);
+  $("#mRep").value = atual>min ? atual : min;   // mantém valor maior já digitado
+  repHint("mKm","mRep","mRepHint");
 }
 async function calcMov(){
   const o=val("mOrig"), d=val("mEnd");
