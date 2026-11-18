@@ -896,7 +896,7 @@ function openMov(tipo, id){
     <div class="full"><label>Descrição (o que foi coletado / entregue) *</label><input id="mDesc" required value="${esc(m?.descricao||"")}" placeholder="Ex.: 3 caixas de documentos"></div>
     <div class="full"><label>Origem (coleta)</label><input id="mOrig" class="ac" autocomplete="off" value="${esc(m ? (m.origem||"") : (S.config.base||""))}" placeholder="Rua, número, bairro, cidade"></div>
     <div class="full"><label>Destino (entrega)</label><input id="mEnd" class="ac" autocomplete="off" value="${esc(m?.endereco||"")}" placeholder="Rua, número, bairro, cidade"></div>
-    <div><label>Distância (km)</label><div class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.1" id="mKm" value="${esc(m?.km||"")}"><button type="button" class="btn sec" id="mCalc" onclick="calcMov()">Calcular</button></div></div>
+    <div><label>Distância (km)</label><div class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="1" id="mKm" value="${esc(m?.km||"")}"><button type="button" class="btn sec" id="mCalc" onclick="calcMov()">Calcular</button></div></div>
     <div class="full"><button type="button" class="btn sec" onclick="rotaMov()">🗺 Várias paradas / roteirizar menor percurso</button> <span class="muted small" id="mRotaInfo">${m?.paradas?.length>1?`Rota com ${m.paradas.length} paradas${m.otimizada?" (otimizada)":""}`:""}</span></div>
     <div style="align-self:end"><input type="hidden" id="mMaps" value="${esc(m?.mapsUrl||"")}"><div class="geo" id="mGeo" style="padding:0 0 10px">${m?.mapsUrl?gmapsLink(m.mapsUrl):""}</div></div>
     <div><label>Volumes</label><input type="number" min="0" id="mVol" value="${esc(m?.volumes||"")}"></div>
@@ -1155,7 +1155,7 @@ function gmapsLink(url,label="Abrir no Google Maps"){ return url?`<a class="mapl
 async function calcRota(origem,destino){
   const [o,d]=await Promise.all([geocode(origem),geocode(destino)]);
   const r=await route(o,d);
-  return {...r, o, d, url:gmapsUrl(o,d)};
+  return {...r, kmReal:r.km, km:kmCobrado(r.km), o, d, url:gmapsUrl(o,d)};
 }
 const fmtKm = k => (k||k===0) ? String(k).replace(".",",")+" km" : "";
 
@@ -1165,8 +1165,11 @@ const TAB_PADRAO = {
 };
 const r2 = n => Math.round((Number(n)||0)*100)/100;
 function tab(){ const t=S.config.tabela||{}; return {cliente:{...TAB_PADRAO.cliente,...(t.cliente||{})}, motoboy:{...TAB_PADRAO.motoboy,...(t.motoboy||{})}}; }
-function precoCliente(km, t=tab().cliente){ km=Number(km)||0; if(km<=t.ate) return r2(t.base); return r2(t.fixo + t.porKm*(t.modo==="total"?km:km-t.ate)); }
-function precoMotoboy(km, t=tab().motoboy){ km=Number(km)||0; if(km<=t.a1) return r2(t.v1); if(km<=t.a2) return r2(t.v2); return r2(t.fixo + t.porKm*(t.modo==="total"?km:km-t.a2)); }
+/* regra RL: km cobrado é sempre inteiro (fração conta como 1 km a mais) e valores são sempre redondos (sem centavos, arredondados para cima) */
+const kmCobrado = km => { km=Number(km)||0; return km>0 ? Math.ceil(Math.round(km*100)/100) : 0; };
+const redondo = v => Math.ceil(Math.round((Number(v)||0)*100)/100);
+function precoCliente(km, t=tab().cliente){ km=kmCobrado(km); if(km<=t.ate) return redondo(t.base); return redondo(t.fixo + t.porKm*(t.modo==="total"?km:km-t.ate)); }
+function precoMotoboy(km, t=tab().motoboy){ km=kmCobrado(km); if(km<=t.a1) return redondo(t.v1); if(km<=t.a2) return redondo(t.v2); return redondo(t.fixo + t.porKm*(t.modo==="total"?km:km-t.a2)); }
 function readTabForm(){
   const n=id=>Number($("#"+id).value)||0;
   return { cliente:{ate:n("tcAte"),base:n("tcBase"),fixo:n("tcFixo"),porKm:n("tcKm"),modo:$("#tcModo").value},
@@ -1358,13 +1361,13 @@ function drawRota(){
 function rtMove(i,d){ const j=i+d; if(j<0||j>=RT.paradas.length) return; [RT.paradas[i],RT.paradas[j]]=[RT.paradas[j],RT.paradas[i]]; RT.res=null; drawRota(); }
 function rtDel(i){ RT.paradas.splice(i,1); if(!RT.paradas.length) RT.paradas.push(""); RT.res=null; drawRota(); }
 function rotaResHTML(r){
-  return `${r.economia>0.05?`<div class="eco" style="margin-bottom:8px">✓ Roteirização economizou ${fmtKm(Math.round(r.economia*10)/10)} em relação à ordem digitada (${fmtKm(r.kmDigitada)} → ${fmtKm(r.km)})</div>`:""}
+  return `${r.economia>0.05?`<div class="eco" style="margin-bottom:8px">✓ Roteirização economizou ${fmtKm(Math.round(r.economia*10)/10)} em relação à ordem digitada (${fmtKm(r.kmDigitada)} → ${fmtKm(Math.round((r.kmReal||r.km)*10)/10)})</div>`:""}
   <div class="rt-res">
     <div class="it"><span class="rt-n o">S</span><div>${esc(r.origem.end)}<small>${esc(r.origem.nome)}</small></div><span></span></div>
     ${r.paradas.map((p,i)=>`<div class="it"><span class="rt-n">${i+1}</span><div>${esc(p.end)}<small>${esc(p.nome)}</small></div><span class="muted small">${p.kmTrecho?"+"+fmtKm(p.kmTrecho):""}</span></div>`).join("")}
     ${r.retorno?`<div class="it"><span class="rt-n o">S</span><div>Retorno à saída</div><span class="muted small">${r.kmRetorno?"+"+fmtKm(r.kmRetorno):""}</span></div>`:""}
   </div>
-  <div class="row" style="margin-top:10px;gap:14px"><span style="font-size:15px"><b>Total: ${fmtKm(r.km)}</b>${r.min?` · ~${r.min} min`:""}</span>
+  <div class="row" style="margin-top:10px;gap:14px"><span style="font-size:15px"><b>Total cobrado: ${fmtKm(r.km)}</b>${r.kmReal&&r.kmReal!==r.km?` <span class="muted small">(${fmtKm(r.kmReal)} rodados)</span>`:""}${r.min?` · ~${r.min} min`:""}</span>
     <span class="muted">Cliente <b style="color:var(--ink)">${brl(precoCliente(r.km))}</b> · Motoboy <b style="color:var(--ink)">${brl(precoMotoboy(r.km))}</b></span>
     <span class="spacer"></span>${gmapsLink(r.url,"Abrir rota no Google Maps")}</div>
   ${r.paradas.length>(r.retorno?9:10)?`<p class="muted small" style="margin:6px 0 0">O link do Google Maps mostra até 10 paradas; o cálculo de km considera todas.</p>`:""}`;
@@ -1393,7 +1396,7 @@ async function calcRotaCore(origem, endsAll, otimizar, retorno, status){
   const rr=await rotaMulti(seq);
   const legKm=(a,b,idx)=> rr.legs ? Math.round(rr.legs[idx]/100)/10 : (D?Math.round(D[a][b]/100)/10:rr.km);
   let prev=0; const paradas=ordem.map((i,idx)=>{ const p={end:ends[i-1], nome:pts[i].nome, lat:pts[i].lat, lon:pts[i].lon, kmTrecho:legKm(prev,i,idx)}; prev=i; return p; });
-  return {origem:{end:origem.trim(), nome:pts[0].nome, lat:pts[0].lat, lon:pts[0].lon}, paradas, retorno, km:rr.km, min:rr.min,
+  return {origem:{end:origem.trim(), nome:pts[0].nome, lat:pts[0].lat, lon:pts[0].lon}, paradas, retorno, kmReal:rr.km, km:kmCobrado(rr.km), min:rr.min,
     kmRetorno: retorno ? legKm(prev,0,ordem.length) : 0,
     kmDigitada: Math.round(kmDig*10)/10, economia: (otimizar && D) ? (kmDig - rr.km) : 0, otimizada: !!(otimizar && n>2),
     url: gmapsMulti([pts[0],...ordem.map(i=>pts[i])], retorno)};
@@ -1414,7 +1417,7 @@ function rotaMov(){
     MOVROTA={paradas:r.paradas, otimizada:r.otimizada, retorno:r.retorno};
     $("#mOrig").value=r.origem.end; $("#mEnd").value=resumoParadas(r.paradas)+(r.retorno?" | retorno à saída":"");
     $("#mKm").value=r.km; $("#mMaps").value=r.url; applyTabMov();
-    $("#mGeo").innerHTML=`<b>${fmtKm(r.km)}</b>${r.min?` · ~${r.min} min`:""} ${gmapsLink(r.url)}`;
+    $("#mGeo").innerHTML=`<b>${fmtKm(r.km)}</b>${r.kmReal&&r.kmReal!==r.km?` <span class="muted">(${fmtKm(r.kmReal)} rodados)</span>`:""}${r.min?` · ~${r.min} min`:""} ${gmapsLink(r.url)}`;
     $("#mRotaInfo").textContent=`Rota com ${r.paradas.length} parada(s)${r.otimizada?" (otimizada)":""}${r.retorno?" + retorno":""}`;
   });
 }
@@ -1773,7 +1776,8 @@ function repHint(kmId, repId, hintId){
   return ok;
 }
 function applyTabMov(){
-  const km=Number($("#mKm").value)||0; if(!km) return;
+  const km=kmCobrado($("#mKm").value); if(!km) return;
+  $("#mKm").value=km;
   $("#mVal").value=precoCliente(km);
   const atual=Number($("#mRep").value)||0, min=precoMotoboy(km);
   $("#mRep").value = atual>min ? atual : min;   // mantém valor maior já digitado
@@ -1786,7 +1790,7 @@ async function calcMov(){
   try{
     const r=await calcRota(o,d);
     $("#mKm").value=r.km; $("#mMaps").value=r.url; applyTabMov();
-    $("#mGeo").innerHTML=`<b>${fmtKm(r.km)}</b>${r.min?` · ~${r.min} min`:""} ${gmapsLink(r.url)}`;
+    $("#mGeo").innerHTML=`<b>${fmtKm(r.km)}</b>${r.kmReal&&r.kmReal!==r.km?` <span class="muted">(${fmtKm(r.kmReal)} rodados)</span>`:""}${r.min?` · ~${r.min} min`:""} ${gmapsLink(r.url)}`;
   }catch(e){ $("#mGeo").innerHTML=`<span class="err">${esc(mapboxErr(e))}</span>`; }
   $("#mCalc").disabled=false;
 }
