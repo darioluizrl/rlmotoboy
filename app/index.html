@@ -162,6 +162,8 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .rt-res .it:last-child{border-bottom:0}
 .rt-res .it small{display:block;color:var(--muted);font-size:11.5px}
 .eco{background:var(--in-l);color:var(--in);font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px}
+body.perfil-orc .so-admin{display:none!important}
+body.perfil-orc #nav button:not([data-v="orcamentos"]){display:none}
 .r-motoboy{background:var(--brand-l);color:var(--brand-d)}
 .r-motorista{background:#efe9ff;color:#6d28d9}
 .empty{padding:28px;text-align:center;color:var(--muted)}
@@ -307,10 +309,10 @@ textarea{resize:vertical;min-height:60px}
     <div class="panel"><div class="tbl-wrap"><table id="tOrc"></table></div></div>
     <div class="panel" id="usuPanel" style="display:none">
       <div class="panel-h">👥 Usuários do sistema <span class="muted small" style="font-weight:500">— quem pode entrar no sistema web</span></div>
-      <div style="padding:10px 16px 14px"><p class="muted small" style="margin:0 0 8px">O funcionário abre o link do sistema, clica em <b>Criar meu acesso</b> e confirma o e-mail. Depois ele aparece aqui para você liberar.</p>
+      <div style="padding:10px 16px 14px"><p class="muted small" style="margin:0 0 8px">O funcionário abre o link do sistema, clica em <b>Criar meu acesso</b> e confirma o e-mail. Depois ele aparece aqui para você liberar. <b>Só orçamentos</b>: vê apenas a aba Orçamentos e não aprova nem lança corridas. <b>Acesso completo</b>: usa todo o sistema, menos este painel.</p>
         <div class="tbl-wrap" id="usuBox"></div><button class="btn sec sm" style="margin-top:8px" onclick="renderUsuarios()">Atualizar lista</button></div>
     </div>
-    <div class="panel">
+    <div class="panel so-admin">
       <div class="panel-h">Backup dos dados</div>
       <div style="padding:14px 16px">
         <p class="muted small" style="margin:0 0 10px" id="bkInfo"></p>
@@ -321,7 +323,7 @@ textarea{resize:vertical;min-height:60px}
         </div>
       </div>
     </div>
-    <div class="panel">
+    <div class="panel so-admin">
       <div class="panel-h">Rotas e tabela de preços <span class="muted small" style="font-weight:500">— os km são calculados pelo Mapbox</span></div>
       <div style="padding:14px 16px">
         <div><label>Endereço da base RL Motoboy (ponto de partida padrão)</label><input id="cfgBase" placeholder="Rua, número, bairro, cidade"></div>
@@ -472,6 +474,7 @@ function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.classList.t
 const VIEWS = ["painel","dashboard","movs","orcamentos","clientes","equipe","financeiro","relatorios"];
 function show(v){
   if(!VIEWS.includes(v)) v="painel";
+  if(S.papel==="orcamento") v="orcamentos";
   document.querySelectorAll(".view").forEach(el=>el.classList.toggle("on", el.id==="v-"+v));
   document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
   render();
@@ -597,6 +600,7 @@ async function sbIniciarSessao(session){
     telaLogin("aguardando", session.user.email); return null;
   }
   S.papel=me.papel;
+  if(S.papel==="orcamento"){ document.body.classList.add("perfil-orc"); show("orcamentos"); }
   try{ await sbCarregar(); }catch(e){ notice("Não foi possível carregar os dados: "+e.message); return null; }
   sbc.channel("docs-rt").on("postgres_changes",{event:"*",schema:"public",table:"docs"},pl=>{
     const r=(pl.new&&pl.new.colecao)?pl.new:pl.old; if(!r||!r.colecao) return;
@@ -659,21 +663,25 @@ async function sbEsqueci(){
   $("#lgM").style.color=error?"var(--bad)":"var(--in)"; $("#lgM").textContent=error?traduzAuth(error.message):"Enviamos um link para criar uma nova senha no seu e-mail.";
 }
 /* administração de usuários (só admin) */
+const PERFIS={admin:"Administrador", funcionario:"Funcionário (acesso completo)", orcamento:"Só orçamentos"};
 async function renderUsuarios(){
   const box=$("#usuBox"); if(!box) return;
   if(!SB || S.papel!=="admin"){ $("#usuPanel").style.display="none"; return; }
   $("#usuPanel").style.display="";
   const {data,error}=await sbc.rpc("listar_usuarios");
   if(error){ box.innerHTML=`<p class="small" style="color:var(--bad)">${esc(error.message)}</p>`; return; }
-  box.innerHTML = `<table><tr><th>E-mail</th><th>Situação</th><th>Perfil</th><th></th></tr>`+data.map(u=>`<tr><td>${esc(u.email)}</td>
-    <td>${u.liberado&&u.ativo?'<span class="tag s-Concluída">Liberado</span>':u.liberado?'<span class="tag s-Cancelada">Bloqueado</span>':'<span class="tag s-Pendente">Aguardando liberação</span>'}</td>
-    <td>${u.liberado?(u.papel==="admin"?"Administrador":"Funcionário"):"—"}</td>
-    <td>${u.liberado&&u.ativo?(u.papel!=="admin"?`<button class="btn ghost sm" onclick="usuAcao('liberar','${esc(u.email)}','admin')">Tornar admin</button>`:"")+`<button class="btn ghost sm" onclick="usuAcao('bloquear','${esc(u.user_id)}')">Bloquear</button>`
-      :`<button class="btn sm in" onclick="usuAcao('liberar','${esc(u.email)}','funcionario')">Liberar acesso</button>`}</td></tr>`).join("")+`</table>`;
+  const sel=(u)=>`<select style="width:auto;padding:5px 8px" onchange="usuAcao('liberar','${esc(u.email)}',this.value)">${Object.entries(PERFIS).map(([k,l])=>`<option value="${k}" ${u.papel===k?"selected":""}>${l}</option>`).join("")}</select>`;
+  box.innerHTML = `<table><tr><th>E-mail</th><th>Situação</th><th>Perfil</th><th></th></tr>`+data.map(u=>{
+    const eu = sbc && u.email && $("#userBar").textContent.includes(u.email);
+    if(u.liberado&&u.ativo) return `<tr><td>${esc(u.email)}${eu?' <span class="muted small">(você)</span>':""}</td><td><span class="tag s-Concluída">Liberado</span></td>
+      <td>${eu?PERFIS[u.papel]:sel(u)}</td><td>${eu?"":`<button class="btn ghost sm" onclick="usuAcao('bloquear','${esc(u.user_id)}')">Bloquear</button>`}</td></tr>`;
+    return `<tr><td>${esc(u.email)}</td><td>${u.liberado?'<span class="tag s-Cancelada">Bloqueado</span>':'<span class="tag s-Pendente">Aguardando liberação</span>'}</td>
+      <td colspan="2"><button class="btn sm in" onclick="usuAcao('liberar','${esc(u.email)}','orcamento')">Liberar só orçamentos</button>
+      <button class="btn sm sec" onclick="usuAcao('liberar','${esc(u.email)}','funcionario')">Liberar acesso completo</button></td></tr>`; }).join("")+`</table>`;
 }
 async function usuAcao(a, x, papel){
   const r = a==="liberar" ? await sbc.rpc("liberar_usuario",{p_email:x,p_papel:papel}) : await sbc.rpc("bloquear_usuario",{p_user:x});
-  if(r.error) toast(r.error.message); else { toast(a==="liberar"?"Acesso liberado":"Usuário bloqueado"); renderUsuarios(); }
+  if(r.error) toast(r.error.message); else { toast(a==="liberar"?`Perfil: ${PERFIS[papel]||"liberado"}`:"Usuário bloqueado"); renderUsuarios(); }
 }
 
 /* ---------- helpers de dados ---------- */
@@ -1367,7 +1375,7 @@ function renderOrcamentos(){
       <td class="num"><b>${brl(orcTotal(o))}</b></td>
       <td><span class="tag o-${st}">${st}</span>${o.convertido?' <span class="muted small">✓ lançado</span>':""}</td>
       <td><button class="btn ghost sm" onclick="viewOrc('${esc(o.id)}')">Ver / enviar</button><button class="btn ghost sm" onclick="openOrc('${esc(o.id)}')">Editar</button>
-      ${o.status==="Aprovado"&&!o.convertido?`<button class="btn sm out" onclick="convertOrc('${esc(o.id)}')">Lançar saída</button>`:""}
+      ${o.status==="Aprovado"&&!o.convertido&&S.papel!=="orcamento"?`<button class="btn sm out" onclick="convertOrc('${esc(o.id)}')">Lançar saída</button>`:""}
       <button class="btn ghost sm" onclick="askDel('orcamentos','${esc(o.id)}','o orçamento ${orcNum(o)}')">Excluir</button></td></tr>`;}).join("")
     : `<tr><td class="empty">${S.orcamentos.length?"Nenhum orçamento encontrado.":"Nenhum orçamento ainda. Clique em “+ Novo orçamento”."}</td></tr>`;
 }
@@ -1448,7 +1456,7 @@ function openOrc(id){
     <div class="tot"><span class="muted" id="oRep"></span>Total <b id="oTot">R$ 0,00</b></div>
     <div><label>Prazo de execução</label><input id="oPrazo" value="${esc(o?.prazo||"")}" placeholder="Ex.: mesmo dia / até 2h"></div>
     <div><label>Forma de pagamento</label><select id="oPag">${["PIX","Dinheiro","Boleto","Cartão","Faturado (mensal)"].map(x=>`<option ${x===(o?.pagamento||"PIX")?"selected":""}>${x}</option>`).join("")}</select></div>
-    <div><label>Status</label><select id="oSt">${["Aberto","Enviado","Aprovado","Recusado"].map(x=>`<option ${x===(o?.status||"Aberto")?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div><label>Status</label><select id="oSt">${(S.papel==="orcamento"&&o?.status!=="Aprovado"?["Aberto","Enviado","Recusado"]:["Aberto","Enviado","Aprovado","Recusado"]).map(x=>`<option ${x===(o?.status||"Aberto")?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="full"><label>Observações / condições</label><textarea id="oObs">${esc(o?.obs||"")}</textarea></div>
   </div>
   <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="oSave">Salvar</button></div></form>`);
@@ -1562,8 +1570,8 @@ function viewOrc(id){
   <p class="full muted small" style="margin:0">Copie e cole no WhatsApp ou e-mail do cliente. Os asteriscos deixam o texto em negrito no WhatsApp.</p></div>
   <div class="modal-f">
     ${o.status==="Aberto"?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Enviado')">Marcar como enviado</button>`:""}
-    ${["Aberto","Enviado"].includes(o.status)?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Recusado')">Recusado</button><button class="btn in" onclick="setOrcStatus('${esc(o.id)}','Aprovado')">Aprovado</button>`:""}
-    ${o.status==="Aprovado"&&!o.convertido?`<button class="btn out" onclick="convertOrc('${esc(o.id)}')">Lançar como saída</button>`:""}
+    ${["Aberto","Enviado"].includes(o.status)?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Recusado')">Recusado</button>${S.papel!=="orcamento"?`<button class="btn in" onclick="setOrcStatus('${esc(o.id)}','Aprovado')">Aprovado</button>`:""}`:""}
+    ${o.status==="Aprovado"&&!o.convertido&&S.papel!=="orcamento"?`<button class="btn out" onclick="convertOrc('${esc(o.id)}')">Lançar como saída</button>`:""}
     <button class="btn" onclick="copyOrc('${esc(o.id)}')">Copiar texto</button>
   </div>`);
 }
