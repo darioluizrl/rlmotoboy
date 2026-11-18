@@ -2198,12 +2198,12 @@ async function importarBackup(inp){
     const grupos=[["clientes",d.clientes],["equipe",d.equipe||[]],["movs",d.movs],["orcamentos",d.orcamentos||[]]];
     if(OFFLINE || !S.db){
       grupos.forEach(([k,l])=>{ const m=new Map(S[k].map(x=>[x.id,x])); l.forEach(x=>{ if(x&&x.id) m.set(x.id,x); }); S[k]=[...m.values()]; });
-      if(d.config) S.config={...d.config}; persist(); render(); closeModal(); toast("Backup importado"); return;
+      if(d.config) S.config={...d.config, mapboxToken:d.config.mapboxToken||S.config.mapboxToken}; persist(); render(); closeModal(); toast("Backup importado"); return;
     }
     let n=0;
     for(const [k,l] of grupos){ for(const x of l){ if(!x||!x.id) continue; const {id,...body}=x;
       try{ await S.db.collection(COLS[k]).doc(id).set(body); n++; if(n%20===0) $("#impMsg").textContent=`Importando… ${n}/${tot}`; }catch(e){ $("#impMsg").textContent="Parou com erro: "+(e.message||e.code); $("#impOk").disabled=false; return; } } }
-    if(d.config){ try{ await S.db.doc("config/geral").set(d.config); }catch(e){} }
+    if(d.config){ try{ await S.db.doc("config/geral").set({...d.config, mapboxToken:d.config.mapboxToken||S.config.mapboxToken||""}); }catch(e){} }
     closeModal(); toast(`Backup importado (${n} registros)`);
   };
 }
