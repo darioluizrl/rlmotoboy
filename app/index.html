@@ -164,6 +164,12 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .eco{background:var(--in-l);color:var(--in);font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px}
 body.perfil-orc .so-admin{display:none!important}
 body.perfil-orc #nav button:not([data-v="orcamentos"]){display:none}
+#acBox{position:fixed;z-index:200;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden;display:none;max-height:300px;overflow-y:auto}
+#acBox .ai{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f2f4;display:flex;gap:8px;align-items:flex-start}
+#acBox .ai:last-child{border-bottom:0}
+#acBox .ai.on,#acBox .ai:hover{background:var(--brand-l)}
+#acBox .ai small{display:block;color:var(--muted);font-size:11.5px}
+#acBox .msg{padding:8px 12px;color:var(--muted);font-size:12.5px}
 .r-motoboy{background:var(--brand-l);color:var(--brand-d)}
 .r-motorista{background:#efe9ff;color:#6d28d9}
 .empty{padding:28px;text-align:center;color:var(--muted)}
@@ -326,7 +332,7 @@ textarea{resize:vertical;min-height:60px}
     <div class="panel so-admin">
       <div class="panel-h">Rotas e tabela de preços <span class="muted small" style="font-weight:500">— os km são calculados pelo Mapbox</span></div>
       <div style="padding:14px 16px">
-        <div><label>Endereço da base RL Motoboy (ponto de partida padrão)</label><input id="cfgBase" placeholder="Rua, número, bairro, cidade"></div>
+        <div><label>Endereço da base RL Motoboy (ponto de partida padrão)</label><input id="cfgBase" class="ac" autocomplete="off" placeholder="Rua, número, bairro, cidade"></div>
         <div class="geo" id="cfgInfo" style="padding:6px 0 12px"></div>
         <div style="font-weight:700;margin:4px 0 8px">Dados da empresa para os recibos</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px">
@@ -430,6 +436,7 @@ textarea{resize:vertical;min-height:60px}
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
 <div class="overlay" id="ov2" style="z-index:55"><div class="modal" id="modal2" style="max-width:860px"></div></div>
 <div class="toast" id="toast"></div>
+<div id="acBox"></div>
 
 <script>
 /* ---------- estado ---------- */
@@ -874,8 +881,8 @@ function openMov(tipo, id){
     <div class="full"><label>Cliente *</label>${cliSelect("mCli", m?.clienteId)}</div>
     <div class="full"><label>Motoboy / motorista <span style="font-weight:400">(obrigatório só quando a corrida sair: Em rota ou Concluída)</span></label>${entSelect("mEnt", m?.entregadorId, "— Definir depois —", false)}</div>
     <div class="full"><label>Descrição (o que foi coletado / entregue) *</label><input id="mDesc" required value="${esc(m?.descricao||"")}" placeholder="Ex.: 3 caixas de documentos"></div>
-    <div class="full"><label>Origem (coleta)</label><input id="mOrig" value="${esc(m ? (m.origem||"") : (S.config.base||""))}" placeholder="Rua, número, bairro, cidade"></div>
-    <div class="full"><label>Destino (entrega)</label><input id="mEnd" value="${esc(m?.endereco||"")}" placeholder="Rua, número, bairro, cidade"></div>
+    <div class="full"><label>Origem (coleta)</label><input id="mOrig" class="ac" autocomplete="off" value="${esc(m ? (m.origem||"") : (S.config.base||""))}" placeholder="Rua, número, bairro, cidade"></div>
+    <div class="full"><label>Destino (entrega)</label><input id="mEnd" class="ac" autocomplete="off" value="${esc(m?.endereco||"")}" placeholder="Rua, número, bairro, cidade"></div>
     <div><label>Distância (km)</label><div class="row" style="flex-wrap:nowrap"><input type="number" min="0" step="0.1" id="mKm" value="${esc(m?.km||"")}"><button type="button" class="btn sec" id="mCalc" onclick="calcMov()">Calcular</button></div></div>
     <div class="full"><button type="button" class="btn sec" onclick="rotaMov()">🗺 Várias paradas / roteirizar menor percurso</button> <span class="muted small" id="mRotaInfo">${m?.paradas?.length>1?`Rota com ${m.paradas.length} paradas${m.otimizada?" (otimizada)":""}`:""}</span></div>
     <div style="align-self:end"><input type="hidden" id="mMaps" value="${esc(m?.mapsUrl||"")}"><div class="geo" id="mGeo" style="padding:0 0 10px">${m?.mapsUrl?gmapsLink(m.mapsUrl):""}</div></div>
@@ -942,7 +949,7 @@ function openCli(id){
   <div class="modal-b">
     <div class="full"><label>Nome / empresa *</label><input id="cNome" required value="${esc(c?.nome||"")}"></div>
     <div><label>WhatsApp</label><input id="cTel" value="${esc(c?.telefone||"")}" placeholder="(11) 9…"></div>
-    <div><label>Endereço</label><input id="cEnd" value="${esc(c?.endereco||"")}" placeholder="Rua, número, bairro, cidade"></div>
+    <div><label>Endereço</label><input id="cEnd" class="ac" autocomplete="off" value="${esc(c?.endereco||"")}" placeholder="Rua, número, bairro, cidade"></div>
     <details class="mais" ${temMais?"open":""}><summary>Mais dados (opcional)</summary><div class="in">
       <div><label>CPF / CNPJ <span style="font-weight:400">(aparece no recibo)</span></label><input id="cDoc" value="${esc(c?.doc||"")}"></div>
       <div><label>Pessoa de contato</label><input id="cCont" value="${esc(c?.contato||"")}"></div>
@@ -969,7 +976,7 @@ function cliSelect(id, selected){
     <option value="__novo" ${novo?"selected":""}>+ Cadastrar novo agora</option></select>
     <div class="quick" id="${id}Q" style="margin-top:8px;grid-template-columns:1.6fr 1fr 1.6fr;${novo?"display:grid":""}">
       <div><label>Nome / empresa *</label><input id="${id}Nome"></div><div><label>WhatsApp</label><input id="${id}Tel"></div>
-      <div><label>Endereço</label><input id="${id}End"></div></div>`;
+      <div><label>Endereço</label><input id="${id}End" class="ac" autocomplete="off"></div></div>`;
 }
 async function resolveCli(id){
   const v=val(id);
@@ -1098,8 +1105,10 @@ async function routeREST(a,b){
   if(!rt) throw {code:"not_found",message:"Não encontrei uma rota entre esses endereços."};
   return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60)};
 }
+const GEO_CACHE=new Map();
 async function geocode(q){
   q=(q||"").trim(); if(!q) throw {code:"not_found",message:"Endereço vazio."};
+  if(GEO_CACHE.has(q)) return GEO_CACHE.get(q);
   if(REST_MAPS) return geocodeREST(q);
   const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
   const input={q:q.slice(0,200),country:["BR"],language:"pt",types:["address","street","poi","place","neighborhood","postcode","locality"]};
@@ -1187,6 +1196,62 @@ async function saveCfg(){
 }
 
 
+
+/* ---------- auto completar endereços ---------- */
+async function sugerirEnd(q){
+  const prox = (S.config.baseLat!=null && S.config.baseLon!=null) ? {longitude:S.config.baseLon, latitude:S.config.baseLat} : null;
+  if(REST_MAPS){
+    if(!mbToken()) return [];
+    const u=new URL("https://api.mapbox.com/search/geocode/v6/forward");
+    u.searchParams.set("q",q.slice(0,200)); u.searchParams.set("country","br"); u.searchParams.set("language","pt");
+    u.searchParams.set("autocomplete","true"); u.searchParams.set("limit","6"); u.searchParams.set("access_token",mbToken());
+    if(prox) u.searchParams.set("proximity",prox.longitude+","+prox.latitude);
+    const r=await fetch(u); if(!r.ok) return [];
+    const j=await r.json();
+    return (j.features||[]).map(f=>{ const p=f.properties||{}, c=f.geometry.coordinates;
+      return {nome:p.full_address||[p.name,p.place_formatted].filter(Boolean).join(", "), titulo:p.name||"", sub:p.place_formatted||"", lat:+c[1], lon:+c[0]}; });
+  }
+  const mcp=await getMcp(); if(!mcp) return [];
+  const input={q:q.slice(0,200),country:["BR"],language:"pt",auto_complete:true,types:["address","street","poi","place","neighborhood","postcode","locality"]};
+  if(prox) input.proximity=prox;
+  const r=await mcp.callTool("Mapbox","search_and_geocode_tool",input,{cache:{staleTime:864e5,gcTime:864e5}});
+  return parseGeo(r).slice(0,6).map(g=>{ const [t,...rest]=(g.nome||"").split(","); return {nome:g.nome, titulo:t, sub:rest.join(",").trim(), lat:g.lat, lon:g.lon}; });
+}
+const ACP={el:null, itens:[], sel:-1, t:null, seq:0};
+function acPos(){ if(!ACP.el) return; const r=ACP.el.getBoundingClientRect(), b=$("#acBox");
+  b.style.left=r.left+"px"; b.style.width=Math.max(r.width,280)+"px";
+  const abaixo=window.innerHeight-r.bottom; if(abaixo<220 && r.top>abaixo){ b.style.top=""; b.style.bottom=(window.innerHeight-r.top+4)+"px"; } else { b.style.bottom=""; b.style.top=(r.bottom+4)+"px"; } }
+function acFechar(){ $("#acBox").style.display="none"; ACP.itens=[]; ACP.sel=-1; }
+function acDesenhar(html){ const b=$("#acBox"); b.innerHTML=html; b.style.display=html?"block":"none"; acPos(); }
+function acRender(){
+  if(!ACP.itens.length){ acDesenhar('<div class="msg">Nenhum endereço encontrado. Continue digitando (número, bairro, cidade).</div>'); return; }
+  acDesenhar(ACP.itens.map((it,i)=>`<div class="ai${i===ACP.sel?" on":""}" data-i="${i}"><span>📍</span><div>${esc(it.titulo||it.nome)}${it.sub?`<small>${esc(it.sub)}</small>`:""}</div></div>`).join(""));
+}
+function acEscolher(i){
+  const it=ACP.itens[i], el=ACP.el; if(!it||!el) return;
+  el.value=it.nome; GEO_CACHE.set(it.nome,{lat:it.lat,lon:it.lon,nome:it.nome});
+  acFechar(); el.dataset.acOk="1"; el.dispatchEvent(new Event("input",{bubbles:true}));
+}
+document.addEventListener("input",e=>{
+  const el=e.target; if(!el.classList||!el.classList.contains("ac")) return;
+  if(el.dataset.acOk==="1"){ delete el.dataset.acOk; return; }   // input disparado pela própria seleção
+  ACP.el=el; clearTimeout(ACP.t);
+  const q=el.value.trim(); if(q.length<4){ acFechar(); return; }
+  ACP.t=setTimeout(async()=>{ const meu=++ACP.seq; acDesenhar('<div class="msg">Buscando endereços…</div>');
+    try{ const r=await sugerirEnd(q); if(meu!==ACP.seq||ACP.el!==el||document.activeElement!==el) return; ACP.itens=r; ACP.sel=-1; acRender(); }
+    catch(err){ if(meu===ACP.seq) acDesenhar(`<div class="msg">${esc(mapboxErr(err))}</div>`); } }, 350);
+});
+document.addEventListener("keydown",e=>{
+  if(!ACP.el||e.target!==ACP.el||$("#acBox").style.display!=="block"||!ACP.itens.length) return;
+  if(e.key==="ArrowDown"){ e.preventDefault(); ACP.sel=(ACP.sel+1)%ACP.itens.length; acRender(); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); ACP.sel=(ACP.sel-1+ACP.itens.length)%ACP.itens.length; acRender(); }
+  else if(e.key==="Enter" && ACP.sel>=0){ e.preventDefault(); e.stopPropagation(); acEscolher(ACP.sel); }
+  else if(e.key==="Escape"){ e.stopPropagation(); acFechar(); }
+}, true);
+$("#acBox").addEventListener("mousedown",e=>{ e.preventDefault(); const d=e.target.closest(".ai"); if(d) acEscolher(+d.dataset.i); });
+document.addEventListener("focusout",e=>{ if(e.target===ACP.el) setTimeout(()=>{ if(document.activeElement!==ACP.el) acFechar(); },120); });
+window.addEventListener("resize",acPos); document.addEventListener("scroll",()=>{ if($("#acBox").style.display==="block") acPos(); },true);
+
 /* ---------- rota com várias paradas e roteirização ---------- */
 let MOVROTA=null, RT=null;
 function openModal2(html){ $("#modal2").innerHTML=html; $("#ov2").classList.add("show"); }
@@ -1262,8 +1327,8 @@ function drawRota(){
   openModal2(`<div class="modal-h">🗺 Rota com várias paradas</div>
   <div class="modal-b" style="grid-template-columns:1fr">
     <div class="rt-list">
-      <div class="rt-row"><span class="rt-n o">S</span><input id="rtO" value="${esc(RT.origem)}" placeholder="Saída (coleta / base)" oninput="RT.origem=this.value;RT.res=null"><span></span></div>
-      ${RT.paradas.map((p,i)=>`<div class="rt-row"><span class="rt-n">${i+1}</span><input value="${esc(p)}" placeholder="Endereço da parada ${i+1} (rua, número, bairro, cidade)" oninput="RT.paradas[${i}]=this.value;RT.res=null">
+      <div class="rt-row"><span class="rt-n o">S</span><input id="rtO" class="ac" autocomplete="off" value="${esc(RT.origem)}" placeholder="Saída (coleta / base)" oninput="RT.origem=this.value;RT.res=null"><span></span></div>
+      ${RT.paradas.map((p,i)=>`<div class="rt-row"><span class="rt-n">${i+1}</span><input class="ac" autocomplete="off" value="${esc(p)}" placeholder="Endereço da parada ${i+1} (rua, número, bairro, cidade)" oninput="RT.paradas[${i}]=this.value;RT.res=null">
         <span class="rt-btns"><button type="button" class="btn ghost sm" title="Subir" onclick="rtMove(${i},-1)">↑</button><button type="button" class="btn ghost sm" title="Descer" onclick="rtMove(${i},1)">↓</button><button type="button" class="btn ghost sm" title="Remover" onclick="rtDel(${i})">✕</button></span></div>`).join("")}
     </div>
     <div class="row"><button type="button" class="btn sec sm" onclick="RT.paradas.push('');RT.res=null;drawRota()">+ Adicionar endereço</button><span class="muted small">até 24 paradas</span></div>
@@ -1493,8 +1558,8 @@ function openOrc(id){
 function drawOrcRota(){
   const r=OR.res;
   $("#oRota").innerHTML=`<div class="rt-list">
-      <div class="rt-row"><span class="rt-n o">S</span><input id="orO" value="${esc(OR.origem)}" placeholder="Saída (coleta / base)" oninput="OR.origem=this.value;orSujo()"><span></span></div>
-      ${OR.paradas.map((p,i)=>`<div class="rt-row"><span class="rt-n">${i+1}</span><input value="${esc(p)}" placeholder="Endereço de entrega ${i+1} (rua, número, bairro, cidade)" oninput="OR.paradas[${i}]=this.value;orSujo()">
+      <div class="rt-row"><span class="rt-n o">S</span><input id="orO" class="ac" autocomplete="off" value="${esc(OR.origem)}" placeholder="Saída (coleta / base)" oninput="OR.origem=this.value;orSujo()"><span></span></div>
+      ${OR.paradas.map((p,i)=>`<div class="rt-row"><span class="rt-n">${i+1}</span><input class="ac" autocomplete="off" value="${esc(p)}" placeholder="Endereço de entrega ${i+1} (rua, número, bairro, cidade)" oninput="OR.paradas[${i}]=this.value;orSujo()">
         <span class="rt-btns"><button type="button" class="btn ghost sm" title="Subir" onclick="orMove(${i},-1)">↑</button><button type="button" class="btn ghost sm" title="Descer" onclick="orMove(${i},1)">↓</button><button type="button" class="btn ghost sm" title="Remover" onclick="orDel(${i})">✕</button></span></div>`).join("")}
     </div>
     <div class="row" style="margin-top:8px;gap:14px">
