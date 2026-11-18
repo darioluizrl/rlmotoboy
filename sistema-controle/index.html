@@ -1133,36 +1133,40 @@ function rotaResHTML(r){
     <span class="spacer"></span>${gmapsLink(r.url,"Abrir rota no Google Maps")}</div>
   ${r.paradas.length>(r.retorno?9:10)?`<p class="muted small" style="margin:6px 0 0">O link do Google Maps mostra até 10 paradas; o cálculo de km considera todas.</p>`:""}`;
 }
+async function calcRotaCore(origem, endsAll, otimizar, retorno, status){
+  const ends=endsAll.map(x=>(x||"").trim()).filter(Boolean);
+  if(!(origem||"").trim()) throw {code:"not_found",message:"Informe o endereço de saída."};
+  if(!ends.length) throw {code:"not_found",message:"Informe pelo menos um endereço de entrega."};
+  if(ends.length>24) throw {code:"not_found",message:"Máximo de 24 paradas por rota."};
+  status("Localizando endereços…");
+  const geos=await Promise.all([origem.trim(),...ends].map(q=>geocode(q).catch(e=>({erro:e, q}))));
+  const ruins=geos.filter(g=>g.erro);
+  if(ruins.length){ const net=ruins.find(g=>g.erro&&g.erro.code&&g.erro.code!=="not_found"); if(net) throw net.erro;
+    throw {code:"not_found",message:"Não encontrei: "+ruins.map(g=>`“${g.q}”`).join(", ")+". Inclua número, bairro e cidade."}; }
+  const pts=geos; const n=pts.length;
+  let ordem=[...Array(n-1)].map((_,i)=>i+1), D=null, kmDig=0;
+  if(n>2 || retorno){
+    status("Calculando distâncias entre as paradas…");
+    D=(await matriz(pts)).dist.map(l=>l.map(v=>v==null?1e9:v));
+    const custo=ord=>{ let c=0,a=0; for(const b of ord){ c+=D[a][b]; a=b; } if(retorno) c+=D[a][0]; return c; };
+    kmDig=custo(ordem)/1000;
+    if(otimizar && n>2) ordem=melhorOrdem(D, retorno);
+  }
+  const seq=[pts[0],...ordem.map(i=>pts[i])].concat(retorno?[pts[0]]:[]);
+  status("Traçando a rota…");
+  const rr=await rotaMulti(seq);
+  const legKm=(a,b,idx)=> rr.legs ? Math.round(rr.legs[idx]/100)/10 : (D?Math.round(D[a][b]/100)/10:rr.km);
+  let prev=0; const paradas=ordem.map((i,idx)=>{ const p={end:ends[i-1], nome:pts[i].nome, lat:pts[i].lat, lon:pts[i].lon, kmTrecho:legKm(prev,i,idx)}; prev=i; return p; });
+  return {origem:{end:origem.trim(), nome:pts[0].nome, lat:pts[0].lat, lon:pts[0].lon}, paradas, retorno, km:rr.km, min:rr.min,
+    kmRetorno: retorno ? legKm(prev,0,ordem.length) : 0,
+    kmDigitada: Math.round(kmDig*10)/10, economia: (otimizar && D) ? (kmDig - rr.km) : 0, otimizada: !!(otimizar && n>2),
+    url: gmapsMulti([pts[0],...ordem.map(i=>pts[i])], retorno)};
+}
 async function rtCalcular(){
-  const ends=RT.paradas.map(x=>x.trim()).filter(Boolean);
-  if(!RT.origem.trim()){ $("#rtOut").innerHTML='<span class="err" style="color:var(--bad)">Informe o endereço de saída.</span>'; return; }
-  if(!ends.length){ $("#rtOut").innerHTML='<span style="color:var(--bad)">Informe pelo menos um endereço de parada.</span>'; return; }
-  if(ends.length>24){ $("#rtOut").innerHTML='<span style="color:var(--bad)">Máximo de 24 paradas por rota.</span>'; return; }
-  $("#rtCalc").disabled=true; $("#rtOut").innerHTML='<p class="muted" style="margin:0">Localizando endereços…</p>';
+  $("#rtCalc").disabled=true;
   try{
-    const geos=await Promise.all([RT.origem.trim(),...ends].map(q=>geocode(q).catch(e=>({erro:e, q}))));
-    const ruins=geos.filter(g=>g.erro);
-    if(ruins.length) throw {code:"not_found",message:"Não encontrei: "+ruins.map(g=>`“${g.q}”`).join(", ")+". Inclua número, bairro e cidade."};
-    const pts=geos; const n=pts.length;
-    let ordem=[...Array(n-1)].map((_,i)=>i+1), D=null, kmDig=0;
-    if(n>2 || RT.retorno){
-      $("#rtOut").innerHTML='<p class="muted" style="margin:0">Calculando distâncias entre as paradas…</p>';
-      D=(await matriz(pts)).dist.map(l=>l.map(v=>v==null?1e9:v));
-      const custo=ord=>{ let c=0,a=0; for(const b of ord){ c+=D[a][b]; a=b; } if(RT.retorno) c+=D[a][0]; return c; };
-      kmDig=custo(ordem)/1000;
-      if(RT.otimizar && n>2) ordem=melhorOrdem(D, RT.retorno);
-    }
-    const seq=[pts[0],...ordem.map(i=>pts[i])].concat(RT.retorno?[pts[0]]:[]);
-    $("#rtOut").innerHTML='<p class="muted" style="margin:0">Traçando a rota…</p>';
-    const rr=await rotaMulti(seq);
-    const legKm=(a,b,idx)=> rr.legs ? Math.round(rr.legs[idx]/100)/10 : (D?Math.round(D[a][b]/100)/10:rr.km);
-    let prev=0; const paradas=ordem.map((i,idx)=>{ const p={end:ends[i-1], nome:pts[i].nome, lat:pts[i].lat, lon:pts[i].lon, kmTrecho:legKm(prev,i,idx)}; prev=i; return p; });
-    RT.res={origem:{end:RT.origem.trim(), nome:pts[0].nome, lat:pts[0].lat, lon:pts[0].lon}, paradas, retorno:RT.retorno, km:rr.km, min:rr.min,
-      kmRetorno: RT.retorno ? legKm(prev,0,ordem.length) : 0,
-      kmDigitada: Math.round(kmDig*10)/10, economia: (RT.otimizar && D) ? (kmDig - rr.km) : 0, otimizada: RT.otimizar && n>2,
-      url: gmapsMulti([pts[0],...ordem.map(i=>pts[i])], RT.retorno)};
-    // reflete a ordem otimizada no formulário
-    RT.paradas=paradas.map(p=>p.end);
+    RT.res=await calcRotaCore(RT.origem, RT.paradas, RT.otimizar, RT.retorno, t=>{ $("#rtOut").innerHTML=`<p class="muted" style="margin:0">${t}</p>`; });
+    RT.paradas=RT.res.paradas.map(p=>p.end);
     drawRota();
   }catch(e){ $("#rtOut").innerHTML=`<span style="color:var(--bad)">${esc(mapboxErr(e))}</span>`; const b=$("#rtCalc"); if(b) b.disabled=false; }
 }
@@ -1255,19 +1259,22 @@ function drawItens(){
   $("#oItens").innerHTML=`<tr><th>Serviço *</th><th>Origem</th><th>Destino</th><th></th><th>Qtd</th><th>Valor un. (R$)</th><th class="num">Subtotal</th><th></th></tr>`+orcItens.map(itemRow).join("");
   updTot();
 }
-function updTot(){
-  const o={itens:orcItens,desconto:$("#oDesc").value,taxa:$("#oTaxa").value};
-  orcItens.forEach((i,idx)=>{ const el=$("#it-sub-"+idx); if(el) el.textContent=brl((Number(i.qtd)||0)*(Number(i.valor)||0)); });
-  $("#oTot").textContent=brl(orcTotal(o));
-  const rep=orcItens.reduce((s,i)=>s+(i.km?precoMotoboy(i.km)*(Number(i.qtd)||1):0),0);
-  $("#oRep").innerHTML = rep ? `Motoboy ${brl(rep)} · Margem ${brl(orcTotal(o)-rep)}` : "";
-}
 function addItem(){ orcItens.push(newItem()); drawItens(); }
 function delItem(i){ orcItens.splice(i,1); if(!orcItens.length) orcItens.push(newItem()); drawItens(); }
 
+let OR=null;
+const temRota = i => !!(i && ((i.origem||"").trim() || (i.destino||"").trim() || i.km || (i.paradas&&i.paradas.length)));
 function openOrc(id){
   const o = id ? S.orcamentos.find(x=>x.id===id) : null;
-  orcItens = o?.itens?.length ? o.itens.map(i=>({...i})) : [newItem()];
+  const its = o?.itens ? o.itens.map(i=>({...i})) : [];
+  const ri = its.findIndex(temRota); const rItem = ri>=0 ? its.splice(ri,1)[0] : null;
+  OR = { desc: rItem?.descricao || "Entrega", origem: rItem ? (rItem.origem||"") : (S.config.base||""),
+    paradas: rItem ? (rItem.paradas&&rItem.paradas.length ? rItem.paradas.map(p=>p.end) : [rItem.destino||""]) : [""],
+    otimizar: rItem ? (rItem.paradas ? !!rItem.otimizada : true) : true, retorno: !!rItem?.retorno,
+    res: rItem && rItem.km ? { origem:{end:rItem.origem||"", nome:""}, paradas:(rItem.paradas&&rItem.paradas.length?rItem.paradas:[{end:rItem.destino||"", nome:rItem.destinoEnd||""}]),
+      retorno:!!rItem.retorno, km:rItem.km, min:rItem.min, url:rItem.mapsUrl, economia:0, otimizada:!!rItem.otimizada, salvo:true } : null,
+    valor: rItem ? (Number(rItem.valor)||0)*(Number(rItem.qtd)||1) : "" };
+  orcItens = its;
   const d0=o?.data||today();
   $("#modal").style.maxWidth="900px";
   openModal(`<form id="fo"><div class="modal-h">${o?"Editar orçamento "+orcNum(o):"Novo orçamento"}</div>
@@ -1279,9 +1286,17 @@ function openOrc(id){
     </div>
     <div><label>Data</label><input type="date" id="oData" value="${esc(d0)}"></div>
     <div><label>Válido até</label><input type="date" id="oVal" value="${esc(o?.validade||addDays(d0,7))}"></div>
-    <div class="itens"><table id="oItens"></table><div style="padding:8px"><button type="button" class="btn sec sm" onclick="addItem()">+ Adicionar item</button></div></div>
+    <div class="full" style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fcfcfd">
+      <div class="row" style="margin-bottom:10px"><b style="font-size:14px">🗺 Rota da entrega</b><span class="spacer"></span>
+        <div style="width:260px"><input id="oRDesc" value="${esc(OR.desc)}" placeholder="Serviço (ex.: Entrega expressa)"></div></div>
+      <div id="oRota"></div>
+    </div>
+    <div class="full">
+      <b style="font-size:13px">Itens adicionais <span class="muted" style="font-weight:400">(opcional — espera, ajudante, volume extra…)</span></b>
+      <div class="itens" style="margin-top:6px"><table id="oItens"></table><div style="padding:8px"><button type="button" class="btn sec sm" onclick="addExtra()">+ Adicionar item</button></div></div>
+    </div>
     <div><label>Desconto (R$)</label><input type="number" min="0" step="0.01" id="oDesc" value="${esc(o?.desconto||"")}"></div>
-    <div><label>Taxa extra (R$) — espera, pedágio, urgência…</label><input type="number" min="0" step="0.01" id="oTaxa" value="${esc(o?.taxa||"")}"></div>
+    <div><label>Taxa extra (R$) — pedágio, urgência…</label><input type="number" min="0" step="0.01" id="oTaxa" value="${esc(o?.taxa||"")}"></div>
     <div class="tot"><span class="muted" id="oRep"></span>Total <b id="oTot">R$ 0,00</b></div>
     <div><label>Prazo de execução</label><input id="oPrazo" value="${esc(o?.prazo||"")}" placeholder="Ex.: mesmo dia / até 2h"></div>
     <div><label>Forma de pagamento</label><select id="oPag">${["PIX","Dinheiro","Boleto","Cartão","Faturado (mensal)"].map(x=>`<option ${x===(o?.pagamento||"PIX")?"selected":""}>${x}</option>`).join("")}</select></div>
@@ -1289,18 +1304,25 @@ function openOrc(id){
     <div class="full"><label>Observações / condições</label><textarea id="oObs">${esc(o?.obs||"")}</textarea></div>
   </div>
   <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="oSave">Salvar</button></div></form>`);
-  drawItens();
+  drawOrcRota(); drawExtras();
   const togAv=()=>{ $("#oAvulso").style.display=$("#oCli").value?"none":"grid"; };
   $("#oCli").addEventListener("change",togAv); togAv();
-  $("#oItens").addEventListener("input",e=>{ const t=e.target; if(t.dataset.k){ const it=orcItens[+t.dataset.i]; it[t.dataset.k]=t.value;
-    if(t.dataset.k==="origem"||t.dataset.k==="destino"){ it.km=0; it.repasse=0; it.paradas=null; it.min=0; it.mapsUrl=""; it.origemEnd=""; it.destinoEnd=""; it._err=""; const g=$("#it-geo-"+t.dataset.i); if(g) g.innerHTML=geoInfo(it); }
-    updTot(); } });
+  $("#oRDesc").addEventListener("input",e=>{ OR.desc=e.target.value; });
+  $("#oItens").addEventListener("input",e=>{ const t=e.target; if(t.dataset.k){ orcItens[+t.dataset.i][t.dataset.k]=t.value; updTot(); } });
   $("#oDesc").addEventListener("input",updTot); $("#oTaxa").addEventListener("input",updTot);
   $("#fo").addEventListener("submit", async e=>{
     e.preventDefault();
-    const itens=orcItens.filter(i=>(i.descricao||"").trim()).map(i=>({descricao:i.descricao.trim(),origem:(i.origem||"").trim(),destino:(i.destino||"").trim(),qtd:Number(i.qtd)||0,valor:Number(i.valor)||0,
-      km:Number(i.km)||0,min:Number(i.min)||0,paradas:i.paradas||null,otimizada:!!i.otimizada,retorno:!!i.retorno,repasse:i.km?r2(precoMotoboy(i.km)*(Number(i.qtd)||1)):0,mapsUrl:i.mapsUrl||((i.origem&&i.destino)?gmapsUrl(null,null,i.origem.trim(),i.destino.trim()):""),origemEnd:i.origemEnd||"",destinoEnd:i.destinoEnd||""}));
-    if(!itens.length){ toast("Adicione pelo menos um item com descrição."); return; }
+    const itens=[];
+    const ends=OR.paradas.map(x=>x.trim()).filter(Boolean);
+    if(ends.length || Number(OR.valor)>0){
+      const r=OR.res;
+      itens.push({descricao:(OR.desc||"Entrega").trim(), origem:OR.origem.trim(), destino: r ? resumoParadas(r.paradas)+(r.retorno?" | retorno":"") : resumoParadas(ends.map(x=>({end:x}))),
+        paradas: r ? r.paradas : null, otimizada: r ? !!r.otimizada : false, retorno: r ? !!r.retorno : OR.retorno,
+        km: r ? r.km : 0, min: r ? (r.min||0) : 0, mapsUrl: r ? r.url : (OR.origem&&ends.length ? gmapsUrl(null,null,OR.origem.trim(),ends[ends.length-1]) : ""),
+        qtd:1, valor:Number(OR.valor)||0, repasse: r&&r.km ? precoMotoboy(r.km) : 0, origemEnd:"", destinoEnd:""});
+    }
+    orcItens.filter(i=>(i.descricao||"").trim()).forEach(i=>itens.push({descricao:i.descricao.trim(), qtd:Number(i.qtd)||0, valor:Number(i.valor)||0, km:0, repasse:0, origem:"", destino:""}));
+    if(!itens.length){ toast("Preencha a rota ou adicione pelo menos um item."); return; }
     if(val("oSt")==="Aprovado" && !val("oCli") && o?.status!=="Aprovado"){ toast("Para aprovar, use o botão Aprovado em “Ver / enviar” — lá você informa o cliente."); return; }
     const cli=S.clientes.find(c=>c.id===val("oCli"));
     const numero = o?.numero || (Math.max(0,...S.orcamentos.map(x=>x.numero||0))+1);
@@ -1311,6 +1333,54 @@ function openOrc(id){
     $("#oSave").disabled=true;
     if(await save("orcamentos", o?.id, data)){ closeModal(); toast(o?"Orçamento atualizado":"Orçamento "+orcNum(data)+" criado"); } else $("#oSave").disabled=false;
   });
+}
+function drawOrcRota(){
+  const r=OR.res;
+  $("#oRota").innerHTML=`<div class="rt-list">
+      <div class="rt-row"><span class="rt-n o">S</span><input id="orO" value="${esc(OR.origem)}" placeholder="Saída (coleta / base)" oninput="OR.origem=this.value;orSujo()"><span></span></div>
+      ${OR.paradas.map((p,i)=>`<div class="rt-row"><span class="rt-n">${i+1}</span><input value="${esc(p)}" placeholder="Endereço de entrega ${i+1} (rua, número, bairro, cidade)" oninput="OR.paradas[${i}]=this.value;orSujo()">
+        <span class="rt-btns"><button type="button" class="btn ghost sm" title="Subir" onclick="orMove(${i},-1)">↑</button><button type="button" class="btn ghost sm" title="Descer" onclick="orMove(${i},1)">↓</button><button type="button" class="btn ghost sm" title="Remover" onclick="orDel(${i})">✕</button></span></div>`).join("")}
+    </div>
+    <div class="row" style="margin-top:8px;gap:14px">
+      <button type="button" class="btn sec sm" onclick="OR.paradas.push('');orSujo();drawOrcRota();const ins=document.querySelectorAll('#oRota .rt-row input');ins[ins.length-1].focus()">+ Adicionar endereço</button>
+      <label class="ck" style="margin:0"><input type="checkbox" ${OR.otimizar?"checked":""} onchange="OR.otimizar=this.checked;orSujo()"> Roteirizar automaticamente (menor percurso)</label>
+      <label class="ck" style="margin:0"><input type="checkbox" ${OR.retorno?"checked":""} onchange="OR.retorno=this.checked;orSujo()"> Voltar para a saída</label>
+      <span class="spacer"></span><button type="button" class="btn" id="orCalc" onclick="orCalcular()">Calcular rota</button>
+    </div>
+    <div id="orOut" style="margin-top:10px">${r?rotaResHTML(r):`<p class="muted small" style="margin:0">Digite a saída e os endereços de entrega e clique em <b>Calcular rota</b>. O valor é preenchido pela tabela de preços.</p>`}</div>
+    <div class="row" style="margin-top:10px;justify-content:flex-end;gap:8px"><label style="margin:0">Valor da rota (R$)</label><input type="number" min="0" step="0.01" id="orVal" style="width:130px" value="${esc(OR.valor)}" oninput="OR.valor=this.value;updTot()"></div>`;
+  updTot();
+}
+function orSujo(){ if(OR.res){ OR.res=null; const o=$("#orOut"); if(o) o.innerHTML='<p class="muted small" style="margin:0">Endereços alterados — clique em <b>Calcular rota</b> de novo.</p>'; updTot(); } }
+function orMove(i,d){ const j=i+d; if(j<0||j>=OR.paradas.length) return; [OR.paradas[i],OR.paradas[j]]=[OR.paradas[j],OR.paradas[i]]; OR.res=null; drawOrcRota(); }
+function orDel(i){ OR.paradas.splice(i,1); if(!OR.paradas.length) OR.paradas.push(""); OR.res=null; drawOrcRota(); }
+async function orCalcular(){
+  $("#orCalc").disabled=true;
+  try{
+    OR.res=await calcRotaCore(OR.origem, OR.paradas, OR.otimizar, OR.retorno, t=>{ $("#orOut").innerHTML=`<p class="muted" style="margin:0">${t}</p>`; });
+    OR.paradas=OR.res.paradas.map(p=>p.end); OR.valor=precoCliente(OR.res.km);
+    drawOrcRota();
+  }catch(e){ $("#orOut").innerHTML=`<span style="color:var(--bad)">${esc(mapboxErr(e))}</span>`; const b=$("#orCalc"); if(b) b.disabled=false; }
+}
+function drawExtras(){
+  $("#oItens").innerHTML = orcItens.length ? `<tr><th>Descrição</th><th style="width:80px">Qtd</th><th style="width:120px">Valor un. (R$)</th><th class="num" style="width:100px">Subtotal</th><th style="width:34px"></th></tr>`+
+    orcItens.map((i,idx)=>`<tr><td><input data-k="descricao" data-i="${idx}" value="${esc(i.descricao||"")}" placeholder="Ex.: Tempo de espera"></td>
+      <td><input type="number" min="0" step="1" data-k="qtd" data-i="${idx}" value="${esc(i.qtd??1)}"></td>
+      <td><input type="number" min="0" step="0.01" data-k="valor" data-i="${idx}" value="${esc(i.valor||"")}"></td>
+      <td class="num" id="it-sub-${idx}">${brl((Number(i.qtd)||0)*(Number(i.valor)||0))}</td>
+      <td><button type="button" class="btn ghost sm" onclick="orcItens.splice(${idx},1);drawExtras()">✕</button></td></tr>`).join("")
+    : `<tr><td class="muted small" style="padding:8px 10px">Nenhum item adicional.</td></tr>`;
+  updTot();
+}
+function addExtra(){ orcItens.push({descricao:"",qtd:1,valor:""}); drawExtras(); const ins=document.querySelectorAll('#oItens input[data-k="descricao"]'); if(ins.length) ins[ins.length-1].focus(); }
+function updTot(){
+  if(!$("#oTot")) return;
+  orcItens.forEach((i,idx)=>{ const el=$("#it-sub-"+idx); if(el) el.textContent=brl((Number(i.qtd)||0)*(Number(i.valor)||0)); });
+  const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
+  const tot=Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
+  $("#oTot").textContent=brl(tot);
+  const rep = OR?.res?.km ? precoMotoboy(OR.res.km) : 0;
+  $("#oRep").innerHTML = rep ? `Motoboy ${brl(rep)} · Margem ${brl(tot-rep)}` : "";
 }
 
 function orcTexto(o){
