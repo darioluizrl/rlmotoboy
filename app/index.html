@@ -170,6 +170,19 @@ body.perfil-orc #nav button:not([data-v="orcamentos"]){display:none}
 #acBox .ai.on,#acBox .ai:hover{background:var(--brand-l)}
 #acBox .ai small{display:block;color:var(--muted);font-size:11.5px}
 #acBox .msg{padding:8px 12px;color:var(--muted);font-size:12.5px}
+.kpi.clic{cursor:pointer;transition:.12s}.kpi.clic:hover{border-color:var(--brand);box-shadow:0 2px 10px rgba(232,89,12,.12)}
+.kpi.clic .hint:after{content:" · ver ›";color:var(--brand-d);font-weight:600}
+tr.clic{cursor:pointer}tr.clic:hover td{background:#fffaf6}
+.ocards{display:flex;flex-direction:column;gap:10px;padding:10px}
+.ocard{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;cursor:pointer}
+.ocard:active{background:#fffaf6}
+.ocard .l1{display:flex;align-items:center;gap:8px}
+.ocard .l1 .tt{margin-left:auto;font-weight:800;font-size:16px}
+.ocard .cli{font-weight:600;margin-top:6px}
+.ocard .srv{color:var(--muted);font-size:13px;margin-top:2px}
+.ocard .dt{color:var(--muted);font-size:12px;margin-top:6px}
+.ocard .ac{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+@media(max-width:600px){.cards{grid-template-columns:1fr 1fr;gap:8px}.kpi .val{font-size:22px}.card{padding:12px}}
 .r-motoboy{background:var(--brand-l);color:var(--brand-d)}
 .r-motorista{background:#efe9ff;color:#6d28d9}
 .empty{padding:28px;text-align:center;color:var(--muted)}
@@ -307,7 +320,7 @@ textarea{resize:vertical;min-height:60px}
     <div class="row" style="margin-bottom:14px">
       <div><h2>Orçamentos</h2><p class="sub" style="margin:0">Propostas para clientes. Aprovou? Vire um lançamento de saída com um clique.</p></div>
       <div class="spacer"></div>
-      <select id="oFiltro" style="width:auto"><option value="">Todos os status</option><option>Aberto</option><option>Enviado</option><option>Aprovado</option><option>Recusado</option><option>Vencido</option></select>
+      <select id="oFiltro" style="width:auto"><option value="">Todos os status</option><option value="__abertos">Em aberto (aberto + enviado)</option><option>Aberto</option><option>Enviado</option><option>Aprovado</option><option>Recusado</option><option>Vencido</option></select>
       <input class="search" id="oBusca" placeholder="Buscar…">
       <button class="btn" onclick="openOrc()">+ Novo orçamento</button>
     </div>
@@ -1423,7 +1436,7 @@ const orcNum = o => "#"+String(o.numero||0).padStart(4,"0");
 function renderOrcamentos(){
   const f=$("#oFiltro").value, q=$("#oBusca").value.trim().toLowerCase();
   const all=[...S.orcamentos].sort((a,b)=>(b.numero||0)-(a.numero||0));
-  const list=all.filter(o=>(!f||orcStatus(o)===f)&&(!q||[orcCli(o),o.contatoTel,o.obs,orcNum(o),...(o.itens||[]).map(i=>i.descricao+" "+(i.origem||"")+" "+(i.destino||""))].join(" ").toLowerCase().includes(q)));
+  const list=all.filter(o=>(!f||(f==="__abertos"?["Aberto","Enviado"].includes(orcStatus(o)):orcStatus(o)===f))&&(!q||[orcCli(o),o.contatoTel,o.obs,orcNum(o),...(o.itens||[]).map(i=>i.descricao+" "+(i.origem||"")+" "+(i.destino||""))].join(" ").toLowerCase().includes(q)));
   const mes=firstOfMonth(), doMes=all.filter(o=>(o.data||"")>=mes);
   const abertos=all.filter(o=>["Aberto","Enviado"].includes(orcStatus(o)));
   const aprov=doMes.filter(o=>o.status==="Aprovado"), decid=doMes.filter(o=>["Aprovado","Recusado"].includes(o.status));
@@ -1432,9 +1445,26 @@ function renderOrcamentos(){
     ["Aprovados no mês",aprov.length,brl(aprov.reduce((s,o)=>s+orcTotal(o),0))],
     ["Taxa de aprovação",decid.length?Math.round(aprov.length/decid.length*100)+"%":"—","no mês, entre os decididos"],
     ["Orçamentos no mês",doMes.length,""],
-  ].map(([l,v,h])=>`<div class="card kpi"><div class="lbl">${l}</div><div class="val">${v}</div><div class="hint">${h}</div></div>`).join("");
+  ].map(([l,v,h],i)=>`<div class="card kpi${i===0&&v?" clic":""}" ${i===0&&v?`onclick="filtrarAbertos()" title="Ver os orçamentos em aberto"`:""}><div class="lbl">${l}</div><div class="val">${v}</div><div class="hint">${h}</div></div>`).join("");
+  const resumoSrv=o=>{ const it=o.itens||[]; const r=it.find(i=>i.destino||i.km); return esc(it[0]?.descricao||"")+(r&&r.km?` · ${fmtKm(r.km)}`:"")+(it.length>1?` · +${it.length-1} item(ns)`:""); };
+  const cliTxt=o=>o.clienteId?esc(orcCli(o)):`${esc(orcCli(o))}${o.contatoNome?' <span class="small muted">(sem cadastro)</span>':""}`;
+  if(window.innerWidth<760){
+    const box=$("#tOrc"); box.innerHTML="";
+    const wrap=box.closest(".tbl-wrap"); let cards=wrap.querySelector(".ocards"); if(!cards){ cards=document.createElement("div"); cards.className="ocards"; wrap.appendChild(cards); }
+    cards.style.display="";
+    cards.innerHTML = list.length ? list.map(o=>{ const st=orcStatus(o); return `<div class="ocard" onclick="if(!event.target.closest('button'))viewOrc('${esc(o.id)}')">
+      <div class="l1"><b>${orcNum(o)}</b><span class="tag o-${st}">${st}</span>${o.convertido?'<span class="muted small">✓ lançado</span>':""}<span class="tt">${brl(orcTotal(o))}</span></div>
+      <div class="cli">${cliTxt(o)}</div><div class="srv">${resumoSrv(o)}</div>
+      <div class="dt">Feito em ${fmtD(o.data)} · válido até ${fmtD(o.validade)}</div>
+      <div class="ac"><button class="btn sm" onclick="viewOrc('${esc(o.id)}')">Ver / enviar</button><button class="btn sec sm" onclick="openOrc('${esc(o.id)}')">Editar</button>
+      ${o.status==="Aprovado"&&!o.convertido&&S.papel!=="orcamento"?`<button class="btn sm out" onclick="convertOrc('${esc(o.id)}')">Lançar saída</button>`:""}
+      <button class="btn ghost sm" onclick="askDel('orcamentos','${esc(o.id)}','o orçamento ${orcNum(o)}')">Excluir</button></div></div>`; }).join("")
+      : `<div class="empty">${S.orcamentos.length?"Nenhum orçamento encontrado.":"Nenhum orçamento ainda. Toque em “+ Novo orçamento”."}</div>`;
+    return;
+  }
+  const oc=$("#tOrc").closest(".tbl-wrap").querySelector(".ocards"); if(oc) oc.style.display="none";
   $("#tOrc").innerHTML = list.length
-    ? `<tr><th>Nº</th><th>Data</th><th>Validade</th><th>Cliente</th><th>Serviço</th><th class="num">Total</th><th>Status</th><th></th></tr>`+list.map(o=>{const st=orcStatus(o); const it=o.itens||[]; return `<tr>
+    ? `<tr><th>Nº</th><th>Data</th><th>Validade</th><th>Cliente</th><th>Serviço</th><th class="num">Total</th><th>Status</th><th></th></tr>`+list.map(o=>{const st=orcStatus(o); const it=o.itens||[]; return `<tr class="clic" title="Clique para ver o orçamento" onclick="if(!event.target.closest('button'))viewOrc('${esc(o.id)}')">
       <td><b>${orcNum(o)}</b></td><td>${fmtD(o.data)}</td><td>${fmtD(o.validade)}</td><td>${o.clienteId?esc(orcCli(o)):`<span class="muted">${esc(orcCli(o))}</span>${o.contatoNome?' <span class="small muted">(sem cadastro)</span>':""}`}</td>
       <td class="wrap">${esc(it[0]?.descricao||"")}${it.length>1?` <span class="muted small">+${it.length-1} item(ns)</span>`:""}</td>
       <td class="num"><b>${brl(orcTotal(o))}</b></td>
@@ -1445,6 +1475,8 @@ function renderOrcamentos(){
     : `<tr><td class="empty">${S.orcamentos.length?"Nenhum orçamento encontrado.":"Nenhum orçamento ainda. Clique em “+ Novo orçamento”."}</td></tr>`;
 }
 $("#oFiltro").addEventListener("change",renderOrcamentos);
+function filtrarAbertos(){ $("#oFiltro").value="__abertos"; renderOrcamentos(); const w=$("#tOrc").closest(".panel"); if(w) w.scrollIntoView({behavior:"smooth",block:"start"}); }
+let _rsz=null; window.addEventListener("resize",()=>{ clearTimeout(_rsz); _rsz=setTimeout(()=>{ if($("#v-orcamentos").classList.contains("on")) renderOrcamentos(); },200); });
 $("#oBusca").addEventListener("input",renderOrcamentos);
 
 let orcItens=[];
@@ -1637,6 +1669,7 @@ function viewOrc(id){
     ${o.status==="Aberto"?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Enviado')">Marcar como enviado</button>`:""}
     ${["Aberto","Enviado"].includes(o.status)?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Recusado')">Recusado</button>${S.papel!=="orcamento"?`<button class="btn in" onclick="setOrcStatus('${esc(o.id)}','Aprovado')">Aprovado</button>`:""}`:""}
     ${o.status==="Aprovado"&&!o.convertido&&S.papel!=="orcamento"?`<button class="btn out" onclick="convertOrc('${esc(o.id)}')">Lançar como saída</button>`:""}
+    <button class="btn sec" onclick="closeModal();openOrc('${esc(o.id)}')">Editar</button>
     <button class="btn" onclick="copyOrc('${esc(o.id)}')">Copiar texto</button>
   </div>`);
 }
