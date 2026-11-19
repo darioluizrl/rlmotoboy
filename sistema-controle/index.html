@@ -1888,7 +1888,8 @@ function osTexto(){
   const L=["RL MOTOBOY E ENTREGAS","","RETIRA",String(OR.origem||"").trim(),"","ENTREGA"];
   if(ent.length===1) L.push(ent[0]); else ent.forEach((e,i)=>L.push(`${i+1}. ${e}`));
   if(OR.retorno) L.push("(com retorno para a retirada)");
-  L.push("","KM "+kmCobrado(r.km),"VALOR "+brl(orTotal()),"","LINK DA ROTA",r.url||"");
+  const vMoto=Number(OR.repasse)||precoMotoboy(r.km);
+  L.push("","KM "+kmCobrado(r.km),"VALOR "+brl(vMoto),"","LINK DA ROTA",r.url||"");
   return L.join("\n");
 }
 function gerarOS(){
