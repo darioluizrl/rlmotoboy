@@ -1371,11 +1371,16 @@ function parseGeo(r){
   });
   return out;
 }
+/* rota como MOTO e pelo MENOR PERCURSO: o Mapbox não tem perfil de moto, então usamos o perfil de veículo
+   com medidas de moto (passa em vias estreitas) e pedimos rotas alternativas, ficando com a de menor distância */
+const MOTO_Q="alternatives=true&max_width=1&max_height=1.5";
+const MOTO_ARGS={alternatives:true, max_width:1, max_height:1.5};
+const menorRota = routes => (routes||[]).filter(r=>r&&r.distance!=null).sort((x,y)=>x.distance-y.distance)[0] || null;
 async function routeREST(a,b){
-  const u=`https://api.mapbox.com/directions/v5/mapbox/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false&access_token=${mbToken()}`;
+  const u=`https://api.mapbox.com/directions/v5/mapbox/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false&${MOTO_Q}&access_token=${mbToken()}`;
   let r; try{ r=await fetch(u); }catch(e){ throw {code:"server_unavailable"}; }
   if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
-  const j=await r.json(); const rt=(j.routes||[])[0];
+  const j=await r.json(); const rt=menorRota(j.routes);
   if(!rt) throw {code:"not_found",message:"Não encontrei uma rota entre esses endereços."};
   return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60)};
 }
@@ -1428,12 +1433,12 @@ async function geocode(q){
 async function route(a,b){
   if(REST_MAPS) return routeREST(a,b);
   const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
-  const r=await mcp.callTool("Mapbox","directions_tool",{coordinates:[{longitude:a.lon,latitude:a.lat},{longitude:b.lon,latitude:b.lat}],routing_profile:"mapbox/driving"},{cache:{staleTime:864e5,gcTime:864e5}});
+  const r=await mcp.callTool("Mapbox","directions_tool",{coordinates:[{longitude:a.lon,latitude:a.lat},{longitude:b.lon,latitude:b.lat}],routing_profile:"mapbox/driving",...MOTO_ARGS},{cache:{staleTime:864e5,gcTime:864e5}});
   let p=r&&r.payload, rt=null;
-  if(p && typeof p==="object" && Array.isArray(p.routes)) rt=p.routes[0];
+  if(p && typeof p==="object" && Array.isArray(p.routes)) rt=menorRota(p.routes);
   if(!rt){
     const txt = typeof p==="string" ? p : resText(r);
-    try{ const i=txt.indexOf("{"); const j=txt.lastIndexOf("}"); const o=JSON.parse(txt.slice(i,j+1)); if(o.routes) rt=o.routes[0]; }catch(e){}
+    try{ const i=txt.indexOf("{"); const j=txt.lastIndexOf("}"); const o=JSON.parse(txt.slice(i,j+1)); if(o.routes) rt=menorRota(o.routes); }catch(e){}
     if(!rt){ const d=txt.match(/"distance"\s*:\s*([\d.]+)/), t=txt.match(/"duration"\s*:\s*([\d.]+)/); if(d) rt={distance:+d[1],duration:t?+t[1]:0}; }
   }
   if(!rt || rt.distance==null) throw {code:"not_found",message:"Não encontrei uma rota entre esses endereços."};
@@ -1441,7 +1446,7 @@ async function route(a,b){
 }
 function gmapsUrl(o,d,oTxt,dTxt){
   const f=(pt,t)=> pt ? `${pt.lat},${pt.lon}` : encodeURIComponent(t||"");
-  return `https://www.google.com/maps/dir/?api=1&origin=${f(o,oTxt)}&destination=${f(d,dTxt)}&travelmode=driving`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${f(o,oTxt)}&destination=${f(d,dTxt)}&travelmode=two-wheeler`;
 }
 function gmapsLink(url,label="Abrir no Google Maps"){ return url?`<a class="maplink" href="${esc(url)}" target="_blank" rel="noopener">📍 ${label}</a>`:""; }
 async function calcRota(origem,destino){
@@ -1569,14 +1574,14 @@ async function matriz(pts){
 async function rotaMulti(pts){
   if(REST_MAPS){
     const c=pts.map(p=>`${p.lon},${p.lat}`).join(";");
-    let r; try{ r=await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${c}?overview=false&access_token=${mbToken()}`); }catch(e){ throw {code:"server_unavailable"}; }
+    let r; try{ r=await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${c}?overview=false&${MOTO_Q}&access_token=${mbToken()}`); }catch(e){ throw {code:"server_unavailable"}; }
     if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
-    const j=await r.json(); const rt=(j.routes||[])[0]; if(!rt) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
+    const j=await r.json(); const rt=menorRota(j.routes); if(!rt) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
     return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60), legs:(rt.legs||[]).map(l=>l.distance)};
   }
   const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
-  const r=await mcp.callTool("Mapbox","directions_tool",{coordinates:pts.map(p=>({longitude:p.lon,latitude:p.lat})),routing_profile:"mapbox/driving"},{cache:{staleTime:864e5,gcTime:864e5}});
-  const j=parseJSONResult(r); const rt=j&&j.routes&&j.routes[0];
+  const r=await mcp.callTool("Mapbox","directions_tool",{coordinates:pts.map(p=>({longitude:p.lon,latitude:p.lat})),routing_profile:"mapbox/driving",...MOTO_ARGS},{cache:{staleTime:864e5,gcTime:864e5}});
+  const j=parseJSONResult(r); const rt=j&&menorRota(j.routes);
   if(!rt||rt.distance==null) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
   return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60), legs:null};
 }
@@ -1604,7 +1609,7 @@ function gmapsMulti(pts, retorno){
   const f=p=>`${p.lat},${p.lon}`; const o=pts[0];
   const paradas=pts.slice(1); const dest = retorno ? o : paradas[paradas.length-1];
   const wps = (retorno ? paradas : paradas.slice(0,-1)).slice(0,9);
-  return `https://www.google.com/maps/dir/?api=1&origin=${f(o)}&destination=${f(dest)}${wps.length?`&waypoints=${wps.map(f).join("|")}`:""}&travelmode=driving`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${f(o)}&destination=${f(dest)}${wps.length?`&waypoints=${wps.map(f).join("|")}`:""}&travelmode=two-wheeler`;
 }
 const resumoParadas = ps => ps.length<=1 ? (ps[0]?.end||"") : `${ps.length} paradas: `+ps.map(p=>p.end).join(" | ");
 
