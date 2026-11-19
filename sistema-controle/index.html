@@ -612,9 +612,9 @@ async function initSupabase(){
   sbc.auth.onAuthStateChange((ev)=>{ if(ev==="PASSWORD_RECOVERY") telaLogin("nova"); });
   const {data:{session}}=await sbc.auth.getSession();
   const cvUrl=new URLSearchParams(location.search).get("convite");
-  if(cvUrl){ lsSet("rl_convite",cvUrl.trim().toUpperCase()); history.replaceState(null,"",location.pathname+location.hash); }
+  if(cvUrl && window.RL_CENTRAL){ lsSet("rl_convite",cvUrl.trim().toUpperCase()); history.replaceState(null,"",location.pathname+location.hash); }
   if(location.hash.includes("type=recovery")) { telaLogin("nova"); return null; }
-  if(!session){ if(lsGet("rl_convite")) telaConvite(); else telaLogin("entrar"); return null; }
+  if(!session){ if(window.RL_CENTRAL && lsGet("rl_convite")) telaConvite(); else telaLogin("entrar"); return null; }
   return await sbIniciarSessao(session);
 }
 async function sbIniciarSessao(session){
@@ -622,8 +622,8 @@ async function sbIniciarSessao(session){
   $("#userBar").innerHTML=`<span title="Conectado">👤 ${esc(session.user.email)}</span><button class="btn sm sec" style="padding:4px 9px" onclick="sbSair()">Sair</button>`;
   let me=null;
   try{ const r=await sbc.from("membros").select("papel,ativo").eq("user_id",session.user.id).maybeSingle(); me=r.data; }catch(e){}
-  if(me && (me.papel==="prestador"||me.papel==="contratante")) return await portal(session);
-  if(!me && lsGet("rl_convite")) return await portal(session);
+  if(window.RL_CENTRAL && me && (me.papel==="prestador"||me.papel==="contratante")) return await portal(session);
+  if(window.RL_CENTRAL && !me && lsGet("rl_convite")) return await portal(session);
   if(!me){ try{ const r=await sbc.rpc("primeiro_admin"); if(r.data==="admin") me={papel:"admin",ativo:true}; }catch(e){} }
   if(!me || !me.ativo){
     telaLogin("aguardando", session.user.email); return null;
@@ -885,7 +885,7 @@ async function portalForm(p){
 const CAD={filtro:"pendente"};
 async function renderCadastros(){
   const pn=$("#cadPanel"); if(!pn) return;
-  if(!SB || S.papel!=="admin"){ pn.style.display="none"; return; } pn.style.display="";
+  if(!SB || !window.RL_CENTRAL || S.papel!=="admin"){ pn.style.display="none"; return; } pn.style.display="";
   const [cv,pf,dc]=await Promise.all([
     sbc.from("convites").select("*").order("criado_em",{ascending:false}),
     sbc.from("perfis").select("*").order("criado_em",{ascending:false}),
@@ -985,7 +985,7 @@ function render(){
   if(v==="v-movs") renderMovs();
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); if(SB && !render._usu){ render._usu=1; renderUsuarios(); } }
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
-  if(v==="v-equipe"){ renderEquipe(); if(SB && S.papel==="admin" && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
+  if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && S.papel==="admin" && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
   if(v==="v-financeiro") renderFinanceiro();
 }
