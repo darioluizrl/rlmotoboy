@@ -1875,8 +1875,33 @@ function drawOrcRota(){
       <label style="margin:0">Valor da rota (R$)</label><input type="number" min="0" step="0.01" id="orVal" style="width:120px" value="${esc(OR.valor)}" oninput="OR.valor=this.value;updTot()">
       <label style="margin:0 0 0 10px">Pagar ao motoboy (R$)</label><input type="number" min="0" step="0.01" id="orRep" style="width:120px" value="${esc(OR.repasse)}" oninput="OR.repasse=this.value;updTot()">
       <input type="hidden" id="orKm" value="${esc(r?r.km:"")}"></div>
-    <div class="small muted" id="orRepHint" style="text-align:right;margin-top:4px"></div>`;
+    <div class="small muted" id="orRepHint" style="text-align:right;margin-top:4px"></div>
+    ${r?`<div class="row" style="margin-top:10px;justify-content:flex-end"><button type="button" class="btn in" onclick="gerarOS()">📋 Gerar O.S.</button></div>`:""}`;
   updTot();
+}
+function orTotal(){
+  const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
+  return Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
+}
+function osTexto(){
+  const r=OR.res, ent=OR.paradas.map(x=>String(x||"").trim()).filter(Boolean);
+  const L=["RL MOTOBOY E ENTREGAS","","RETIRA",String(OR.origem||"").trim(),"","ENTREGA"];
+  if(ent.length===1) L.push(ent[0]); else ent.forEach((e,i)=>L.push(`${i+1}. ${e}`));
+  if(OR.retorno) L.push("(com retorno para a retirada)");
+  L.push("","KM "+kmCobrado(r.km),"VALOR "+brl(orTotal()),"","LINK DA ROTA",r.url||"");
+  return L.join("\n");
+}
+function gerarOS(){
+  if(!OR||!OR.res){ toast("Calcule a rota primeiro"); return; }
+  openModal2(`<div class="modal-h">Ordem de serviço (O.S.)</div><div class="modal-b" style="grid-template-columns:1fr">
+    <textarea id="osTxt" readonly rows="16" style="font-family:inherit;line-height:1.45;resize:vertical">${esc(osTexto())}</textarea></div>
+    <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal2()">Fechar</button><button type="button" class="btn" onclick="copiarOS()">📋 Copiar O.S.</button></div>`);
+}
+async function copiarOS(){
+  const ta=$("#osTxt"); let ok=false;
+  try{ await navigator.clipboard.writeText(ta.value); ok=true; }catch(e){}
+  if(!ok){ ta.removeAttribute("readonly"); ta.select(); try{ ok=document.execCommand("copy"); }catch(e){} ta.setAttribute("readonly",""); }
+  toast(ok?"O.S. copiada — é só colar no WhatsApp":"Selecione o texto e copie");
 }
 function orSujo(){ if(OR.res){ OR.res=null; const o=$("#orOut"); if(o) o.innerHTML='<p class="muted small" style="margin:0">Endereços alterados — clique em <b>Calcular rota</b> de novo.</p>'; updTot(); } }
 function orMove(i,d){ const j=i+d; if(j<0||j>=OR.paradas.length) return; [OR.paradas[i],OR.paradas[j]]=[OR.paradas[j],OR.paradas[i]]; OR.res=null; drawOrcRota(); }
@@ -1904,8 +1929,7 @@ function addExtra(){ orcItens.push({descricao:"",qtd:1,valor:""}); drawExtras();
 function updTot(){
   if(!$("#oTot")) return;
   orcItens.forEach((i,idx)=>{ const el=$("#it-sub-"+idx); if(el) el.textContent=brl((Number(i.qtd)||0)*(Number(i.valor)||0)); });
-  const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
-  const tot=Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
+  const tot=orTotal();
   $("#oTot").textContent=brl(tot);
   if($("#orRep")){ $("#orKm").value = OR?.res?.km || ""; repHint("orKm","orRep","orRepHint"); }
   const rep = Number(OR?.repasse) || (OR?.res?.km ? precoMotoboy(OR.res.km) : 0);
