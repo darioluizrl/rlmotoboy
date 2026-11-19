@@ -1898,11 +1898,12 @@ function orTotal(){
 }
 function osMontar(origem, paradas, retorno, km, url, repasse){
   const ent=(paradas||[]).map(x=>String(x||"").trim()).filter(Boolean);
-  const L=["RL MOTOBOY E ENTREGAS","","RETIRA",String(origem||"").trim(),"","ENTREGA"];
+  /* *texto* = negrito no WhatsApp; o WhatsApp não tem cor de texto, então o valor vai com o 🔴 */
+  const L=["*RL MOTOBOY E ENTREGAS*","","*RETIRA*",String(origem||"").trim(),"","*ENTREGA*"];
   if(ent.length===1) L.push(ent[0]); else ent.forEach((e,i)=>L.push(`${i+1}. ${e}`));
   if(retorno) L.push("(com retorno para a retirada)");
   const vMoto=Number(repasse)||precoMotoboy(km);
-  L.push("","KM "+kmCobrado(km),"VALOR "+brl(vMoto),"","LINK DA ROTA",url||"");
+  L.push("","*KM "+kmCobrado(km)+"*","🔴 *VALOR "+brl(vMoto)+"*","","LINK DA ROTA",url||"");
   return L.join("\n");
 }
 function osTexto(){ const r=OR.res; return osMontar(OR.origem, OR.paradas, OR.retorno, r.km, r.url, OR.repasse); }
