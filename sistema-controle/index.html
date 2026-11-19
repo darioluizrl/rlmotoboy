@@ -1891,14 +1891,28 @@ function orTotal(){
   const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
   return Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
 }
-function osTexto(){
-  const r=OR.res, ent=OR.paradas.map(x=>String(x||"").trim()).filter(Boolean);
-  const L=["RL MOTOBOY E ENTREGAS","","RETIRA",String(OR.origem||"").trim(),"","ENTREGA"];
+function osMontar(origem, paradas, retorno, km, url, repasse){
+  const ent=(paradas||[]).map(x=>String(x||"").trim()).filter(Boolean);
+  const L=["RL MOTOBOY E ENTREGAS","","RETIRA",String(origem||"").trim(),"","ENTREGA"];
   if(ent.length===1) L.push(ent[0]); else ent.forEach((e,i)=>L.push(`${i+1}. ${e}`));
-  if(OR.retorno) L.push("(com retorno para a retirada)");
-  const vMoto=Number(OR.repasse)||precoMotoboy(r.km);
-  L.push("","KM "+kmCobrado(r.km),"VALOR "+brl(vMoto),"","LINK DA ROTA",r.url||"");
+  if(retorno) L.push("(com retorno para a retirada)");
+  const vMoto=Number(repasse)||precoMotoboy(km);
+  L.push("","KM "+kmCobrado(km),"VALOR "+brl(vMoto),"","LINK DA ROTA",url||"");
   return L.join("\n");
+}
+function osTexto(){ const r=OR.res; return osMontar(OR.origem, OR.paradas, OR.retorno, r.km, r.url, OR.repasse); }
+/* O.S. a partir de um orçamento salvo (botão "Copiar O.S." na tela do orçamento) */
+function osDeOrc(o){
+  const ri=(o.itens||[]).find(temRota); if(!ri||!ri.km) return null;
+  const par = ri.paradas&&ri.paradas.length ? ri.paradas.map(p=>p.end) : [ri.destino||""];
+  return osMontar(ri.origem, par, ri.retorno, ri.km, ri.mapsUrl, ri.repasse);
+}
+async function copyOS(id){
+  const o=S.orcamentos.find(x=>x.id===id); const t=o&&osDeOrc(o);
+  if(!t){ toast("Este orçamento não tem rota calculada"); return; }
+  let ok=false; try{ await navigator.clipboard.writeText(t); ok=true; }catch(e){}
+  if(!ok){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{ ok=document.execCommand("copy"); }catch(e){} ta.remove(); }
+  toast(ok?"O.S. copiada (valor do motoboy) — cole no grupo":"Não consegui copiar; use Gerar O.S. no Editar");
 }
 function gerarOS(){
   if(!OR||!OR.res){ toast("Calcule a rota primeiro"); return; }
@@ -1979,6 +1993,7 @@ function viewOrc(id){
     ${["Aberto","Enviado"].includes(o.status)?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Recusado')">Recusado</button>${S.papel!=="orcamento"?`<button class="btn in" onclick="setOrcStatus('${esc(o.id)}','Aprovado')">Aprovado</button>`:""}`:""}
     ${o.status==="Aprovado"&&!o.convertido&&S.papel!=="orcamento"?`<button class="btn out" onclick="convertOrc('${esc(o.id)}')">Lançar como saída</button>`:""}
     <button class="btn sec" onclick="closeModal();openOrc('${esc(o.id)}')">Editar</button>
+    ${osDeOrc(o)?`<button class="btn in" onclick="copyOS('${esc(o.id)}')">📋 Copiar O.S.</button>`:""}
     <button class="btn" onclick="copyOrc('${esc(o.id)}')">Copiar texto</button>
   </div>`);
 }
