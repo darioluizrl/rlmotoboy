@@ -1372,9 +1372,12 @@ async function routeREST(a,b){
   return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60)};
 }
 const GEO_CACHE=new Map();
-/* busca de endereços: primeiro a cidade de São Paulo e o ABC paulista, depois o resto do Brasil */
+/* busca de endereços: só no estado de SP — primeiro a cidade de São Paulo e o ABC paulista, depois o resto do estado */
 const REGIAO={minLon:-46.83, minLat:-24.01, maxLon:-46.30, maxLat:-23.35};
+const ESTADO={minLon:-53.12, minLat:-25.32, maxLon:-44.15, maxLat:-19.77};
 const naRegiao = p => p.lon>=REGIAO.minLon && p.lon<=REGIAO.maxLon && p.lat>=REGIAO.minLat && p.lat<=REGIAO.maxLat;
+const noEstado = p => p.lon>=ESTADO.minLon && p.lon<=ESTADO.maxLon && p.lat>=ESTADO.minLat && p.lat<=ESTADO.maxLat
+  && !/-\s*(Minas Gerais|Rio de Janeiro|Paraná|Mato Grosso do Sul)\b|\b(MG|RJ|PR|MS),\s*\d{5}/i.test((p.nome||"")+" "+(p.sub||""));
 const proxBusca = () => (S.config.baseLat!=null && S.config.baseLon!=null) ? {lon:S.config.baseLon, lat:S.config.baseLat} : {lon:-46.57, lat:-23.64};
 async function buscaMapbox(q, limit, auto, regional){
   const px=proxBusca();
@@ -1384,7 +1387,7 @@ async function buscaMapbox(q, limit, auto, regional){
     u.searchParams.set("q",q.slice(0,200)); u.searchParams.set("country","br"); u.searchParams.set("language","pt");
     u.searchParams.set("limit",String(limit)); u.searchParams.set("autocomplete",auto?"true":"false");
     u.searchParams.set("proximity",px.lon+","+px.lat); u.searchParams.set("access_token",mbToken());
-    if(regional) u.searchParams.set("bbox",[REGIAO.minLon,REGIAO.minLat,REGIAO.maxLon,REGIAO.maxLat].join(","));
+    const bx=regional?REGIAO:ESTADO; u.searchParams.set("bbox",[bx.minLon,bx.minLat,bx.maxLon,bx.maxLat].join(","));
     let r; try{ r=await fetch(u); }catch(e){ throw {code:"server_unavailable"}; }
     if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
     const j=await r.json();
@@ -1394,7 +1397,7 @@ async function buscaMapbox(q, limit, auto, regional){
   const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
   const input={q:q.slice(0,200),country:["BR"],language:"pt",auto_complete:!!auto,types:["address","street","poi","place","neighborhood","postcode","locality"],
     proximity:{longitude:px.lon,latitude:px.lat}};
-  if(regional) input.bbox={minLongitude:REGIAO.minLon,minLatitude:REGIAO.minLat,maxLongitude:REGIAO.maxLon,maxLatitude:REGIAO.maxLat};
+  { const bx=regional?REGIAO:ESTADO; input.bbox={minLongitude:bx.minLon,minLatitude:bx.minLat,maxLongitude:bx.maxLon,maxLatitude:bx.maxLat}; }
   const r=await mcp.callTool("Mapbox","search_and_geocode_tool",input,{cache:{staleTime:7*864e5,gcTime:7*864e5}});
   return parseGeo(r).map(g=>{ const [t,...rest]=(g.nome||"").split(","); return {...g, titulo:t, sub:rest.join(",").trim()}; });
 }
@@ -1404,14 +1407,14 @@ async function buscarEnd(q, limit, auto){
   if(!R.length && !G.length && (reg.erro||ger.erro)) throw (reg.erro||ger.erro);
   const out=[], vistos=new Set();
   const add=p=>{ const k=(p.nome||"").toLowerCase()+"|"+p.lat.toFixed(4); if(!vistos.has(k)){ vistos.add(k); out.push(p); } };
-  R.filter(naRegiao).forEach(add); G.filter(naRegiao).forEach(add); G.forEach(add);
+  R.filter(naRegiao).forEach(add); G.filter(naRegiao).forEach(add); G.filter(noEstado).forEach(add);
   return out.slice(0,limit);
 }
 async function geocode(q){
   q=(q||"").trim(); if(!q) throw {code:"not_found",message:"Endereço vazio."};
   if(GEO_CACHE.has(q)) return GEO_CACHE.get(q);
   const r=await buscarEnd(q, 3, false);
-  if(!r.length) throw {code:"not_found",message:`Endereço não encontrado: “${q}”. Inclua número, bairro e cidade.`};
+  if(!r.length) throw {code:"not_found",message:`Endereço não encontrado no estado de SP: “${q}”. Inclua número, bairro e cidade.`};
   return r[0];
 }
 async function route(a,b){
