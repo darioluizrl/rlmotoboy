@@ -58,6 +58,9 @@ tr:last-child td{border-bottom:0}
 td.wrap{white-space:normal;min-width:180px}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .tag{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.tag:empty{display:none}
+table.ptab{table-layout:fixed}table.ptab td{white-space:normal;word-break:break-word}
+body.so-portal>*:not(#login):not(#toast):not(script):not(#acBox){display:none!important}
 .t-entrada{background:var(--in-l);color:var(--in)}
 .t-saida{background:var(--out-l);color:var(--out)}
 .s-Pendente{background:var(--warn-l);color:var(--warn)}
@@ -411,6 +414,11 @@ textarea{resize:vertical;min-height:60px}
       <button class="btn" onclick="openEnt()">+ Cadastrar</button>
     </div>
     <div class="panel"><div class="tbl-wrap"><table id="tEnt"></table></div></div>
+    <div class="panel" id="cadPanel" style="display:none">
+      <div class="panel-h">🛡️ Central RL — convites e cadastros <span class="tag s-Pendente" id="cadPend" style="margin-left:6px"></span><span class="muted small" style="font-weight:500;margin-left:6px">quem entra na central por convite e com documentos conferidos</span></div>
+      <div id="cadBox"><p class="muted small" style="padding:12px 16px">Carregando…</p></div>
+      <div style="padding:6px 16px 14px"><button class="btn sec sm" onclick="renderCadastros()">Atualizar</button></div>
+    </div>
   </section>
 
   <!-- FINANCEIRO -->
@@ -603,8 +611,10 @@ async function initSupabase(){
   sbc=window.supabase.createClient(SB.url, SB.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
   sbc.auth.onAuthStateChange((ev)=>{ if(ev==="PASSWORD_RECOVERY") telaLogin("nova"); });
   const {data:{session}}=await sbc.auth.getSession();
+  const cvUrl=new URLSearchParams(location.search).get("convite");
+  if(cvUrl){ lsSet("rl_convite",cvUrl.trim().toUpperCase()); history.replaceState(null,"",location.pathname+location.hash); }
   if(location.hash.includes("type=recovery")) { telaLogin("nova"); return null; }
-  if(!session){ telaLogin("entrar"); return null; }
+  if(!session){ if(lsGet("rl_convite")) telaConvite(); else telaLogin("entrar"); return null; }
   return await sbIniciarSessao(session);
 }
 async function sbIniciarSessao(session){
@@ -612,6 +622,8 @@ async function sbIniciarSessao(session){
   $("#userBar").innerHTML=`<span title="Conectado">👤 ${esc(session.user.email)}</span><button class="btn sm sec" style="padding:4px 9px" onclick="sbSair()">Sair</button>`;
   let me=null;
   try{ const r=await sbc.from("membros").select("papel,ativo").eq("user_id",session.user.id).maybeSingle(); me=r.data; }catch(e){}
+  if(me && (me.papel==="prestador"||me.papel==="contratante")) return await portal(session);
+  if(!me && lsGet("rl_convite")) return await portal(session);
   if(!me){ try{ const r=await sbc.rpc("primeiro_admin"); if(r.data==="admin") me={papel:"admin",ativo:true}; }catch(e){} }
   if(!me || !me.ativo){
     telaLogin("aguardando", session.user.email); return null;
@@ -630,7 +642,7 @@ async function sbIniciarSessao(session){
 }
 async function sbSair(){ try{ await sbc.auth.signOut(); }catch(e){} location.hash=""; location.reload(); }
 function telaLogin(modo, email){
-  const box=$("#loginBox"); $("#login").classList.add("show");
+  const box=$("#loginBox"); $("#login").classList.add("show"); box.style.maxWidth="400px";
   const topo=`<div style="text-align:center;padding:22px 20px 6px"><img src="${LOGO}" style="width:84px;height:84px;border-radius:14px"><h2 style="margin:10px 0 2px">RL Motoboy</h2><p class="muted small" style="margin:0">Controle Logístico</p></div>`;
   if(modo==="aguardando"){
     box.innerHTML=topo+`<div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0;text-align:center">Olá, <b>${esc(email||"")}</b>!<br>Seu acesso foi criado e está <b>aguardando liberação</b> do administrador da RL.</p>
@@ -701,6 +713,260 @@ async function usuAcao(a, x, papel){
   if(r.error) toast(r.error.message); else { toast(a==="liberar"?`Perfil: ${PERFIS[papel]||"liberado"}`:"Usuário bloqueado"); renderUsuarios(); }
 }
 
+/* ================= CENTRAL RL — passo 1: convites, cadastro e aprovação ================= */
+const CAD_TIPO={prestador:"Prestador (motoboy / motorista)", contratante:"Contratante (quem solta serviço)"};
+const CAD_VEIC={moto:"Moto", carro:"Carro", utilitario:"Utilitário", caminhao:"Caminhão"};
+const CAD_ST={pendente:["Em análise","s-Pendente"], aprovado:["Aprovado ✓ Verificado","s-Concluída"], recusado:["Recusado — corrigir","s-Cancelada"], bloqueado:["Bloqueado","s-Cancelada"]};
+const lsGet=k=>{ try{ return localStorage.getItem(k)||""; }catch(e){ return ""; } };
+const lsSet=(k,v)=>{ try{ v?localStorage.setItem(k,v):localStorage.removeItem(k); }catch(e){} };
+const soNum=s=>String(s||"").replace(/\D/g,"");
+function cpfOk(c){ c=soNum(c); if(c.length!==11||/^(\d)\1+$/.test(c)) return false;
+  for(let t=9;t<11;t++){ let s=0; for(let i=0;i<t;i++) s+=+c[i]*(t+1-i); if(((s*10)%11)%10!==+c[t]) return false; } return true; }
+function cnpjOk(c){ c=soNum(c); if(c.length!==14||/^(\d)\1+$/.test(c)) return false;
+  const calc=n=>{ let s=0,p=n-7; for(let i=0;i<n;i++){ s+=+c[i]*p--; if(p<2) p=9; } const r=s%11; return r<2?0:11-r; };
+  return calc(12)===+c[12] && calc(13)===+c[13]; }
+function fmtDoc(d){ d=soNum(d); return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):d.length===14?d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,"$1.$2.$3/$4-$5"):d; }
+function fmtTel(t){ t=soNum(t); return t.length===11?t.replace(/(\d{2})(\d{5})(\d{4})/,"($1) $2-$3"):t.length===10?t.replace(/(\d{2})(\d{4})(\d{4})/,"($1) $2-$3"):t; }
+function fmtPlaca(p){ p=String(p||"").toUpperCase(); return p.length===7?p.slice(0,3)+"-"+p.slice(3):p; }
+function dataBR(s){ if(!s) return "—"; const d=new Date(s.length===10?s+"T12:00:00":s); return d.toLocaleDateString("pt-BR"); }
+const appLink=()=>location.origin+location.pathname;
+
+/* documentos pedidos em cada tipo de cadastro */
+function cadDocsNecessarios(p){
+  if(p.tipo==="prestador"){
+    const l=[["selfie","Selfie (foto do seu rosto)",true],["cnh","CNH (foto aberta ou PDF da CNH digital)",true],["crlv","Documento do veículo (CRLV)",true]];
+    if(p.veiculo==="caminhao") l.push(["antt","Registro ANTT (RNTRC)",true]);
+    if(p.pessoa==="pj") l.push(["cnpj","Cartão CNPJ ou certificado MEI",false]);
+    return l;
+  }
+  const l=[["selfie","Selfie (foto do seu rosto)",true],["cnh","Documento com foto do responsável (RG ou CNH)",true]];
+  if(p.pessoa==="pj") l.push(["cnpj","Cartão CNPJ ou contrato social",true]);
+  l.push(["comprovante","Comprovante de endereço",false]);
+  return l;
+}
+
+/* ---------- tela de convite (antes de entrar) ---------- */
+async function telaConvite(){
+  const box=$("#loginBox"); $("#login").classList.add("show"); box.style.maxWidth="440px";
+  const cod=lsGet("rl_convite");
+  const topo=`<div style="text-align:center;padding:22px 20px 6px"><img src="${LOGO}" style="width:84px;height:84px;border-radius:14px"><h2 style="margin:10px 0 2px">Central RL</h2><p class="muted small" style="margin:0">Cadastro por convite</p></div>`;
+  let tipo=null; try{ const r=await sbc.rpc("verificar_convite",{p_codigo:cod}); tipo=r.data; }catch(e){}
+  if(!tipo){
+    box.innerHTML=topo+`<div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0;text-align:center;color:var(--bad)"><b>Este convite não é válido</b><br><span class="small">Ele pode ter vencido ou já ter sido usado. Peça um novo link para a RL.</span></p></div>
+      <div class="modal-f"><button class="btn sec" onclick="lsSet('rl_convite','');telaLogin('entrar')">Já tenho conta</button></div>`; return;
+  }
+  box.innerHTML=topo+`<form id="cvF"><div class="modal-b" style="grid-template-columns:1fr">
+    <div class="eco" style="text-align:center">Você foi convidado como <b>${esc(CAD_TIPO[tipo])}</b></div>
+    <p class="muted small" style="margin:0">1. Crie sua conta com e-mail e senha · 2. Confirme o e-mail · 3. Preencha seus dados e envie os documentos · 4. A RL confere e aprova.</p>
+    <div><label>E-mail</label><input type="email" id="lgE" required autocomplete="username"></div>
+    <div><label>Senha (mínimo 6 caracteres)</label><input type="password" id="lgP" minlength="6" required autocomplete="new-password"></div>
+    <p class="small" id="lgM" style="margin:0;color:var(--bad)"></p>
+    <div class="row small" style="justify-content:space-between"><a href="#" onclick="telaLogin('entrar');return false">Já tenho conta, quero entrar</a><span></span></div>
+  </div><div class="modal-f"><button class="btn" id="lgB" style="width:100%;justify-content:center">Criar minha conta</button></div></form>`;
+  $("#cvF").onsubmit=async e=>{
+    e.preventDefault(); $("#lgB").disabled=true; $("#lgM").textContent="";
+    const {data,error}=await sbc.auth.signUp({email:val("lgE"),password:val("lgP"),options:{emailRedirectTo:appLink()+"?convite="+encodeURIComponent(cod)}});
+    if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false; return; }
+    if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Conta criada! Abra o link que enviamos para o seu e-mail para confirmar. Depois volte e entre."; $("#lgB").disabled=false; return; }
+    location.reload();
+  };
+}
+
+/* ---------- portal do prestador / contratante ---------- */
+const PT={};
+async function portal(session){
+  PT.uid=session.user.id; PT.email=session.user.email; document.body.classList.add("so-portal");
+  $("#login").classList.add("show"); const box=$("#loginBox"); box.style.maxWidth="680px";
+  box.innerHTML=`<div style="padding:40px;text-align:center" class="muted">Carregando seu cadastro…</div>`;
+  const {data:p,error}=await sbc.from("perfis").select("*").eq("user_id",PT.uid).maybeSingle();
+  if(error){ box.innerHTML=`<div style="padding:30px">${esc(error.message)}</div>`; return null; }
+  PT.p=p;
+  if(!p){ await portalForm(null); return null; }
+  const {data:docs}=await sbc.from("documentos").select("*").eq("user_id",PT.uid).order("criado_em");
+  PT.docs=docs||[];
+  portalTela(); return null;
+}
+function portalTopo(){
+  return `<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)"><img src="${LOGO}" style="width:46px;height:46px;border-radius:10px">
+    <div style="flex:1"><b>Central RL</b><div class="muted small">${esc(PT.email||"")}</div></div><button class="btn sm sec" onclick="sbSair()">Sair</button></div>`;
+}
+function portalTela(){
+  const p=PT.p, box=$("#loginBox"), edit=(p.status==="pendente"||p.status==="recusado");
+  const nec=cadDocsNecessarios(p), tem=t=>PT.docs.filter(d=>d.tipo===t);
+  const faltam=nec.filter(([t,,obr])=>obr&&!tem(t).length).map(([,l])=>l);
+  let banner="";
+  if(p.status==="pendente") banner=faltam.length
+    ? `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Falta enviar: <b>${faltam.map(esc).join(", ")}</b>. Depois disso a RL confere e aprova.</div>`
+    : `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Cadastro <b>em análise</b>. A RL vai conferir seus dados e documentos. Você recebe a resposta aqui.</div>`;
+  if(p.status==="recusado") banner=`<div class="eco" style="background:var(--bad-l);color:var(--bad)"><b>Cadastro recusado:</b> ${esc(p.motivo||"")}<br><span class="small">Corrija os dados ou troque o documento e clique em “Enviar para análise de novo”.</span></div>`;
+  if(p.status==="aprovado") banner=`<div class="eco"><b>✓ Cadastro aprovado — Verificado RL</b><br><span class="small">${p.tipo==="prestador"?"Em breve você vai receber os serviços perto de você por aqui.":"Em breve você vai poder soltar serviços por aqui."}</span></div>`;
+  if(p.status==="bloqueado") banner=`<div class="eco" style="background:var(--bad-l);color:var(--bad)"><b>Cadastro bloqueado.</b> Fale com a RL.</div>`;
+  const linhas=[["Tipo",CAD_TIPO[p.tipo]],[p.pessoa==="pj"?"Razão social":"Nome",p.nome],[p.pessoa==="pj"?"CNPJ":"CPF",fmtDoc(p.documento)],["WhatsApp",fmtTel(p.telefone)],["Cidade",p.cidade||"—"]];
+  if(p.tipo==="prestador") linhas.push(["Veículo",(CAD_VEIC[p.veiculo]||"")+(p.modelo?" · "+p.modelo:"")],["Placa",fmtPlaca(p.placa)],["Validade da CNH",dataBR(p.cnh_validade)]);
+  box.innerHTML=portalTopo()+`<div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">${banner}
+    <div><div class="row" style="justify-content:space-between"><b>Meus dados</b>${edit?`<button class="btn sm sec" onclick="portalForm(PT.p)">Editar dados</button>`:""}</div>
+      <table class="ptab" style="margin-top:6px">${linhas.map(([k,v])=>`<tr><td class="muted" style="width:40%">${esc(k)}</td><td><b>${esc(v||"—")}</b></td></tr>`).join("")}</table></div>
+    <div><b>Documentos</b><p class="muted small" style="margin:2px 0 8px">Foto nítida ou PDF, até 8 MB. Só você e a administração da RL podem ver.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">${nec.map(([t,l,obr])=>{ const ds=tem(t); return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px"><b>${esc(l)}</b>${obr?"":' <span class="muted small">(opcional)</span>'}<div class="small ${ds.length?"":"muted"}">${ds.length?`✓ Enviado em ${dataBR(ds[ds.length-1].criado_em)}`:"Ainda não enviado"}</div></div>
+        ${edit?`<label class="btn sm ${ds.length?"sec":""}" style="cursor:pointer">${ds.length?"Trocar":"Enviar"}<input type="file" accept="image/*,application/pdf" ${t==="selfie"?'capture="user"':""} style="display:none" onchange="portalUpload('${t}',this)"></label>`:""}</div>`; }).join("")}</div>
+      <p class="small" id="ptMsg" style="margin:6px 0 0"></p></div>
+    ${p.status==="recusado"?`<button class="btn" onclick="portalReenviar()">Enviar para análise de novo</button>`:""}
+  </div>`;
+}
+async function comprimirImg(file){
+  if(!file.type.startsWith("image/")) return file;
+  try{
+    const img=await createImageBitmap(file); const s=Math.min(1,1600/Math.max(img.width,img.height));
+    const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",0.82));
+  }catch(e){ return file; }
+}
+async function portalUpload(tipo, inp){
+  const f=inp.files&&inp.files[0]; if(!f) return; const msg=$("#ptMsg");
+  if(!/^image\/|application\/pdf/.test(f.type)){ msg.style.color="var(--bad)"; msg.textContent="Envie uma foto ou um PDF."; return; }
+  msg.style.color="var(--muted)"; msg.textContent="Enviando…";
+  const blob=await comprimirImg(f); const pdf=f.type==="application/pdf";
+  if(blob.size>8*1024*1024){ msg.style.color="var(--bad)"; msg.textContent="Arquivo maior que 8 MB."; return; }
+  const caminho=`${PT.uid}/${tipo}-${Date.now()}.${pdf?"pdf":"jpg"}`;
+  const up=await sbc.storage.from("documentos").upload(caminho, blob, {contentType:pdf?"application/pdf":"image/jpeg", upsert:false});
+  if(up.error){ msg.style.color="var(--bad)"; msg.textContent="Não foi possível enviar: "+up.error.message; return; }
+  const ins=await sbc.from("documentos").insert({tipo, caminho});
+  if(ins.error){ await sbc.storage.from("documentos").remove([caminho]); msg.style.color="var(--bad)"; msg.textContent="Não foi possível registrar: "+ins.error.message; return; }
+  const antigos=PT.docs.filter(d=>d.tipo===tipo);
+  if(antigos.length){ await sbc.storage.from("documentos").remove(antigos.map(d=>d.caminho)); await sbc.from("documentos").delete().in("id",antigos.map(d=>d.id)); }
+  const {data:docs}=await sbc.from("documentos").select("*").eq("user_id",PT.uid).order("criado_em"); PT.docs=docs||[];
+  portalTela(); toast("Documento enviado");
+}
+async function portalReenviar(){
+  const p=PT.p; const r=await sbc.rpc("atualizar_cadastro",{p_dados:{pessoa:p.pessoa,nome:p.nome,documento:p.documento,telefone:p.telefone,cidade:p.cidade,veiculo:p.veiculo,placa:p.placa,modelo:p.modelo,cnh_validade:p.cnh_validade}});
+  if(r.error){ toast(r.error.message); return; } toast("Enviado para análise"); portal({user:{id:PT.uid,email:PT.email}});
+}
+async function portalForm(p){
+  const box=$("#loginBox"); const novo=!p; let tipo=p?p.tipo:null; const cod=lsGet("rl_convite");
+  if(novo && cod){ try{ const r=await sbc.rpc("verificar_convite",{p_codigo:cod}); tipo=r.data; }catch(e){} }
+  const v=(k,d="")=>esc(p&&p[k]!=null?p[k]:d);
+  box.innerHTML=portalTopo()+`<form id="ptF"><div class="modal-b">
+    <div class="full"><b>${novo?"Complete seu cadastro":"Editar meus dados"}</b>${tipo?` <span class="tag s-Pendente">${esc(CAD_TIPO[tipo])}</span>`:""}</div>
+    ${novo?`<div class="full"><label>Código do convite *</label><input id="ptCod" required value="${esc(cod)}" style="text-transform:uppercase" onchange="lsSet('rl_convite',this.value.trim().toUpperCase());portalForm(null)"></div>`:""}
+    ${!tipo?`<p class="full small" style="margin:0;color:var(--bad)">${novo&&cod?"Este convite não é válido (vencido ou já usado). Peça um novo link para a RL.":"Digite o código do convite que você recebeu."}</p>`:`
+    <div><label>Pessoa</label><select id="ptPes" onchange="$('#ptDocL').textContent=this.value==='pj'?'CNPJ *':'CPF *';$('#ptNomeL').textContent=this.value==='pj'?'Razão social *':'Nome completo *'"><option value="pf" ${v("pessoa","pf")==="pf"?"selected":""}>Pessoa física (CPF)</option><option value="pj" ${v("pessoa")==="pj"?"selected":""}>Empresa / MEI (CNPJ)</option></select></div>
+    <div><label id="ptDocL">${v("pessoa")==="pj"?"CNPJ *":"CPF *"}</label><input id="ptDoc" required inputmode="numeric" value="${esc(p?fmtDoc(p.documento):"")}"></div>
+    <div class="full"><label id="ptNomeL">${v("pessoa")==="pj"?"Razão social *":"Nome completo *"}</label><input id="ptNome" required value="${v("nome")}"></div>
+    <div><label>WhatsApp com DDD *</label><input id="ptTel" required inputmode="tel" value="${esc(p?fmtTel(p.telefone):"")}"></div>
+    <div><label>Cidade</label><input id="ptCid" value="${v("cidade")}" placeholder="Ex.: São Bernardo do Campo"></div>
+    ${tipo==="prestador"?`
+    <div><label>Veículo *</label><select id="ptVei" required><option value="">Selecione…</option>${Object.entries(CAD_VEIC).map(([k,l])=>`<option value="${k}" ${v("veiculo")===k?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div><label>Placa *</label><input id="ptPla" required value="${esc(p?fmtPlaca(p.placa):"")}" style="text-transform:uppercase" placeholder="ABC-1D23"></div>
+    <div><label>Modelo</label><input id="ptMod" value="${v("modelo")}" placeholder="Ex.: CG 160, Fiorino"></div>
+    <div><label>Validade da CNH</label><input type="date" id="ptCnh" value="${v("cnh_validade")}"></div>`:""}
+    <p class="full small muted" style="margin:0">Seus dados ficam guardados com segurança e só a administração da RL vê os documentos.</p>`}
+    <p class="full small" id="ptErr" style="margin:0;color:var(--bad)"></p>
+  </div><div class="modal-f">${novo?"":`<button type="button" class="btn sec" onclick="portalTela()">Cancelar</button>`}<button class="btn" id="ptB" ${tipo?"":"disabled"}>${novo?"Salvar e continuar":"Salvar"}</button></div></form>`;
+  $("#ptF").onsubmit=async e=>{
+    e.preventDefault(); const err=$("#ptErr"); err.textContent="";
+    const pes=val("ptPes"), doc=soNum(val("ptDoc"));
+    if(pes==="pf" && !cpfOk(doc)){ err.textContent="CPF inválido. Confira os números."; return; }
+    if(pes==="pj" && !cnpjOk(doc)){ err.textContent="CNPJ inválido. Confira os números."; return; }
+    const tel=soNum(val("ptTel")); if(tel.length<10||tel.length>11){ err.textContent="WhatsApp com DDD inválido."; return; }
+    const d={pessoa:pes, nome:val("ptNome"), documento:doc, telefone:tel, cidade:val("ptCid")};
+    if(tipo==="prestador"){ Object.assign(d,{veiculo:val("ptVei"), placa:val("ptPla").replace(/[^A-Za-z0-9]/g,""), modelo:val("ptMod"), cnh_validade:val("ptCnh")||null});
+      if(d.placa.length!==7){ err.textContent="Placa inválida (7 letras e números)."; return; } }
+    $("#ptB").disabled=true;
+    const r = novo ? await sbc.rpc("registrar_cadastro",{p_convite:val("ptCod"), p_dados:d}) : await sbc.rpc("atualizar_cadastro",{p_dados:d});
+    if(r.error){ err.textContent=r.error.message; $("#ptB").disabled=false; return; }
+    if(novo) lsSet("rl_convite","");
+    toast(novo?"Cadastro criado! Agora envie os documentos.":"Dados salvos"); portal({user:{id:PT.uid,email:PT.email}});
+  };
+}
+
+/* ---------- painel do administrador: convites e cadastros ---------- */
+const CAD={filtro:"pendente"};
+async function renderCadastros(){
+  const pn=$("#cadPanel"); if(!pn) return;
+  if(!SB || S.papel!=="admin"){ pn.style.display="none"; return; } pn.style.display="";
+  const [cv,pf,dc]=await Promise.all([
+    sbc.from("convites").select("*").order("criado_em",{ascending:false}),
+    sbc.from("perfis").select("*").order("criado_em",{ascending:false}),
+    sbc.from("documentos").select("user_id,tipo")]);
+  if(cv.error||pf.error){ $("#cadBox").innerHTML=`<p class="small" style="color:var(--bad);padding:12px 16px">${esc((cv.error||pf.error).message)}</p>`; return; }
+  CAD.convites=cv.data; CAD.perfis=pf.data; CAD.docs=dc.data||[];
+  const pend=CAD.perfis.filter(p=>p.status==="pendente").length;
+  $("#cadPend").textContent=pend?`${pend} aguardando aprovação`:"";
+  const lista=CAD.perfis.filter(p=>!CAD.filtro||p.status===CAD.filtro);
+  const ndocs=u=>new Set(CAD.docs.filter(d=>d.user_id===u).map(d=>d.tipo)).size;
+  const conv=CAD.convites.map(c=>{ const venc=c.expira_em&&new Date(c.expira_em)<new Date(); const ok=c.ativo&&!venc&&c.usos<c.usos_max;
+    return `<tr><td><b>${esc(c.codigo)}</b><div class="muted small">${esc(c.descricao||"")}</div></td><td>${c.tipo==="prestador"?"Prestador":"Contratante"}</td><td>${c.usos} de ${c.usos_max}</td><td>${c.expira_em?dataBR(c.expira_em):"Sem validade"}</td>
+      <td><span class="tag ${ok?"s-Concluída":"s-Cancelada"}">${ok?"Ativo":!c.ativo?"Desativado":venc?"Vencido":"Esgotado"}</span></td>
+      <td style="white-space:nowrap">${ok?`<button class="btn ghost sm" onclick="cadCopiar('${esc(c.codigo)}')">Copiar link</button><a class="btn ghost sm" target="_blank" rel="noopener" href="${cadWhats(c)}">WhatsApp</a>`:""}
+        <button class="btn ghost sm" onclick="cadConviteAtivo('${esc(c.codigo)}',${!c.ativo})">${c.ativo?"Desativar":"Reativar"}</button></td></tr>`; }).join("");
+  $("#cadBox").innerHTML=`
+    <div style="padding:12px 16px 4px" class="row"><b>Convites</b><div class="spacer"></div><button class="btn sm" onclick="cadNovoConvite()">+ Novo convite</button></div>
+    <div class="tbl-wrap">${CAD.convites.length?`<table><tr><th>Código</th><th>Para</th><th>Usos</th><th>Validade</th><th>Situação</th><th></th></tr>${conv}</table>`:`<p class="muted small" style="padding:0 16px">Nenhum convite ainda. Crie um e mande o link no grupo de WhatsApp.</p>`}</div>
+    <div style="padding:14px 16px 4px" class="row"><b>Cadastros</b><div class="spacer"></div>
+      <select style="width:auto" onchange="CAD.filtro=this.value;renderCadastros()">${[["pendente","Aguardando aprovação"],["aprovado","Aprovados"],["recusado","Recusados"],["bloqueado","Bloqueados"],["","Todos"]].map(([k,l])=>`<option value="${k}" ${CAD.filtro===k?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div class="tbl-wrap">${lista.length?`<table><tr><th>Nome</th><th>Tipo</th><th>Veículo</th><th>WhatsApp</th><th>Docs</th><th>Situação</th><th>Enviado</th></tr>${lista.map(p=>`<tr class="clic" onclick="cadAbrir('${p.user_id}')">
+      <td><b>${esc(p.nome)}</b><div class="muted small">${esc(p.cidade||"")}</div></td><td>${p.tipo==="prestador"?"Prestador":"Contratante"}${p.pessoa==="pj"?" · PJ":""}</td>
+      <td>${p.tipo==="prestador"?esc((CAD_VEIC[p.veiculo]||"")+" "+fmtPlaca(p.placa)):"—"}</td><td>${esc(fmtTel(p.telefone))}</td>
+      <td>${ndocs(p.user_id)}/${cadDocsNecessarios(p).filter(x=>x[2]).length}</td><td><span class="tag ${CAD_ST[p.status][1]}">${CAD_ST[p.status][0]}</span></td><td>${dataBR(p.atualizado_em)}</td></tr>`).join("")}</table>`:`<p class="muted small" style="padding:0 16px 12px">Nenhum cadastro nesta lista.</p>`}</div>`;
+}
+function cadLinkConvite(cod){ return appLink()+"?convite="+encodeURIComponent(cod); }
+function cadWhats(c){
+  const txt=`Olá! Você foi convidado para a *Central RL* ${c.tipo==="prestador"?"para receber serviços de entrega e frete":"para soltar seus serviços de entrega e frete"} com segurança.\n\nFaça seu cadastro por este link:\n${cadLinkConvite(c.codigo)}\n\nCódigo do convite: *${c.codigo}*`;
+  return "https://wa.me/?text="+encodeURIComponent(txt);
+}
+async function cadCopiar(cod){ try{ await navigator.clipboard.writeText(cadLinkConvite(cod)); toast("Link copiado"); }catch(e){ toast(cadLinkConvite(cod)); } }
+async function cadConviteAtivo(cod, ativo){ const r=await sbc.from("convites").update({ativo}).eq("codigo",cod); if(r.error) toast(r.error.message); else renderCadastros(); }
+function cadNovoConvite(){
+  openModal(`<form id="cvN"><div class="modal-h">Novo convite</div><div class="modal-b">
+    <div><label>Para quem *</label><select id="cvT"><option value="prestador">Prestador (motoboy / motorista)</option><option value="contratante">Contratante (quem solta serviço)</option></select></div>
+    <div><label>Quantas pessoas podem usar *</label><input type="number" id="cvU" min="1" max="1000" value="50" required></div>
+    <div class="full"><label>Descrição (para você saber de onde veio)</label><input id="cvD" placeholder="Ex.: Grupo WhatsApp Fretes ABC"></div>
+    <div><label>Vale por quantos dias</label><input type="number" id="cvV" min="1" max="365" value="30" placeholder="Em branco = sem validade"></div>
+    <p class="full muted small" style="margin:0">Cada pessoa que usar o link cria a própria conta e fica <b>aguardando sua aprovação</b>.</p>
+  </div><div class="modal-f"><button type="button" class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="cvB">Criar convite</button></div></form>`);
+  $("#cvN").onsubmit=async e=>{
+    e.preventDefault(); $("#cvB").disabled=true;
+    const tipo=val("cvT"), al="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const rnd=crypto.getRandomValues(new Uint32Array(6));
+    const codigo=(tipo==="prestador"?"P-":"C-")+Array.from(rnd,n=>al[n%al.length]).join("");
+    const dias=parseInt(val("cvV"),10);
+    const r=await sbc.from("convites").insert({codigo, tipo, usos_max:Math.max(1,Math.min(1000,parseInt(val("cvU"),10)||1)), descricao:val("cvD")||null, expira_em:dias?new Date(Date.now()+dias*864e5).toISOString():null});
+    if(r.error){ toast(r.error.message); $("#cvB").disabled=false; return; }
+    closeModal(); await renderCadastros(); cadCopiar(codigo);
+  };
+}
+async function cadAbrir(uid){
+  const p=CAD.perfis.find(x=>x.user_id===uid); if(!p) return;
+  openModal(`<div class="modal-h">${esc(p.nome)}</div><div class="modal-b" style="grid-template-columns:1fr"><p class="muted">Carregando documentos…</p></div>`);
+  $("#modal").style.maxWidth="760px";
+  const {data:docs}=await sbc.from("documentos").select("*").eq("user_id",uid).order("criado_em");
+  let urls={}; if(docs&&docs.length){ const r=await sbc.storage.from("documentos").createSignedUrls(docs.map(d=>d.caminho),600); (r.data||[]).forEach((x,i)=>urls[docs[i].caminho]=x.signedUrl); }
+  const nomeDoc=t=>(cadDocsNecessarios(p).find(x=>x[0]===t)||[t,t])[1];
+  const linhas=[["Tipo",CAD_TIPO[p.tipo]+(p.pessoa==="pj"?" · Empresa/MEI":"")],[p.pessoa==="pj"?"CNPJ":"CPF",fmtDoc(p.documento)],["WhatsApp",fmtTel(p.telefone)],["E-mail",p.email],["Cidade",p.cidade||"—"],["Convite",p.convite||"—"],["Cadastrado em",dataBR(p.criado_em)]];
+  if(p.tipo==="prestador") linhas.push(["Veículo",(CAD_VEIC[p.veiculo]||"")+(p.modelo?" · "+p.modelo:"")],["Placa",fmtPlaca(p.placa)],["Validade da CNH",dataBR(p.cnh_validade)+(p.cnh_validade&&new Date(p.cnh_validade)<new Date()?" ⚠️ vencida":"")]);
+  const docOk=(doc)=>{ const u=urls[doc.caminho]; if(!u) return `<span class="muted small">sem acesso</span>`; return /\.pdf$/i.test(doc.caminho)?`<a class="btn sm sec" href="${u}" target="_blank" rel="noopener">Abrir PDF</a>`:`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" style="width:100%;max-height:220px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#f9fafb"></a>`; };
+  $("#modal").innerHTML=`<div class="modal-h">${esc(p.nome)} <span class="tag ${CAD_ST[p.status][1]}">${CAD_ST[p.status][0]}</span></div>
+    <div class="modal-b"><div class="full"><table class="ptab">${linhas.map(([k,v])=>`<tr><td class="muted" style="width:35%">${esc(k)}</td><td><b>${esc(v||"—")}</b></td></tr>`).join("")}</table>
+      ${p.motivo?`<p class="small" style="color:var(--bad);margin:6px 0 0">Motivo da recusa: ${esc(p.motivo)}</p>`:""}</div>
+      ${(docs||[]).length?(docs||[]).map(d=>`<div><label>${esc(nomeDoc(d.tipo))}</label>${docOk(d)}<div class="muted small">Enviado em ${dataBR(d.criado_em)}</div></div>`).join(""):`<p class="full muted">Nenhum documento enviado ainda.</p>`}
+      ${p.status!=="aprovado"&&p.status!=="bloqueado"?`<div class="full"><label>Motivo (se for recusar)</label><input id="cadMot" placeholder="Ex.: foto da CNH ilegível"></div>`:""}
+    </div><div class="modal-f" style="flex-wrap:wrap"><a class="btn sec" target="_blank" rel="noopener" href="https://wa.me/55${soNum(p.telefone)}">WhatsApp</a><div class="spacer"></div>
+      <button class="btn sec" onclick="closeModal()">Fechar</button>
+      ${p.status==="pendente"||p.status==="recusado"?`<button class="btn out" style="background:var(--bad)" onclick="cadDecidir('${uid}',false)">Recusar</button><button class="btn in" onclick="cadDecidir('${uid}',true)">Aprovar</button>`:""}
+      ${p.status==="aprovado"?`<button class="btn sec" style="color:var(--bad)" onclick="cadBloq('${uid}',true)">Bloquear</button>`:""}
+      ${p.status==="bloqueado"?`<button class="btn in" onclick="cadBloq('${uid}',false)">Desbloquear</button>`:""}</div>`;
+}
+async function cadDecidir(uid, ok){
+  const mot=ok?null:val("cadMot"); if(!ok && mot.length<3){ toast("Escreva o motivo da recusa"); $("#cadMot").focus(); return; }
+  const r=await sbc.rpc("decidir_cadastro",{p_user:uid,p_aprovar:ok,p_motivo:mot});
+  if(r.error){ toast(r.error.message); return; } closeModal(); toast(ok?"Cadastro aprovado":"Cadastro recusado"); renderCadastros();
+}
+async function cadBloq(uid, bloquear){
+  const r=bloquear?await sbc.rpc("bloquear_usuario",{p_user:uid}):await sbc.rpc("desbloquear_cadastro",{p_user:uid});
+  if(r.error){ toast(r.error.message); return; } closeModal(); toast(bloquear?"Bloqueado":"Desbloqueado"); renderCadastros();
+}
+
 /* ---------- helpers de dados ---------- */
 const byName = (a,b)=>(a.nome||"").localeCompare(b.nome||"","pt-BR");
 const cliName = id => (S.clientes.find(c=>c.id===id)||{}).nome;
@@ -719,7 +985,7 @@ function render(){
   if(v==="v-movs") renderMovs();
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); if(SB && !render._usu){ render._usu=1; renderUsuarios(); } }
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
-  if(v==="v-equipe") renderEquipe();
+  if(v==="v-equipe"){ renderEquipe(); if(SB && S.papel==="admin" && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
   if(v==="v-financeiro") renderFinanceiro();
 }

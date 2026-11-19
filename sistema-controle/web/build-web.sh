@@ -9,5 +9,12 @@ cfg='<script>window.RL_SUPABASE={url:"https://uemtwxukdclxujffltfs.supabase.co",
 s=s.replace('<meta charset="UTF-8">','<meta charset="UTF-8">\n'+cfg,1)
 s=s.replace('<meta name="viewport" content="width=device-width, initial-scale=1">','<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta name="robots" content="noindex">',1)
 open('app/index.html','w',encoding='utf-8').write(s)
+
+# versão de TESTE (banco separado rl-motoboy-teste): nada aqui mexe nos dados reais
+t=s.replace(cfg,'<script>window.RL_SUPABASE={url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"};</script>\n',1)
+selo='<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div>'
+t=t.replace('</body>',selo+'</body>',1).replace('<title>','<title>[TESTE] ',1)
+import os; os.makedirs('teste',exist_ok=True)
+open('teste/index.html','w',encoding='utf-8').write(t)
 PY
-echo "app/index.html gerado"
+echo "app/index.html e teste/index.html gerados"
