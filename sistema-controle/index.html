@@ -274,6 +274,10 @@ textarea{resize:vertical;min-height:60px}
     </div>
     <div class="kgrid" id="dK"></div>
     <div class="grid2">
+      <div class="cbox"><div class="row"><h4 style="margin:0">💸 Motoboys que falta pagar</h4><span class="spacer"></span><b id="dPagTot" style="color:var(--out)"></b></div><div class="cs">Tudo que está em aberto, de qualquer data</div><div class="tbl-wrap"><table id="dPagMot"></table></div></div>
+      <div class="cbox"><div class="row"><h4 style="margin:0">🧾 Clientes que falta pagar</h4><span class="spacer"></span><b id="dRecTot" style="color:var(--in)"></b></div><div class="cs">Tudo que está em aberto, de qualquer data</div><div class="tbl-wrap"><table id="dRecCli"></table></div></div>
+    </div>
+    <div class="grid2">
       <div class="cbox"><h4>Faturamento e pagamento à equipe</h4><div class="cs" id="dC1s"></div><div class="lg" id="dC1l"></div><div class="cwrap"><canvas id="dC1"></canvas></div></div>
       <div class="cbox"><h4>Serviços realizados</h4><div class="cs" id="dC2s"></div><div class="lg" id="dC2l"></div><div class="cwrap"><canvas id="dC2"></canvas></div></div>
     </div>
@@ -2131,7 +2135,25 @@ const pct = x => x==null ? "—" : Math.round(x*100)+"%";
 const brl0 = n => (Number(n)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
 function kmTxt(k){ return (Math.round(k*10)/10).toLocaleString("pt-BR")+" km"; }
 
+function renderPendDash(){
+  if(!$("#dPagMot")) return;
+  const fun=$("#dFun")?$("#dFun").value:"";
+  const sum=(l,f)=>l.reduce((s,m)=>s+(Number(m[f])||0),0);
+  const grp=(list,key,f)=>{ const g={}; list.forEach(m=>{ const k=key(m)||"_"; const x=g[k]=g[k]||{k,m,n:0,v:0,old:m.data}; x.n++; x.v+=Number(m[f])||0; if(m.data<x.old) x.old=m.data; }); return Object.values(g).sort((a,b)=>b.v-a.v); };
+  const pag=S.movs.filter(aPagar).filter(m=>!fun||movEntTipo(m)===fun), rec=S.movs.filter(aReceber);
+  $("#dPagTot").textContent=pag.length?brl(sum(pag,"repasse")):"";
+  $("#dRecTot").textContent=rec.length?brl(sum(rec,"valor")):"";
+  const gm=grp(pag,m=>m.entregadorId,"repasse");
+  $("#dPagMot").innerHTML = gm.length ? `<tr><th>Nome</th><th class="num">Corridas</th><th>Desde</th><th class="num">A pagar</th><th></th></tr>`+gm.map(x=>`<tr>
+    <td><b>${esc(movEnt(x.m))}</b> ${tipoTag(movEntTipo(x.m))}</td><td class="num">${x.n}</td><td>${fmtD(x.old)}</td><td class="num"><b>${brl(x.v)}</b></td>
+    <td><button class="btn sm" onclick="openAcerto('mot','${esc(x.k)}')">Pagar</button></td></tr>`).join("") : `<tr><td class="empty">Ninguém para pagar. 🎉</td></tr>`;
+  const gc=grp(rec,m=>m.clienteId||("_"+(m.clienteNome||"")),"valor");
+  $("#dRecCli").innerHTML = gc.length ? `<tr><th>Cliente</th><th class="num">Serviços</th><th>Desde</th><th class="num">A receber</th><th></th></tr>`+gc.map(x=>{ const nf=rec.filter(m=>(m.clienteId||("_"+(m.clienteNome||"")))===x.k && m.pgCli==="faturado").length; return `<tr>
+    <td><b>${esc(movCli(x.m))}</b>${nf?` <span class="pgt pg-fat" style="cursor:default">${nf} faturado(s)</span>`:""}</td><td class="num">${x.n}</td><td>${fmtD(x.old)}</td><td class="num"><b>${brl(x.v)}</b></td>
+    <td><button class="btn sm" onclick="openAcerto('cli','${esc(x.k)}')">Dar baixa</button></td></tr>`;}).join("") : `<tr><td class="empty">Nenhum cliente devendo. 🎉</td></tr>`;
+}
 async function renderDashboard(){
+  renderPendDash();
   const P=periodo();
   $("#dCustom").style.display = DP==="custom" ? "flex" : "none";
   const cur=dashFiltro(S.movs,P.de,P.ate), prev=dashFiltro(S.movs,P.pde,P.pate);
