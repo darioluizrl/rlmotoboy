@@ -1217,7 +1217,8 @@ function openMov(tipo, id){
     };
     if(m?.horaConclusao) data.horaConclusao=m.horaConclusao;
     if(data.status==="Concluída" && !data.horaConclusao) data.horaConclusao=nowHM();
-    autoBaixa(data);
+    /* baixa automática (à vista) só quando o serviço passa a ser concluído agora; na edição vale o que você marcou */
+    if(!m || m.status!=="Concluída") autoBaixa(data);
     $("#mSave").disabled=true;
     if(await save("movs", m?.id, data)){ closeModal(); toast(m?"Lançamento atualizado":(data.tipo==="entrada"?"Entrada registrada":"Saída registrada")); }
     else $("#mSave").disabled=false;
