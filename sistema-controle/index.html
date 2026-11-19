@@ -1808,7 +1808,8 @@ function openOrc(id){
     res: rItem && rItem.km ? { origem:{end:rItem.origem||"", nome:""}, paradas:(rItem.paradas&&rItem.paradas.length?rItem.paradas:[{end:rItem.destino||"", nome:rItem.destinoEnd||""}]),
       retorno:!!rItem.retorno, km:rItem.km, min:rItem.min, url:rItem.mapsUrl, economia:0, otimizada:!!rItem.otimizada, salvo:true } : null,
     valor: rItem ? (Number(rItem.valor)||0)*(Number(rItem.qtd)||1) : "",
-    repasse: rItem ? (Number(rItem.repasse)|| (rItem.km?precoMotoboy(rItem.km):"")) : "" };
+    repasse: rItem ? (Number(rItem.repasse)|| (rItem.km?precoMotoboy(rItem.km):"")) : "",
+    agData: o?.agData||"", agHora: o?.agHora||"" };
   orcItens = its;
   const d0=o?.data||today();
   $("#modal").style.maxWidth="900px";
@@ -1822,7 +1823,11 @@ function openOrc(id){
     <div><label>Data</label><input type="date" id="oData" value="${esc(d0)}"></div>
     <div><label>Válido até</label><input type="date" id="oVal" value="${esc(o?.validade||addDays(d0,7))}"></div>
     <div class="full" style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fcfcfd">
-      <div class="row" style="margin-bottom:10px"><b style="font-size:14px">🗺 Rota da entrega</b><span class="spacer"></span>
+      <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><b style="font-size:14px">🗺 Rota da entrega</b>
+        <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap"><span class="small muted">📅 Agendamento (se precisar)</span>
+          <input type="date" id="oAgData" value="${esc(OR.agData)}" oninput="OR.agData=this.value" style="width:150px">
+          <input type="time" id="oAgHora" value="${esc(OR.agHora)}" oninput="OR.agHora=this.value" style="width:110px"></div>
+        <span class="spacer"></span>
         <div style="width:260px"><input id="oRDesc" value="${esc(OR.desc)}" placeholder="Serviço (ex.: Entrega expressa)"></div></div>
       <div id="oRota"></div>
     </div>
@@ -1864,6 +1869,7 @@ function openOrc(id){
     const numero = o?.numero || (Math.max(0,...S.orcamentos.map(x=>x.numero||0))+1);
     const data={numero,clienteId:val("oCli"),clienteNome:cli?.nome||"",contatoNome:val("oCli")?"":val("oContato"),contatoTel:val("oCli")?"":val("oContTel"),data:val("oData"),validade:val("oVal"),itens,
       desconto:Number(val("oDesc"))||0,taxa:Number(val("oTaxa"))||0,prazo:val("oPrazo"),pagamento:val("oPag"),status:val("oSt"),obs:val("oObs"),
+      agData:val("oAgData")||"",agHora:val("oAgHora")||"",
       convertido:o?.convertido||false,movId:o?.movId||"",criadoEm:o?.criadoEm||Date.now(),atualizadoEm:Date.now()};
     data.total=orcTotal(data);
     $("#oSave").disabled=true;
@@ -1896,22 +1902,24 @@ function orTotal(){
   const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
   return Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
 }
-function osMontar(origem, paradas, retorno, km, url, repasse){
+function osAgenda(d,h){ if(!d&&!h) return ""; return "*📅 AGENDADO: "+[d?fmtD(d):"",h?"às "+h:""].filter(Boolean).join(" ")+"*"; }
+function osMontar(origem, paradas, retorno, km, url, repasse, agenda){
   const ent=(paradas||[]).map(x=>String(x||"").trim()).filter(Boolean);
   /* *texto* = negrito no WhatsApp; o WhatsApp não tem cor de texto, então o valor vai com o 🔴 */
-  const L=["*RL MOTOBOY E ENTREGAS*","","*RETIRA*",String(origem||"").trim(),"","*ENTREGA*"];
+  const L=["*RL MOTOBOY E ENTREGAS*"]; if(agenda) L.push(agenda);
+  L.push("","*RETIRA*",String(origem||"").trim(),"","*ENTREGA*");
   if(ent.length===1) L.push(ent[0]); else ent.forEach((e,i)=>L.push(`${i+1}. ${e}`));
   if(retorno) L.push("(com retorno para a retirada)");
   const vMoto=Number(repasse)||precoMotoboy(km);
   L.push("","*KM "+kmCobrado(km)+"*","🔴 *VALOR "+brl(vMoto)+"*","","LINK DA ROTA",url||"");
   return L.join("\n");
 }
-function osTexto(){ const r=OR.res; return osMontar(OR.origem, OR.paradas, OR.retorno, r.km, r.url, OR.repasse); }
+function osTexto(){ const r=OR.res; return osMontar(OR.origem, OR.paradas, OR.retorno, r.km, r.url, OR.repasse, osAgenda($("#oAgData")?.value||OR.agData, $("#oAgHora")?.value||OR.agHora)); }
 /* O.S. a partir de um orçamento salvo (botão "Copiar O.S." na tela do orçamento) */
 function osDeOrc(o){
   const ri=(o.itens||[]).find(temRota); if(!ri||!ri.km) return null;
   const par = ri.paradas&&ri.paradas.length ? ri.paradas.map(p=>p.end) : [ri.destino||""];
-  return osMontar(ri.origem, par, ri.retorno, ri.km, ri.mapsUrl, ri.repasse);
+  return osMontar(ri.origem, par, ri.retorno, ri.km, ri.mapsUrl, ri.repasse, osAgenda(o.agData, o.agHora));
 }
 async function copyOS(id){
   const o=S.orcamentos.find(x=>x.id===id); const t=o&&osDeOrc(o);
