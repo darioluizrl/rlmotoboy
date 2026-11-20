@@ -1407,11 +1407,11 @@ async function cadCopiar(cod){ try{ await navigator.clipboard.writeText(cadLinkC
 async function cadConviteAtivo(cod, ativo){ const r=await sbc.from("convites").update({ativo}).eq("codigo",cod); if(r.error) toast(r.error.message); else renderCadastros(); }
 function cadNovoConvite(){
   openModal(`<form id="cvN"><div class="modal-h">Novo convite</div><div class="modal-b">
-    <div><label>Para quem *</label><select id="cvT"><option value="prestador">Prestador (motoboy / motorista)</option><option value="contratante">Contratante (quem solta serviço)</option></select></div>
+    <div><label>Para quem *</label><select id="cvT"><option value="prestador">Motoboy / motorista (recebe serviços)</option><option value="contratante">Empresa / pessoa (envia serviços)</option></select></div>
     <div><label>Quantas pessoas podem usar *</label><input type="number" id="cvU" min="1" max="1000" value="50" required></div>
     <div class="full"><label>Descrição (para você saber de onde veio)</label><input id="cvD" placeholder="Ex.: Grupo WhatsApp Fretes ABC"></div>
     <div><label>Vale por quantos dias</label><input type="number" id="cvV" min="1" max="365" value="30" placeholder="Em branco = sem validade"></div>
-    <p class="full muted small" style="margin:0">Cada pessoa que usar o link cria a própria conta e fica <b>aguardando sua aprovação</b>.</p>
+    <p class="full muted small" style="margin:0">Isso só deixa pré-marcado no cadastro: a pessoa ainda pode marcar que <b>envia e recebe</b>. Cada pessoa que usar o link cria a própria conta e fica <b>aguardando sua aprovação</b>.</p>
   </div><div class="modal-f"><button type="button" class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="cvB">Criar convite</button></div></form>`);
   $("#cvN").onsubmit=async e=>{
     e.preventDefault(); $("#cvB").disabled=true;
