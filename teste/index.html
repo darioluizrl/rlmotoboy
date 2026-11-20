@@ -239,6 +239,39 @@ textarea{resize:vertical;min-height:60px}
 .ops-it .st{border-radius:8px;padding:5px 9px;font-size:13px;font-weight:700;margin-top:6px}
 .st-on{background:#e6f4ea;color:#0f9d58}.st-ag{background:#fef3c7;color:#b45309}.st-err{background:#fde8e8;color:#c62828}.st-fim{background:#eef2ff;color:#3730a3}
 @media(max-width:900px){.ops-nat{grid-template-columns:1fr}}
+.pt-uso{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.pt-op{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:400;margin:0}
+.pt-op:has(input:checked){border-color:var(--brand);background:var(--brand-l)}
+.pt-op input{width:18px;height:18px;margin-top:2px;flex:none}.pt-op small{display:block;color:var(--muted);font-size:12px}
+.pt-abas{display:flex;gap:4px;padding:10px 20px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.pt-aba{border:0;background:none;padding:10px 14px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-size:14px}
+.pt-aba.on{color:var(--ink,#16181d);border-bottom-color:var(--brand)}
+.pt-env{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;padding:16px 20px}
+.pt-card{border:1px solid var(--line);border-radius:14px;padding:16px;background:#fff;display:flex;flex-direction:column;gap:8px}
+.pt-passo{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;margin-top:6px}
+.pt-passo span{width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:12px}
+.pt-in{font-size:15px;padding:11px 12px}.pt-par{display:flex;gap:6px;margin-bottom:6px}.pt-par input{flex:1}
+.pt-seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+.pt-seg button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;font-weight:700;cursor:pointer;font-size:13.5px}
+.pt-seg button.on{border-color:var(--brand);background:var(--brand-l);color:var(--brand)}
+.pt-obs summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:6px}
+.pt-big{width:100%;padding:14px;font-size:16px;margin-top:10px}.pt-go{background:#0f9d58;border-color:#0f9d58}
+.pt-res{justify-content:flex-start}.pt-vazio{color:var(--muted);text-align:center;padding:28px 10px;border:1.5px dashed var(--line);border-radius:12px;font-size:14px}
+.pt-km{font-size:15px}.pt-km b{font-size:26px;font-weight:800;margin-right:4px}.pt-km span{color:var(--muted)}
+.pt-trajeto{list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:4px;font-size:13px}.pt-trajeto li{display:flex;gap:6px}
+.pt-valor{display:flex;align-items:center;gap:6px;border:2px solid var(--brand);border-radius:12px;padding:4px 12px}
+.pt-valor span{font-weight:800;font-size:20px}.pt-valor input{border:0;font-size:28px;font-weight:800;padding:6px 0;width:100%;outline:none;background:transparent}
+.pt-taxa,.pt-total{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+.pt-total{border:0;font-size:16px}.pt-total b{font-size:18px}
+.pt-ok{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:30px 10px;font-size:15px}.pt-ok b{font-size:22px}
+.pt-meu{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink,#16181d)}
+.pt-gps{border:1.5px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.pt-gps b{font-size:16px}.pt-gps.on{border-color:#0f9d58;background:#e6f4ea}.pt-gps.err{border-color:var(--bad);background:var(--bad-l)}
+.pt-serv{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;margin-top:10px}
+.pt-serv-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.pt-serv-val{font-size:26px;font-weight:800;color:#0f9d58}
+.pt-serv-dist{font-weight:700;font-size:14px}.pt-serv-rota{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:13.5px}.pt-serv-rota div{display:flex;gap:6px}
+.pt-serv-info{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pt-serv-info span{background:#f3f4f6;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+@media(max-width:760px){.pt-env{grid-template-columns:1fr}.pt-uso{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -794,6 +827,9 @@ async function usuAcao(a, x, papel){
 
 /* ================= CENTRAL RL — passo 1: convites, cadastro e aprovação ================= */
 const CAD_TIPO={prestador:"Prestador (motoboy / motorista)", contratante:"Contratante (quem solta serviço)"};
+const ptRecebe = p => p && (p.recebe!=null ? !!p.recebe : p.tipo==="prestador");
+const ptEnvia  = p => p && (p.envia!=null ? !!p.envia : p.tipo==="contratante");
+const tipoTxt  = p => ptEnvia(p)&&ptRecebe(p) ? "Envia e recebe serviços" : ptRecebe(p) ? "Recebe serviços (motoboy / motorista)" : "Envia serviços (empresa / pessoa)";
 const CAD_VEIC={moto:"Moto", carro:"Carro", utilitario:"Utilitário", caminhao:"Caminhão"};
 const CAD_ST={pendente:["Em análise","s-Pendente"], aprovado:["Aprovado ✓ Verificado","s-Concluída"], recusado:["Recusado — corrigir","s-Cancelada"], bloqueado:["Bloqueado","s-Cancelada"]};
 const lsGet=k=>{ try{ return localStorage.getItem(k)||""; }catch(e){ return ""; } };
@@ -812,10 +848,10 @@ const appLink=()=>location.origin+location.pathname;
 
 /* documentos pedidos em cada tipo de cadastro */
 function cadDocsNecessarios(p){
-  if(p.tipo==="prestador"){
+  if(ptRecebe(p)){
     const l=[["selfie","Selfie (foto do seu rosto)",true],["cnh","CNH (foto aberta ou PDF da CNH digital)",true],["crlv","Documento do veículo (CRLV)",true]];
     if(p.veiculo==="caminhao") l.push(["antt","Registro ANTT (RNTRC)",true]);
-    if(p.pessoa==="pj") l.push(["cnpj","Cartão CNPJ ou certificado MEI",false]);
+    if(p.pessoa==="pj") l.push(["cnpj",ptEnvia(p)?"Cartão CNPJ ou contrato social":"Cartão CNPJ ou certificado MEI",ptEnvia(p)]);
     return l;
   }
   const l=[["selfie","Selfie (foto do seu rosto)",true],["cnh","Documento com foto do responsável (RG ou CNH)",true]];
@@ -863,6 +899,7 @@ async function portal(session){
   if(!p){ await portalForm(null); return null; }
   const {data:docs}=await sbc.from("documentos").select("*").eq("user_id",PT.uid).order("criado_em");
   PT.docs=docs||[];
+  if(p.status==="aprovado"){ await ptApp(); return null; }
   portalTela(); return null;
 }
 function portalTopo(){
@@ -878,11 +915,12 @@ function portalTela(){
     ? `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Falta enviar: <b>${faltam.map(esc).join(", ")}</b>. Depois disso a RL confere e aprova.</div>`
     : `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Cadastro <b>em análise</b>. A RL vai conferir seus dados e documentos. Você recebe a resposta aqui.</div>`;
   if(p.status==="recusado") banner=`<div class="eco" style="background:var(--bad-l);color:var(--bad)"><b>Cadastro recusado:</b> ${esc(p.motivo||"")}<br><span class="small">Corrija os dados ou troque o documento e clique em “Enviar para análise de novo”.</span></div>`;
-  if(p.status==="aprovado") banner=`<div class="eco"><b>✓ Cadastro aprovado — Verificado RL</b><br><span class="small">${p.tipo==="prestador"?"Em breve você vai receber os serviços perto de você por aqui.":"Em breve você vai poder soltar serviços por aqui."}</span></div>`;
+  if(p.status==="aprovado") banner=`<div class="eco"><b>✓ Cadastro aprovado — Verificado RL</b></div>`;
   if(p.status==="bloqueado") banner=`<div class="eco" style="background:var(--bad-l);color:var(--bad)"><b>Cadastro bloqueado.</b> Fale com a RL.</div>`;
-  const linhas=[["Tipo",CAD_TIPO[p.tipo]],[p.pessoa==="pj"?"Razão social":"Nome",p.nome],[p.pessoa==="pj"?"CNPJ":"CPF",fmtDoc(p.documento)],["WhatsApp",fmtTel(p.telefone)],["Cidade",p.cidade||"—"]];
-  if(p.tipo==="prestador") linhas.push(["Veículo",(CAD_VEIC[p.veiculo]||"")+(p.modelo?" · "+p.modelo:"")],["Placa",fmtPlaca(p.placa)],["Validade da CNH",dataBR(p.cnh_validade)]);
-  box.innerHTML=portalTopo()+`<div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">${banner}
+  const linhas=[["Tipo",tipoTxt(p)],[p.pessoa==="pj"?"Razão social":"Nome",p.nome],[p.pessoa==="pj"?"CNPJ":"CPF",fmtDoc(p.documento)],["WhatsApp",fmtTel(p.telefone)],["Cidade",p.cidade||"—"]];
+  if(ptRecebe(p)) linhas.push(["Veículo",(CAD_VEIC[p.veiculo]||"")+(p.modelo?" · "+p.modelo:"")],["Placa",fmtPlaca(p.placa)],["Validade da CNH",dataBR(p.cnh_validade)]);
+  const alvo=$("#ptConteudo")&&p.status==="aprovado"?$("#ptConteudo"):null;
+  (alvo||box).innerHTML=(alvo?"":portalTopo())+`<div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">${banner}
     <div><div class="row" style="justify-content:space-between"><b>Meus dados</b>${edit?`<button class="btn sm sec" onclick="portalForm(PT.p)">Editar dados</button>`:""}</div>
       <table class="ptab" style="margin-top:6px">${linhas.map(([k,v])=>`<tr><td class="muted" style="width:40%">${esc(k)}</td><td><b>${esc(v||"—")}</b></td></tr>`).join("")}</table></div>
     <div><b>Documentos</b><p class="muted small" style="margin:2px 0 8px">Foto nítida ou PDF, até 8 MB. Só você e a administração da RL podem ver.</p>
@@ -919,7 +957,7 @@ async function portalUpload(tipo, inp){
   portalTela(); toast("Documento enviado");
 }
 async function portalReenviar(){
-  const p=PT.p; const r=await sbc.rpc("atualizar_cadastro",{p_dados:{pessoa:p.pessoa,nome:p.nome,documento:p.documento,telefone:p.telefone,cidade:p.cidade,veiculo:p.veiculo,placa:p.placa,modelo:p.modelo,cnh_validade:p.cnh_validade}});
+  const p=PT.p; const r=await sbc.rpc("atualizar_cadastro",{p_dados:{envia:ptEnvia(p),recebe:ptRecebe(p),pessoa:p.pessoa,nome:p.nome,documento:p.documento,telefone:p.telefone,cidade:p.cidade,veiculo:p.veiculo,placa:p.placa,modelo:p.modelo,cnh_validade:p.cnh_validade}});
   if(r.error){ toast(r.error.message); return; } toast("Enviado para análise"); portal({user:{id:PT.uid,email:PT.email}});
 }
 async function portalForm(p){
@@ -927,30 +965,36 @@ async function portalForm(p){
   if(novo && cod){ try{ const r=await sbc.rpc("verificar_convite",{p_codigo:cod}); tipo=r.data; }catch(e){} }
   const v=(k,d="")=>esc(p&&p[k]!=null?p[k]:d);
   box.innerHTML=portalTopo()+`<form id="ptF"><div class="modal-b">
-    <div class="full"><b>${novo?"Complete seu cadastro":"Editar meus dados"}</b>${tipo?` <span class="tag s-Pendente">${esc(CAD_TIPO[tipo])}</span>`:""}</div>
+    <div class="full"><b>${novo?"Complete seu cadastro":"Editar meus dados"}</b></div>
     ${novo?`<div class="full"><label>Código do convite *</label><input id="ptCod" required value="${esc(cod)}" style="text-transform:uppercase" onchange="lsSet('rl_convite',this.value.trim().toUpperCase());portalForm(null)"></div>`:""}
     ${!tipo?`<p class="full small" style="margin:0;color:var(--bad)">${novo&&cod?"Este convite não é válido (vencido ou já usado). Peça um novo link para a RL.":"Digite o código do convite que você recebeu."}</p>`:`
+    <div class="full"><label>Como você vai usar a Central? * <span class="muted small">(pode marcar os dois)</span></label>
+      <div class="pt-uso"><label class="pt-op"><input type="checkbox" id="ptEnv" ${(p?ptEnvia(p):tipo==="contratante")?"checked":""} onchange="ptUsoMudou()"><span><b>📦 Envio serviços</b><small>Solto entregas e fretes para motoboys e motoristas</small></span></label>
+      <label class="pt-op"><input type="checkbox" id="ptRec" ${(p?ptRecebe(p):tipo==="prestador")?"checked":""} onchange="ptUsoMudou()"><span><b>🏍 Recebo serviços</b><small>Sou motoboy ou motorista e pego trabalhos</small></span></label></div></div>
     <div><label>Pessoa</label><select id="ptPes" onchange="$('#ptDocL').textContent=this.value==='pj'?'CNPJ *':'CPF *';$('#ptNomeL').textContent=this.value==='pj'?'Razão social *':'Nome completo *'"><option value="pf" ${v("pessoa","pf")==="pf"?"selected":""}>Pessoa física (CPF)</option><option value="pj" ${v("pessoa")==="pj"?"selected":""}>Empresa / MEI (CNPJ)</option></select></div>
     <div><label id="ptDocL">${v("pessoa")==="pj"?"CNPJ *":"CPF *"}</label><input id="ptDoc" required inputmode="numeric" value="${esc(p?fmtDoc(p.documento):"")}"></div>
     <div class="full"><label id="ptNomeL">${v("pessoa")==="pj"?"Razão social *":"Nome completo *"}</label><input id="ptNome" required value="${v("nome")}"></div>
     <div><label>WhatsApp com DDD *</label><input id="ptTel" required inputmode="tel" value="${esc(p?fmtTel(p.telefone):"")}"></div>
     <div><label>Cidade</label><input id="ptCid" value="${v("cidade")}" placeholder="Ex.: São Bernardo do Campo"></div>
-    ${tipo==="prestador"?`
+    <div class="full" id="ptVeiBox" style="display:contents">
     <div><label>Veículo *</label><select id="ptVei" required><option value="">Selecione…</option>${Object.entries(CAD_VEIC).map(([k,l])=>`<option value="${k}" ${v("veiculo")===k?"selected":""}>${l}</option>`).join("")}</select></div>
     <div><label>Placa *</label><input id="ptPla" required value="${esc(p?fmtPlaca(p.placa):"")}" style="text-transform:uppercase" placeholder="ABC-1D23"></div>
     <div><label>Modelo</label><input id="ptMod" value="${v("modelo")}" placeholder="Ex.: CG 160, Fiorino"></div>
-    <div><label>Validade da CNH</label><input type="date" id="ptCnh" value="${v("cnh_validade")}"></div>`:""}
+    <div><label>Validade da CNH</label><input type="date" id="ptCnh" value="${v("cnh_validade")}"></div></div>
     <p class="full small muted" style="margin:0">Seus dados ficam guardados com segurança e só a administração da RL vê os documentos.</p>`}
     <p class="full small" id="ptErr" style="margin:0;color:var(--bad)"></p>
   </div><div class="modal-f">${novo?"":`<button type="button" class="btn sec" onclick="portalTela()">Cancelar</button>`}<button class="btn" id="ptB" ${tipo?"":"disabled"}>${novo?"Salvar e continuar":"Salvar"}</button></div></form>`;
+  ptUsoMudou();
   $("#ptF").onsubmit=async e=>{
     e.preventDefault(); const err=$("#ptErr"); err.textContent="";
+    const env=$("#ptEnv").checked, rec=$("#ptRec").checked;
+    if(!env&&!rec){ err.textContent="Marque se você envia serviços, recebe serviços ou os dois."; return; }
     const pes=val("ptPes"), doc=soNum(val("ptDoc"));
     if(pes==="pf" && !cpfOk(doc)){ err.textContent="CPF inválido. Confira os números."; return; }
     if(pes==="pj" && !cnpjOk(doc)){ err.textContent="CNPJ inválido. Confira os números."; return; }
     const tel=soNum(val("ptTel")); if(tel.length<10||tel.length>11){ err.textContent="WhatsApp com DDD inválido."; return; }
-    const d={pessoa:pes, nome:val("ptNome"), documento:doc, telefone:tel, cidade:val("ptCid")};
-    if(tipo==="prestador"){ Object.assign(d,{veiculo:val("ptVei"), placa:val("ptPla").replace(/[^A-Za-z0-9]/g,""), modelo:val("ptMod"), cnh_validade:val("ptCnh")||null});
+    const d={envia:env, recebe:rec, pessoa:pes, nome:val("ptNome"), documento:doc, telefone:tel, cidade:val("ptCid")};
+    if(rec){ if(!val("ptVei")){ err.textContent="Escolha o veículo."; return; } Object.assign(d,{veiculo:val("ptVei"), placa:val("ptPla").replace(/[^A-Za-z0-9]/g,""), modelo:val("ptMod"), cnh_validade:val("ptCnh")||null});
       if(d.placa.length!==7){ err.textContent="Placa inválida (7 letras e números)."; return; } }
     $("#ptB").disabled=true;
     const r = novo ? await sbc.rpc("registrar_cadastro",{p_convite:val("ptCod"), p_dados:d}) : await sbc.rpc("atualizar_cadastro",{p_dados:d});
@@ -958,6 +1002,168 @@ async function portalForm(p){
     if(novo) lsSet("rl_convite","");
     toast(novo?"Cadastro criado! Agora envie os documentos.":"Dados salvos"); portal({user:{id:PT.uid,email:PT.email}});
   };
+}
+
+function ptUsoMudou(){ const r=$("#ptRec"), b=$("#ptVeiBox"); if(!r||!b) return; const on=r.checked;
+  b.style.display=on?"contents":"none"; ["ptVei","ptPla"].forEach(id=>{ const el=$("#"+id); if(el) el.required=on; }); }
+
+/* ================= APP DA CENTRAL (cadastro aprovado) ================= */
+const PTA={aba:null, rota:null, veic:"moto", quando:"agora", watch:null, pos:null, ultBusca:0, timer:null, lista:[], meus:[], cred:{valor_credito:0.5,creditos_envia:2,creditos_pega:1}};
+const PT_FATOR={moto:1, carro:1.8, utilitario:2.5, caminhao:4};
+async function ptApp(){
+  const box=$("#loginBox"); box.style.maxWidth="980px";
+  try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; }); }catch(e){}
+  const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
+  if(!PTA.aba || !abas.some(a=>a[0]===PTA.aba)) PTA.aba=abas[0][0];
+  box.innerHTML=portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div><div id="ptConteudo"></div>`;
+  ptAba(PTA.aba);
+}
+function ptAba(a){
+  PTA.aba=a; document.querySelectorAll(".pt-aba").forEach(b=>b.classList.toggle("on",b.dataset.a===a));
+  if(a!=="receber") ptPararGps();
+  if(a==="enviar") ptEnviarTela(); else if(a==="receber") ptReceberTela(); else portalTela();
+}
+/* ---------- quem ENVIA: orçamento limpo e decisivo ---------- */
+function ptEnviarTela(){
+  const c=$("#ptConteudo"); PTA.rota=null;
+  c.innerHTML=`<div class="pt-env">
+    <div class="pt-card">
+      <div class="pt-passo"><span>1</span> Onde retirar?</div>
+      <input class="ac pt-in" id="peRet" placeholder="Endereço de retirada (rua, número, bairro)" autocomplete="off" oninput="ptSujo()">
+      <div class="pt-passo"><span>2</span> Para onde levar?</div>
+      <div id="peParadas"></div>
+      <button type="button" class="btn sec sm" onclick="ptAddParada()">+ Adicionar outra entrega</button>
+      <div class="pt-passo"><span>3</span> Qual veículo?</div>
+      <div class="pt-seg" id="peVei">${Object.entries(CAD_VEIC).map(([k,l])=>`<button type="button" data-v="${k}" class="${PTA.veic===k?"on":""}" onclick="ptVeic('${k}')">${{moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"}[k]} ${l}</button>`).join("")}</div>
+      <div class="pt-passo"><span>4</span> Quando?</div>
+      <div class="pt-seg" id="peQuando"><button type="button" data-q="agora" class="${PTA.quando==="agora"?"on":""}" onclick="ptQuando('agora')">⚡ Agora</button><button type="button" data-q="agendar" class="${PTA.quando==="agendar"?"on":""}" onclick="ptQuando('agendar')">📅 Agendar</button></div>
+      <input type="datetime-local" class="pt-in" id="peAg" style="display:${PTA.quando==="agendar"?"":"none"};margin-top:8px">
+      <details class="pt-obs"><summary>Observação para o motoboy (opcional)</summary><textarea id="peObs" maxlength="500" rows="2" class="pt-in" placeholder="Ex.: caixa pequena, falar com a recepção"></textarea></details>
+      <button type="button" class="btn pt-big" id="peCalc" onclick="ptCalcular()">Calcular valor</button>
+      <p class="small" id="peErr" style="color:var(--bad);margin:6px 0 0"></p>
+    </div>
+    <div class="pt-card pt-res" id="peRes"><div class="pt-vazio">📍 Preencha a retirada e a entrega e toque em <b>Calcular valor</b>.</div></div>
+  </div>
+  <div class="pt-card" style="margin:0 20px 20px"><div class="row"><b>Meus serviços</b><div class="spacer"></div><button class="btn sm sec" onclick="ptMeus()">Atualizar</button></div><div id="peMeus" class="small muted" style="margin-top:8px">Carregando…</div></div>`;
+  ptAddParada(); ptMeus();
+}
+function ptAddParada(){
+  const box=$("#peParadas"); const n=box.querySelectorAll(".pt-par").length; if(n>=20){ toast("Máximo de 20 entregas"); return; }
+  const d=document.createElement("div"); d.className="pt-par";
+  d.innerHTML=`<input class="ac pt-in" placeholder="Endereço de entrega${n?" "+(n+1):""}" autocomplete="off" oninput="ptSujo()">${n?`<button type="button" class="btn sm sec" title="Tirar" onclick="this.parentNode.remove();ptSujo()">✕</button>`:""}`;
+  box.appendChild(d); ptSujo();
+}
+function ptVeic(v){ PTA.veic=v; document.querySelectorAll("#peVei button").forEach(b=>b.classList.toggle("on",b.dataset.v===v)); if(PTA.rota) ptMostrarRes(); }
+function ptQuando(q){ PTA.quando=q; document.querySelectorAll("#peQuando button").forEach(b=>b.classList.toggle("on",b.dataset.q===q)); $("#peAg").style.display=q==="agendar"?"":"none"; }
+function ptSujo(){ if(!PTA.rota) return; PTA.rota=null; const r=$("#peRes"); if(r) r.innerHTML=`<div class="pt-vazio">Endereços alterados — toque em <b>Calcular valor</b> de novo.</div>`; }
+const ptSugestao=(km,v)=>Math.ceil(precoMotoboy(km, TAB_PADRAO.motoboy)*(PT_FATOR[v]||1));
+async function ptCalcular(){
+  const err=$("#peErr"); err.textContent="";
+  const ret=val("peRet"), dests=[...document.querySelectorAll("#peParadas .pt-in")].map(i=>i.value.trim()).filter(Boolean);
+  if(ret.length<5){ err.textContent="Digite o endereço de retirada."; return; }
+  if(!dests.length){ err.textContent="Digite pelo menos um endereço de entrega."; return; }
+  const b=$("#peCalc"); b.disabled=true; b.textContent="Calculando…";
+  try{
+    const pts=await Promise.all([ret,...dests].map(geocode));
+    let km=0,min=0; for(let i=0;i<pts.length-1;i++){ const r=await route(pts[i],pts[i+1]); km+=r.km; min+=r.min; }
+    km=Math.round(km*10)/10;
+    const url=`https://www.google.com/maps/dir/?api=1&origin=${pts[0].lat},${pts[0].lon}&destination=${pts[pts.length-1].lat},${pts[pts.length-1].lon}${pts.length>2?"&waypoints="+pts.slice(1,-1).map(p=>p.lat+","+p.lon).join("|"):""}&travelmode=two-wheeler`;
+    PTA.rota={pts, nomes:[ret,...dests], km, min, url, valor:null};
+    ptMostrarRes();
+  }catch(e){ err.textContent=mapboxErr(e)||"Não consegui calcular a rota."; }
+  b.disabled=false; b.textContent="Calcular valor";
+}
+function ptMostrarRes(){
+  const R=PTA.rota, sug=ptSugestao(R.km,PTA.veic); if(R.valor==null||R._veic!==PTA.veic){ R.valor=sug; R._veic=PTA.veic; }
+  const cr=PTA.cred, taxa=(cr.creditos_envia||0)*(cr.valor_credito||0);
+  $("#peRes").innerHTML=`
+    <div class="pt-km"><b>${fmtKm(R.km)}</b><span>· cerca de ${R.min} min${R.pts.length>2?` · ${R.pts.length-1} entregas`:""}</span></div>
+    <ol class="pt-trajeto">${R.nomes.map((n,i)=>`<li><span>${i?"📦":"🏁"}</span>${esc(n)}</li>`).join("")}</ol>
+    <a class="small" href="${esc(R.url)}" target="_blank" rel="noopener">Ver rota no Google Maps ↗</a>
+    <label style="margin-top:14px">Valor do frete para o ${PTA.veic==="moto"?"motoboy":"motorista"}</label>
+    <div class="pt-valor"><span>R$</span><input id="peValor" type="number" min="5" step="1" value="${R.valor}" oninput="PTA.rota.valor=Number(this.value)||0;ptTotal()"></div>
+    <div class="muted small">Sugestão pela distância: <b>${brl(sug)}</b>. Você pode mudar.</div>
+    <div class="pt-taxa"><span>Taxa da Central</span><b>${cr.creditos_envia||0} créditos (${brl(taxa)})</b></div>
+    <div class="pt-total" id="peTotal"></div>
+    <button type="button" class="btn pt-big pt-go" id="peSoltar" onclick="ptSoltar()">✅ Soltar serviço</button>
+    <p class="muted small" style="margin:6px 0 0;text-align:center">Os motoboys perto da retirada veem na hora.</p>`;
+  ptTotal();
+}
+function ptTotal(){ const R=PTA.rota; if(!R) return; const cr=PTA.cred; $("#peTotal").innerHTML=`<span>Você paga ao ${PTA.veic==="moto"?"motoboy":"motorista"}</span><b>${brl(R.valor||0)}</b>`; }
+async function ptSoltar(){
+  const R=PTA.rota; if(!R) return; const err=$("#peErr");
+  if(!(R.valor>=5)){ toast("Valor mínimo do frete: R$ 5"); return; }
+  let ag=null; if(PTA.quando==="agendar"){ const v=$("#peAg").value; if(!v){ toast("Escolha a data e a hora do agendamento"); return; } ag=new Date(v).toISOString(); }
+  const b=$("#peSoltar"); b.disabled=true; b.textContent="Soltando…";
+  const pt=(i)=>({e:R.nomes[i], la:Math.round(R.pts[i].lat*1e5)/1e5, lo:Math.round(R.pts[i].lon*1e5)/1e5});
+  const r=await sbc.rpc("servico_soltar",{p:{retirada:pt(0), paradas:R.nomes.slice(1).map((_,i)=>({...pt(i+1),t:"entrega"})), km:R.km, minutos:R.min, veiculo:PTA.veic, valor:R.valor, agendado_para:ag, obs:val("peObs")}});
+  if(r.error){ b.disabled=false; b.textContent="✅ Soltar serviço"; toast(r.error.message); return; }
+  toast("Serviço solto! Os motoboys perto já estão vendo.");
+  $("#peRes").innerHTML=`<div class="pt-ok">✅<b>Serviço solto!</b><span>Os ${PTA.veic==="moto"?"motoboys":"motoristas"} perto da retirada já estão vendo.</span><button class="btn sec" onclick="ptEnviarTela()">Soltar outro serviço</button></div>`;
+  PTA.rota=null; ptMeus();
+}
+const PT_ST={aberto:["Aberto — aguardando","s-Pendente"],aceito:["Aceito","s-Concluída"],em_andamento:["Em andamento","s-Em-rota"],concluido:["Concluído","s-Concluída"],cancelado:["Cancelado","s-Cancelada"]};
+async function ptMeus(){
+  const box=$("#peMeus"); if(!box) return;
+  const r=await sbc.from("servicos").select("*").eq("criado_por",PT.uid).order("criado_em",{ascending:false}).range(0,19);
+  if(r.error){ box.textContent=r.error.message; return; }
+  PTA.meus=r.data||[];
+  box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu"><div style="flex:1"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
+      <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${brl(s.valor)} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div></div>
+      <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>${s.status==="aberto"?`<button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}</div>`).join("")
+    :`<span class="muted">Nenhum serviço ainda.</span>`;
+}
+async function ptCancelar(id){ const r=await sbc.rpc("servico_cancelar",{p_id:id}); if(r.error){ toast(r.error.message); return; } toast("Serviço cancelado"); ptMeus(); }
+function ptHa(t){ const m=Math.max(0,Math.round((Date.now()-new Date(t))/60000)); return m<1?"agora":m<60?`há ${m} min`:m<1440?`há ${Math.round(m/60)} h`:dataBR(t); }
+/* ---------- quem RECEBE: serviços perto (precisa da localização) ---------- */
+function ptReceberTela(){
+  const c=$("#ptConteudo");
+  c.innerHTML=`<div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+    <div id="prGps"></div><div id="prLista"></div></div>`;
+  if(PTA.watch!==null){ ptGpsTxt(); ptDesenharLista(); } else ptGpsPedir(false);
+}
+function ptGpsPedir(clicou){
+  const g=$("#prGps"); if(!g) return;
+  if(!("geolocation" in navigator)){ g.innerHTML=`<div class="pt-gps err">Este aparelho não permite localização pelo navegador.</div>`; return; }
+  g.innerHTML=`<div class="pt-gps"><b>📍 Libere sua localização</b><span>Para ver os serviços perto de você, a Central precisa saber onde você está. Ela só é usada enquanto esta tela estiver aberta.</span><button class="btn pt-big" onclick="ptGpsLigar()">Liberar minha localização</button></div>`;
+  if(!clicou && navigator.permissions) navigator.permissions.query({name:"geolocation"}).then(st=>{ if(st.state==="granted") ptGpsLigar(); }).catch(()=>{});
+}
+function ptGpsLigar(){
+  const g=$("#prGps"); if(g) g.innerHTML=`<div class="pt-gps"><b>📍 Buscando sua localização…</b></div>`;
+  ptPararGps();
+  PTA.watch=navigator.geolocation.watchPosition(pos=>{
+    const n={lat:pos.coords.latitude, lon:pos.coords.longitude, prec:pos.coords.accuracy, t:Date.now()};
+    const mudou=!PTA.pos || Math.abs(n.lat-PTA.pos.lat)+Math.abs(n.lon-PTA.pos.lon)>0.003;
+    PTA.pos=n; ptGpsTxt(); if(mudou || Date.now()-PTA.ultBusca>30000) ptBuscar();
+  }, e=>{
+    ptPararGps(); const g=$("#prGps"); if(!g) return;
+    g.innerHTML=`<div class="pt-gps err"><b>Localização bloqueada</b><span>${e.code===1?"Você não permitiu a localização. Toque no cadeado ao lado do endereço do site, permita a localização e tente de novo.":"Não consegui pegar sua localização. Confira se o GPS do celular está ligado."}</span><button class="btn" onclick="ptGpsLigar()">Tentar de novo</button></div>`;
+  }, {enableHighAccuracy:true, maximumAge:15000, timeout:30000});
+  clearInterval(PTA.timer); PTA.timer=setInterval(()=>{ if(PTA.pos) ptBuscar(); },30000);
+}
+function ptPararGps(){ if(PTA.watch!==null){ try{ navigator.geolocation.clearWatch(PTA.watch); }catch(e){} } PTA.watch=null; clearInterval(PTA.timer); }
+function ptGpsTxt(){ const g=$("#prGps"); if(!g||!PTA.pos) return;
+  g.innerHTML=`<div class="pt-gps on"><b>🟢 Localização ativa</b><span>Mostrando serviços perto de você${PTA.ultBusca?" · atualizado às "+new Date(PTA.ultBusca).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):""}. A lista atualiza sozinha.</span></div>`; }
+async function ptBuscar(){
+  if(!PTA.pos) return; PTA.ultBusca=Date.now();
+  const r=await sbc.rpc("servicos_proximos",{p_lat:PTA.pos.lat,p_lon:PTA.pos.lon});
+  if(r.error){ const l=$("#prLista"); if(l) l.innerHTML=`<div class="pt-gps err">${esc(r.error.message)}</div>`; return; }
+  PTA.lista=r.data||[]; ptGpsTxt(); ptDesenharLista();
+}
+function ptDesenharLista(){
+  const l=$("#prLista"); if(!l) return;
+  if(!PTA.pos){ l.innerHTML=""; return; }
+  if(!PTA.lista.length){ l.innerHTML=`<div class="pt-vazio">Nenhum serviço aberto perto de você agora.<br><span class="small">Deixe esta tela aberta: quando surgir um, ele aparece aqui.</span></div>`; return; }
+  l.innerHTML=`<div class="muted small">${PTA.lista.length} serviço(s) perto de você · a candidatura (até ${3} por serviço) entra na próxima etapa</div>`+PTA.lista.map(s=>{
+    const ult=s.paradas[s.paradas.length-1]||{};
+    const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
+    return `<div class="pt-serv">
+      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você</div></div>
+      <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
+      <div class="pt-serv-info"><span>${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""}</span><span>${esc(CAD_VEIC[s.veiculo]||"")}</span><span>${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span><span>solto ${ptHa(s.criado_em)}</span></div>
+      ${s.obs?`<div class="small" style="margin-top:6px">💬 ${esc(s.obs)}</div>`:""}
+      <div class="row" style="margin-top:10px;gap:8px"><a class="btn sm sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><button class="btn sm" disabled title="Chega na próxima etapa">Quero este serviço (em breve)</button></div>
+    </div>`; }).join("");
 }
 
 /* ---------- painel do administrador: convites e cadastros ---------- */
@@ -986,8 +1192,8 @@ async function renderCadastros(){
     <div style="padding:14px 16px 4px" class="row"><b>Cadastros</b><div class="spacer"></div>
       <select style="width:auto" onchange="CAD.filtro=this.value;renderCadastros()">${[["pendente","Aguardando aprovação"],["aprovado","Aprovados"],["recusado","Recusados"],["bloqueado","Bloqueados"],["","Todos"]].map(([k,l])=>`<option value="${k}" ${CAD.filtro===k?"selected":""}>${l}</option>`).join("")}</select></div>
     <div class="tbl-wrap">${lista.length?`<table><tr><th>Nome</th><th>Tipo</th><th>Veículo</th><th>WhatsApp</th><th>Docs</th><th>Situação</th><th>Enviado</th></tr>${lista.map(p=>`<tr class="clic" onclick="cadAbrir('${p.user_id}')">
-      <td><b>${esc(p.nome)}</b><div class="muted small">${esc(p.cidade||"")}</div></td><td>${p.tipo==="prestador"?"Prestador":"Contratante"}${p.pessoa==="pj"?" · PJ":""}</td>
-      <td>${p.tipo==="prestador"?esc((CAD_VEIC[p.veiculo]||"")+" "+fmtPlaca(p.placa)):"—"}</td><td>${esc(fmtTel(p.telefone))}</td>
+      <td><b>${esc(p.nome)}</b><div class="muted small">${esc(p.cidade||"")}</div></td><td>${ptEnvia(p)&&ptRecebe(p)?"Envia e recebe":ptRecebe(p)?"Recebe":"Envia"}${p.pessoa==="pj"?" · PJ":""}</td>
+      <td>${ptRecebe(p)?esc((CAD_VEIC[p.veiculo]||"")+" "+fmtPlaca(p.placa)):"—"}</td><td>${esc(fmtTel(p.telefone))}</td>
       <td>${ndocs(p.user_id)}/${cadDocsNecessarios(p).filter(x=>x[2]).length}</td><td><span class="tag ${CAD_ST[p.status][1]}">${CAD_ST[p.status][0]}</span></td><td>${dataBR(p.atualizado_em)}</td></tr>`).join("")}</table>`:`<p class="muted small" style="padding:0 16px 12px">Nenhum cadastro nesta lista.</p>`}</div>`;
 }
 function cadLinkConvite(cod){ return appLink()+"?convite="+encodeURIComponent(cod); }
@@ -1022,8 +1228,8 @@ async function cadAbrir(uid){
   const {data:docs}=await sbc.from("documentos").select("*").eq("user_id",uid).order("criado_em");
   let urls={}; if(docs&&docs.length){ const r=await sbc.storage.from("documentos").createSignedUrls(docs.map(d=>d.caminho),600); (r.data||[]).forEach((x,i)=>urls[docs[i].caminho]=x.signedUrl); }
   const nomeDoc=t=>(cadDocsNecessarios(p).find(x=>x[0]===t)||[t,t])[1];
-  const linhas=[["Tipo",CAD_TIPO[p.tipo]+(p.pessoa==="pj"?" · Empresa/MEI":"")],[p.pessoa==="pj"?"CNPJ":"CPF",fmtDoc(p.documento)],["WhatsApp",fmtTel(p.telefone)],["E-mail",p.email],["Cidade",p.cidade||"—"],["Convite",p.convite||"—"],["Cadastrado em",dataBR(p.criado_em)]];
-  if(p.tipo==="prestador") linhas.push(["Veículo",(CAD_VEIC[p.veiculo]||"")+(p.modelo?" · "+p.modelo:"")],["Placa",fmtPlaca(p.placa)],["Validade da CNH",dataBR(p.cnh_validade)+(p.cnh_validade&&new Date(p.cnh_validade)<new Date()?" ⚠️ vencida":"")]);
+  const linhas=[["Tipo",tipoTxt(p)+(p.pessoa==="pj"?" · Empresa/MEI":"")],[p.pessoa==="pj"?"CNPJ":"CPF",fmtDoc(p.documento)],["WhatsApp",fmtTel(p.telefone)],["E-mail",p.email],["Cidade",p.cidade||"—"],["Convite",p.convite||"—"],["Cadastrado em",dataBR(p.criado_em)]];
+  if(ptRecebe(p)) linhas.push(["Veículo",(CAD_VEIC[p.veiculo]||"")+(p.modelo?" · "+p.modelo:"")],["Placa",fmtPlaca(p.placa)],["Validade da CNH",dataBR(p.cnh_validade)+(p.cnh_validade&&new Date(p.cnh_validade)<new Date()?" ⚠️ vencida":"")]);
   const docOk=(doc)=>{ const u=urls[doc.caminho]; if(!u) return `<span class="muted small">sem acesso</span>`; return /\.pdf$/i.test(doc.caminho)?`<a class="btn sm sec" href="${u}" target="_blank" rel="noopener">Abrir PDF</a>`:`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" style="width:100%;max-height:220px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#f9fafb"></a>`; };
   $("#modal").innerHTML=`<div class="modal-h">${esc(p.nome)} <span class="tag ${CAD_ST[p.status][1]}">${CAD_ST[p.status][0]}</span></div>
     <div class="modal-b"><div class="full"><table class="ptab">${linhas.map(([k,v])=>`<tr><td class="muted" style="width:35%">${esc(k)}</td><td><b>${esc(v||"—")}</b></td></tr>`).join("")}</table>
