@@ -169,6 +169,12 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .rt-res .it small{display:block;color:var(--muted);font-size:11.5px}
 .eco{background:var(--in-l);color:var(--in);font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px}
 body.perfil-orc .so-admin{display:none!important}
+body:not(.perfil-dono) .so-dono{display:none!important}
+.cfg-tabs{display:flex;gap:6px;margin-bottom:12px}.cfg-tabs .on{background:var(--ink,#16181d);color:#fff}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.cfg-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+.cfg-card h3{margin:0 0 4px;font-size:15px}.cfg-card .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.cfg-acoes{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 body.perfil-orc #nav button:not([data-v="orcamentos"]):not([data-v="operacional"]){display:none}
 #acBox{position:fixed;z-index:200;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden;display:none;max-height:300px;overflow-y:auto}
 #acBox .ai{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f2f4;display:flex;gap:8px;align-items:flex-start}
@@ -251,6 +257,7 @@ textarea{resize:vertical;min-height:60px}
     <button data-v="equipe">Motoboys e motoristas</button>
     <button data-v="financeiro">Financeiro</button>
     <button data-v="relatorios">Relatórios</button>
+    <button data-v="config" class="so-dono">⚙ Configuração</button>
   </nav>
   <div id="userBar" style="display:flex;gap:8px;align-items:center;color:#cbd5e1;font-size:12.5px"></div>
 </header>
@@ -454,6 +461,25 @@ textarea{resize:vertical;min-height:60px}
     <div class="panel"><div class="panel-h">A pagar a motoboys e motoristas</div><div class="tbl-wrap"><table id="fiMot"></table></div></div>
   </section>
 
+  <!-- CONFIGURAÇÃO (só a RL) -->
+  <section class="view" id="v-config">
+    <div class="row" style="margin-bottom:12px"><div><h2>⚙ Configuração</h2><p class="sub" style="margin:0">Só a RL vê esta tela. Aqui você adiciona, muda o perfil, bloqueia e remove qualquer usuário, e ajusta as regras do sistema.</p></div></div>
+    <div class="cfg-tabs"><button class="btn sec on" id="cfgTU" onclick="cfgAba('usu')">👥 Usuários</button><button class="btn sec" id="cfgTR" onclick="cfgAba('regras')">📏 Regras do sistema</button></div>
+    <div id="cfgUsu">
+      <div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap">
+        <select id="cfgFil" style="width:auto" onchange="cfgDesenhar()"></select>
+        <input class="search" id="cfgBusca" placeholder="Buscar nome ou e-mail…" oninput="cfgDesenhar()">
+        <div class="spacer"></div>
+        <button class="btn sec" onclick="cfgCarregar()">Atualizar</button>
+        <button class="btn" onclick="cfgNovoEquipe()">+ Adicionar à equipe</button>
+      </div>
+      <div class="cards" id="cfgKpis"></div>
+      <div class="panel"><div class="tbl-wrap" id="cfgTab"><p class="muted small" style="padding:14px 16px">Carregando…</p></div></div>
+      <p class="muted small">Empresas, pessoas, motoboys e motoristas entram por <b>convite</b> (aba Motoboys e motoristas → Convites e cadastros). <b>Remover</b> tira o acesso e guarda o histórico; dá para restaurar depois.</p>
+    </div>
+    <div id="cfgReg" style="display:none"><div class="cfg-grid" id="cfgRegBox"><p class="muted small">Carregando…</p></div></div>
+  </section>
+
   <!-- RELATÓRIOS -->
   <section class="view" id="v-operacional">
     <div class="row" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -540,10 +566,11 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
 function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.classList.toggle("show",!!msg); }
 
 /* ---------- navegação ---------- */
-const VIEWS = ["painel","dashboard","movs","orcamentos","operacional","clientes","equipe","financeiro","relatorios"];
+const VIEWS = ["painel","dashboard","movs","orcamentos","operacional","clientes","equipe","financeiro","relatorios","config"];
 function show(v){
   if(!VIEWS.includes(v)) v="painel";
   if(S.papel==="orcamento" && v!=="operacional") v="orcamentos";
+  if(v==="config" && S.papel!=="dono") v="painel";
   document.querySelectorAll(".view").forEach(el=>el.classList.toggle("on", el.id==="v-"+v));
   document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
   render();
@@ -665,7 +692,9 @@ async function sbIniciarSessao(session){
   $("#login").classList.remove("show");
   $("#userBar").innerHTML=`<span title="Conectado">👤 ${esc(session.user.email)}</span><button class="btn sm sec" style="padding:4px 9px" onclick="sbSair()">Sair</button>`;
   let me=null;
-  try{ const r=await sbc.from("membros").select("papel,ativo").eq("user_id",session.user.id).maybeSingle(); me=r.data; }catch(e){}
+  try{ const r=await sbc.from("membros").select(window.RL_CENTRAL?"papel,ativo,removido_em":"papel,ativo").eq("user_id",session.user.id).maybeSingle(); me=r.data; }catch(e){}
+  if(window.RL_CENTRAL && me && me.removido_em){ telaLogin("removido", session.user.email); return null; }
+  if(window.RL_CENTRAL && me && !me.ativo && ["admin","funcionario","orcamento"].includes(me.papel)){ telaLogin("bloqueado", session.user.email); return null; }
   if(window.RL_CENTRAL && me && (me.papel==="prestador"||me.papel==="contratante")) return await portal(session);
   if(window.RL_CENTRAL && !me && lsGet("rl_convite")) return await portal(session);
   if(!me){ try{ const r=await sbc.rpc("primeiro_admin"); if(r.data==="admin") me={papel:"admin",ativo:true}; }catch(e){} }
@@ -673,6 +702,7 @@ async function sbIniciarSessao(session){
     telaLogin("aguardando", session.user.email); return null;
   }
   S.papel=me.papel;
+  if(S.papel==="dono") document.body.classList.add("perfil-dono");
   if(S.papel==="orcamento"){ document.body.classList.add("perfil-orc"); show("orcamentos"); }
   try{ await sbCarregar(); }catch(e){ notice("Não foi possível carregar os dados: "+e.message); return null; }
   sbc.channel("docs-rt").on("postgres_changes",{event:"*",schema:"public",table:"docs"},pl=>{
@@ -688,6 +718,11 @@ async function sbSair(){ try{ await sbc.auth.signOut(); }catch(e){} location.has
 function telaLogin(modo, email){
   const box=$("#loginBox"); $("#login").classList.add("show"); box.style.maxWidth="400px";
   const topo=`<div style="text-align:center;padding:22px 20px 6px"><img src="${LOGO}" style="width:84px;height:84px;border-radius:14px"><h2 style="margin:10px 0 2px">RL Motoboy</h2><p class="muted small" style="margin:0">Controle Logístico</p></div>`;
+  if(modo==="removido"||modo==="bloqueado"){
+    box.innerHTML=topo+`<div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0;text-align:center">Olá, <b>${esc(email||"")}</b>.<br>${modo==="removido"?"Seu acesso a este sistema foi <b>encerrado</b>.":"Seu acesso está <b>bloqueado</b> no momento."}</p>
+      <p class="muted small" style="margin:0;text-align:center">Se acha que é um engano, fale com a RL Motoboy.</p></div>
+      <div class="modal-f"><button class="btn sec" onclick="sbSair()">Sair</button></div>`; return;
+  }
   if(modo==="aguardando"){
     box.innerHTML=topo+`<div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0;text-align:center">Olá, <b>${esc(email||"")}</b>!<br>Seu acesso foi criado e está <b>aguardando liberação</b> do administrador da RL.</p>
       <p class="muted small" style="margin:0;text-align:center">Depois de liberado, clique em “Já fui liberado”.</p></div>
@@ -739,7 +774,7 @@ async function sbEsqueci(){
 const PERFIS={admin:"Administrador", funcionario:"Funcionário (acesso completo)", orcamento:"Orçamentos e operacional"};
 async function renderUsuarios(){
   const box=$("#usuBox"); if(!box) return;
-  if(!SB || S.papel!=="admin"){ $("#usuPanel").style.display="none"; return; }
+  if(!SB || !["admin","dono"].includes(S.papel) || window.RL_CENTRAL){ $("#usuPanel").style.display="none"; return; }
   $("#usuPanel").style.display="";
   const {data,error}=await sbc.rpc("listar_usuarios");
   if(error){ box.innerHTML=`<p class="small" style="color:var(--bad)">${esc(error.message)}</p>`; return; }
@@ -929,7 +964,7 @@ async function portalForm(p){
 const CAD={filtro:"pendente"};
 async function renderCadastros(){
   const pn=$("#cadPanel"); if(!pn) return;
-  if(!SB || !window.RL_CENTRAL || S.papel!=="admin"){ pn.style.display="none"; return; } pn.style.display="";
+  if(!SB || !window.RL_CENTRAL || !["admin","dono"].includes(S.papel)){ pn.style.display="none"; return; } pn.style.display="";
   const [cv,pf,dc]=await Promise.all([
     sbc.from("convites").select("*").order("criado_em",{ascending:false}),
     sbc.from("perfis").select("*").order("criado_em",{ascending:false}),
@@ -998,8 +1033,9 @@ async function cadAbrir(uid){
     </div><div class="modal-f" style="flex-wrap:wrap"><a class="btn sec" target="_blank" rel="noopener" href="https://wa.me/55${soNum(p.telefone)}">WhatsApp</a><div class="spacer"></div>
       <button class="btn sec" onclick="closeModal()">Fechar</button>
       ${p.status==="pendente"||p.status==="recusado"?`<button class="btn out" style="background:var(--bad)" onclick="cadDecidir('${uid}',false)">Recusar</button><button class="btn in" onclick="cadDecidir('${uid}',true)">Aprovar</button>`:""}
-      ${p.status==="aprovado"?`<button class="btn sec" style="color:var(--bad)" onclick="cadBloq('${uid}',true)">Bloquear</button>`:""}
-      ${p.status==="bloqueado"?`<button class="btn in" onclick="cadBloq('${uid}',false)">Desbloquear</button>`:""}</div>`;
+      ${S.papel==="dono"&&p.status==="aprovado"?`<button class="btn sec" style="color:var(--bad)" onclick="cadBloq('${uid}',true)">Bloquear</button>`:""}
+      ${S.papel==="dono"&&p.status==="bloqueado"?`<button class="btn in" onclick="cadBloq('${uid}',false)">Desbloquear</button>`:""}
+      ${S.papel!=="dono"&&p.status==="bloqueado"?`<span class="muted small">Bloqueado pela RL — só a RL libera.</span>`:""}</div>`;
 }
 async function cadDecidir(uid, ok){
   const mot=ok?null:val("cadMot"); if(!ok && mot.length<3){ toast("Escreva o motivo da recusa"); $("#cadMot").focus(); return; }
@@ -1009,6 +1045,120 @@ async function cadDecidir(uid, ok){
 async function cadBloq(uid, bloquear){
   const r=bloquear?await sbc.rpc("bloquear_usuario",{p_user:uid}):await sbc.rpc("desbloquear_cadastro",{p_user:uid});
   if(r.error){ toast(r.error.message); return; } closeModal(); toast(bloquear?"Bloqueado":"Desbloqueado"); renderCadastros();
+}
+
+/* ================= CONFIGURAÇÃO (só a RL / perfil "dono") ================= */
+const CFG_PAPEL={dono:"RL (você)",admin:"Administrador",funcionario:"Funcionário",orcamento:"Orçamentos e operacional",contratante:"Empresa / pessoa (solta serviço)",prestador:"Motoboy / motorista"};
+const CFGU={lista:[],aba:"usu",regras:{}};
+function cfgAba(a){ CFGU.aba=a; $("#cfgUsu").style.display=a==="usu"?"":"none"; $("#cfgReg").style.display=a==="regras"?"":"none";
+  $("#cfgTU").classList.toggle("on",a==="usu"); $("#cfgTR").classList.toggle("on",a==="regras"); if(a==="regras") cfgRegras(); }
+function cfgGrupo(u){
+  if(u.removido_em) return "removido";
+  if(u.papel==="dono") return "dono";
+  if(u.tipo) return u.tipo;                                   /* contratante / prestador (tem cadastro) */
+  if(u.papel) return "equipe";
+  return "acesso";                                            /* só criou o login */
+}
+function cfgSit(u){
+  if(u.removido_em) return ["Removido em "+dataBR(u.removido_em),"bad"];
+  if(u.papel==="dono") return ["RL","ok"];
+  if(u.tipo){ const m={pendente:["Aguardando aprovação","warn"],aprovado:["Ativo","ok"],recusado:["Recusado","bad"],bloqueado:["Bloqueado","bad"]}; return m[u.cadastro]||[u.cadastro||"—",""]; }
+  if(u.papel) return u.ativo?["Ativo","ok"]:["Bloqueado","bad"];
+  return ["Só criou o acesso","warn"];
+}
+async function cfgCarregar(){
+  const r=await sbc.rpc("cfg_usuarios");
+  if(r.error){ $("#cfgTab").innerHTML=`<p class="small" style="color:var(--bad);padding:14px 16px">${esc(r.error.message)}</p>`; return; }
+  CFGU.lista=r.data||[]; cfgDesenhar(); render._cfg=0;
+}
+function cfgDesenhar(){
+  const L=CFGU.lista, g=u=>cfgGrupo(u);
+  const n={equipe:0,contratante:0,prestador:0,acesso:0,bloq:0,removido:0};
+  L.forEach(u=>{ const k=g(u); if(n[k]!=null) n[k]++; if(!u.removido_em && cfgSit(u)[0]==="Bloqueado") n.bloq++; });
+  $("#cfgKpis").innerHTML=[["Equipe",n.equipe],["Empresas / pessoas",n.contratante],["Motoboys / motoristas",n.prestador],["Só criaram o acesso",n.acesso],["Bloqueados",n.bloq],["Removidos",n.removido]]
+    .map(([l,v])=>`<div class="card"><div class="muted small">${l}</div><div style="font-size:22px;font-weight:800">${v}</div></div>`).join("");
+  const fil=$("#cfgFil"); const opts=[["","Todos"],["equipe","Equipe da RL"],["contratante","Empresas e pessoas"],["prestador","Motoboys e motoristas"],["acesso","Só criaram o acesso"],["bloq","Bloqueados"],["removido","Removidos"]];
+  if(!fil.options.length) fil.innerHTML=opts.map(([k,l])=>`<option value="${k}">${l}</option>`).join("");
+  const f=fil.value, q=($("#cfgBusca").value||"").toLowerCase().trim();
+  const vis=L.filter(u=>{ const k=g(u);
+    if(f==="bloq"){ if(u.removido_em || cfgSit(u)[0]!=="Bloqueado") return false; }
+    else if(f && k!==f) return false;
+    if(!f && k==="removido") return false;            /* removidos só no filtro próprio */
+    return !q || (u.nome||"").toLowerCase().includes(q) || (u.email||"").toLowerCase().includes(q); });
+  if(!vis.length){ $("#cfgTab").innerHTML=`<p class="muted small" style="padding:14px 16px">Ninguém nesta lista.</p>`; return; }
+  $("#cfgTab").innerHTML=`<table><tr><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${vis.map(u=>{
+    const [st,c]=cfgSit(u), k=g(u), id=esc(u.user_id), em=esc(JSON.stringify(u.email||""));
+    let ac="";
+    if(k==="dono") ac=`<span class="muted small">—</span>`;
+    else if(k==="removido") ac=`<button class="btn sm sec" onclick="cfgRemover('${id}',false)">Restaurar</button>`;
+    else {
+      if(k==="equipe"||k==="acesso") ac+=`<select style="width:auto;padding:5px 8px" title="Perfil na equipe" onchange='cfgPapel(${em},this.value,this)'>
+          ${k==="acesso"?`<option value="">Liberar como…</option>`:""}${["admin","funcionario","orcamento"].map(p=>`<option value="${p}" ${u.papel===p?"selected":""}>${CFG_PAPEL[p]}</option>`).join("")}</select>`;
+      if(k!=="acesso"){ const bl=st==="Bloqueado";
+        ac+= bl?`<button class="btn sm in" onclick="cfgBloq('${id}',false)">Desbloquear</button>`:`<button class="btn sm sec" style="color:var(--bad)" onclick="cfgBloq('${id}',true)">Bloquear</button>`; }
+      ac+=`<button class="btn sm sec" style="color:var(--bad)" onclick="cfgRemover('${id}',true)">Remover</button>`;
+    }
+    return `<tr><td><b>${esc(u.nome||u.email||"")}</b>${u.nome?`<div class="muted small">${esc(u.email||"")}</div>`:""}</td>
+      <td>${esc(CFG_PAPEL[u.papel==="dono"?"dono":(u.tipo||u.papel)]||"—")}</td><td><span class="tag ${{ok:"s-Concluída",bad:"s-Cancelada",warn:"s-Pendente"}[c]||""}">${esc(st)}</span></td>
+      <td class="small">${u.ultimo_acesso?dataBR(u.ultimo_acesso):"nunca"}</td><td><div class="cfg-acoes">${ac}</div></td></tr>`; }).join("")}</table>`;
+}
+async function cfgPapel(email, papel, sel){
+  if(!papel) return;
+  const r=await sbc.rpc("cfg_definir_papel",{p_email:email,p_papel:papel});
+  if(r.error){ toast(r.error.message); if(sel) cfgDesenhar(); return; }
+  toast("Perfil: "+CFG_PAPEL[papel]); cfgCarregar();
+}
+function cfgConfirmar(titulo, texto, botao, fn){
+  openModal(`<div class="modal-h">${titulo}</div><div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0">${texto}</p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="cfgOk" style="background:var(--bad);border-color:var(--bad)">${botao}</button></div>`);
+  $("#cfgOk").onclick=async()=>{ $("#cfgOk").disabled=true; await fn(); };
+}
+function cfgNome(id){ const u=CFGU.lista.find(x=>x.user_id===id); return esc(u?(u.nome||u.email):""); }
+function cfgBloq(id, bloquear){
+  const go=async()=>{ const r=await sbc.rpc("cfg_bloquear",{p_user:id,p_bloquear:bloquear}); if(r.error){ toast(r.error.message); closeModal(); return; }
+    closeModal(); toast(bloquear?"Bloqueado":"Desbloqueado"); cfgCarregar(); };
+  if(!bloquear) return go();
+  cfgConfirmar("Bloquear usuário",`Bloquear <b>${cfgNome(id)}</b>? Ele não consegue mais entrar até você desbloquear.`,"Bloquear",go);
+}
+function cfgRemover(id, remover){
+  const go=async()=>{ const r=await sbc.rpc("cfg_remover",{p_user:id,p_remover:remover}); if(r.error){ toast(r.error.message); closeModal(); return; }
+    closeModal(); toast(remover?"Removido — o histórico continua guardado":"Acesso restaurado"); cfgCarregar(); };
+  if(!remover) return go();
+  cfgConfirmar("Remover usuário",`Remover <b>${cfgNome(id)}</b> do sistema? Ele perde o acesso. Os serviços, conversas e lançamentos dele continuam guardados, e você pode restaurar depois em <b>Removidos</b>.`,"Remover",go);
+}
+function cfgNovoEquipe(){
+  openModal(`<div class="modal-h">Adicionar à equipe</div><div class="modal-b" style="grid-template-columns:1fr">
+    <p class="muted small" style="margin:0">A pessoa precisa primeiro abrir o sistema e clicar em <b>Criar meu acesso</b>. Depois digite o e-mail dela aqui.</p>
+    <div><label>E-mail</label><input id="cfgNEm" type="email" placeholder="nome@email.com"></div>
+    <div><label>Perfil</label><select id="cfgNPa">${["admin","funcionario","orcamento"].map(p=>`<option value="${p}" ${p==="funcionario"?"selected":""}>${CFG_PAPEL[p]}</option>`).join("")}</select></div>
+    <p class="muted small" style="margin:0"><b>Administrador:</b> usa tudo e aprova cadastros, mas não vê créditos e saldos nem esta tela. <b>Funcionário:</b> usa o sistema do dia a dia. <b>Orçamentos e operacional:</b> só essas duas abas.</p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="cfgNOk">Adicionar</button></div>`);
+  $("#cfgNOk").onclick=async()=>{ const em=val("cfgNEm"); if(!/^\S+@\S+\.\S+$/.test(em)){ toast("Digite um e-mail válido"); return; }
+    const r=await sbc.rpc("cfg_definir_papel",{p_email:em,p_papel:$("#cfgNPa").value}); if(r.error){ toast(r.error.message); return; }
+    closeModal(); toast("Adicionado à equipe"); cfgCarregar(); };
+}
+/* regras do sistema */
+const CFG_REGRAS=[
+  ["distribuicao","📡 Distribuição dos serviços","Como o serviço é avisado aos motoboys e motoristas.",[
+    ["raio_inicial_km","Raio inicial (km)",0.5],["minutos_ate_ampliar","Minutos até ampliar",1],["raio_maximo_km","Raio máximo (km)",0.5],["max_candidatos","Máximo de candidatos",1]]],
+  ["espera","⏱ Tempo de espera","Cobrado do cliente e repassado ao motoboy.",[
+    ["minutos_gratis","Minutos grátis",1],["valor_minuto","R$ por minuto depois",0.01]]],
+  ["creditos","💳 Créditos","Usado na etapa de créditos e Mercado Pago. Pode deixar em branco por enquanto.",[
+    ["valor_credito","Valor de 1 crédito (R$)",0.01],["creditos_por_servico","Créditos por serviço",0.5]]]];
+async function cfgRegras(){
+  const r=await sbc.from("config_sistema").select("*");
+  if(r.error){ $("#cfgRegBox").innerHTML=`<p class="small" style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
+  (r.data||[]).forEach(x=>CFGU.regras[x.chave]=x);
+  $("#cfgRegBox").innerHTML=CFG_REGRAS.map(([k,t,d,campos])=>{ const x=CFGU.regras[k]||{valor:{}};
+    return `<div class="cfg-card"><h3>${t}</h3><div class="muted small">${d}</div><div class="row2">${campos.map(([c,l,st])=>`<div><label>${l}</label><input type="number" step="${st}" min="0" id="cfg_${k}_${c}" value="${x.valor[c]??""}"></div>`).join("")}</div>
+      <div class="row" style="margin-top:10px"><span class="muted small">${x.atualizado_em?"Alterado em "+dataBR(x.atualizado_em):""}</span><div class="spacer"></div><button class="btn sm" onclick="cfgSalvarRegra('${k}')">Salvar</button></div></div>`; }).join("");
+}
+async function cfgSalvarRegra(k){
+  const campos=CFG_REGRAS.find(x=>x[0]===k)[3], v={};
+  for(const [c,l] of campos){ const t=$("#cfg_"+k+"_"+c).value.trim();
+    if(t===""){ if(k==="creditos"){ v[c]=null; continue; } toast("Preencha: "+l); return; } v[c]=Number(t.replace(",",".")); }
+  const r=await sbc.rpc("cfg_salvar",{p_chave:k,p_valor:v}); if(r.error){ toast(r.error.message); return; }
+  toast("Regra salva"); cfgRegras();
 }
 
 /* ---------- helpers de dados ---------- */
@@ -1029,7 +1179,8 @@ function render(){
   if(v==="v-movs") renderMovs();
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); if(SB && !render._usu){ render._usu=1; renderUsuarios(); } }
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
-  if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && S.papel==="admin" && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
+  if(v==="v-config" && S.papel==="dono" && !render._cfg){ render._cfg=1; cfgCarregar(); }
+  if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && ["admin","dono"].includes(S.papel) && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
   if(v==="v-operacional") renderOperacional();
   if(v==="v-financeiro") renderFinanceiro();
