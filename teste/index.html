@@ -295,6 +295,16 @@ textarea{resize:vertical;min-height:60px}
 .ex-total{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:10px;font-size:15px}.ex-total b{font-size:20px}
 .ex-prog{display:flex;flex-direction:column;gap:4px;font-size:12.5px;margin:6px 0}.ex-prog>div{display:flex;gap:8px}.ex-prog span{width:16px;text-align:center;color:var(--muted)}
 .ex-prog .ok span{color:#0f9d58;font-weight:800}.ex-prog .on span{color:#e8590c}
+.mm-panel{padding:0;overflow:hidden;margin-bottom:12px}.mm-head{display:flex;gap:10px;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)}
+.mm-grid{display:grid;grid-template-columns:1fr 320px}.mm-mapa{height:460px;background:#e8eaed}.mm-lado{border-left:1px solid var(--line);display:flex;flex-direction:column;max-height:460px}
+.mm-cnt{display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;font-weight:700;font-size:13px}
+.mm-fil{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 12px 8px}.mm-fil button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px;font-weight:700;font-size:12px;cursor:pointer}
+.mm-fil button.on{background:var(--ink,#16181d);color:#fff;border-color:var(--ink,#16181d)}
+.mm-lista{overflow-y:auto;padding:0 8px 8px}.mm-it{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}.mm-it:hover{background:#f6f7f9}
+.mm-dot{width:12px;height:12px;border-radius:50%;flex:none}
+.mm-pin{width:38px;height:38px;border-radius:50%;background:#fff;border:3px solid;display:grid;place-items:center;font-size:19px;box-shadow:0 2px 6px rgba(0,0,0,.3);position:relative}
+.mm-pin i{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;border:2px solid #fff}
+@media(max-width:900px){.mm-grid{grid-template-columns:1fr}.mm-lado{border-left:0;border-top:1px solid var(--line)}.mm-mapa{height:340px}}
 </style>
 </head>
 <body>
@@ -525,6 +535,10 @@ textarea{resize:vertical;min-height:60px}
       <select id="ctSt" style="width:auto" onchange="ctDesenhar()"><option value="">Todas as situações</option><option value="aberto">Abertos</option><option value="aceito">Aceitos</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluídos</option><option value="cancelado">Cancelados</option></select>
       <select id="ctDias" style="width:auto" onchange="ctCarregar()"><option value="1">Hoje</option><option value="7" selected>7 dias</option><option value="30">30 dias</option></select>
       <button class="btn sec" onclick="ctCarregar()">Atualizar</button></div>
+    <div class="panel mm-panel"><div class="mm-head"><b>🗺 Motoboys e motoristas agora</b><span class="muted small" id="mmInfo"></span></div>
+      <div class="mm-grid"><div id="mmMapa" class="mm-mapa"></div><div class="mm-lado"><div class="mm-cnt" id="mmCnt"></div>
+        <div class="mm-fil"><button class="on" data-f="" onclick="mmFil('')">Todos</button><button data-f="livre" onclick="mmFil('livre')">Livres</button><button data-f="ocupado" onclick="mmFil('ocupado')">Em serviço</button></div>
+        <div id="mmLista" class="mm-lista"></div></div></div></div>
     <div class="cards" id="ctKpis"></div>
     <div class="panel"><div class="tbl-wrap" id="ctTab"><p class="muted small" style="padding:14px 16px">Carregando…</p></div></div>
   </section>
@@ -1484,6 +1498,62 @@ function ctDesenhar(){
       <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span></td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
     :`<p class="muted small" style="padding:14px 16px">Nenhum serviço neste período.</p>`;
 }
+/* ---------- mapa geral: motoboys ativos, livres ou em serviço ---------- */
+const MM={map:null, mk:{}, lista:[], fil:"", t:null};
+const MM_ST={livre:["Livre","#0f9d58"], escolhido:["Escolhido — indo iniciar","#2563eb"], em_servico:["Em serviço","#e8590c"]};
+function mmLeaflet(){
+  if(window.L&&window.L.map) return Promise.resolve();
+  if(MM._ld) return MM._ld;
+  return MM._ld=new Promise((ok,erro)=>{
+    const c=document.createElement("link"); c.rel="stylesheet"; c.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(c);
+    const j=document.createElement("script"); j.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; j.onload=ok; j.onerror=()=>erro(new Error("Não consegui carregar o mapa")); document.head.appendChild(j);
+  });
+}
+async function mmIniciar(){
+  try{ await mmLeaflet(); }catch(e){ $("#mmMapa").innerHTML=`<p class="muted small" style="padding:14px">${esc(e.message)}</p>`; }
+  if(window.L && !MM.map){
+    MM.map=L.map("mmMapa",{zoomControl:true}).setView([-23.55,-46.63],11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(MM.map);
+  }
+  setTimeout(()=>MM.map&&MM.map.invalidateSize(),200);
+  mmAtualizar();
+}
+async function mmAtualizar(){
+  clearTimeout(MM.t);
+  const r=await sbc.rpc("adm_motoboys");
+  if(r.error){ $("#mmLista").innerHTML=`<p class="small" style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
+  MM.lista=r.data||[]; MM.agora=MM.lista[0]?new Date(MM.lista[0].agora):new Date();
+  $("#mmInfo").textContent="atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · atualiza a cada 15 s";
+  mmDesenhar();
+  MM.t=setTimeout(()=>{ if($("#v-central").classList.contains("on")) mmAtualizar(); },15000);
+}
+function mmFil(f){ MM.fil=f; document.querySelectorAll(".mm-fil button").forEach(b=>b.classList.toggle("on",b.dataset.f===f)); mmDesenhar(); }
+function mmIcone(m){ const [,cor]=MM_ST[m.situacao]||MM_ST.livre; const em={moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"}[m.veiculo]||"🏍";
+  return L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<div class="mm-pin" style="border-color:${cor}">${em}<i style="background:${cor}"></i></div>`}); }
+function mmHa(t){ const s=Math.max(0,Math.round((MM.agora-new Date(t))/1000)); return s<60?`há ${s} s`:`há ${Math.round(s/60)} min`; }
+function mmDesenhar(){
+  const L0=MM.lista, n=k=>L0.filter(m=>m.situacao===k).length;
+  $("#mmCnt").innerHTML=`<span style="color:#0f9d58">● ${n("livre")} livre${n("livre")===1?"":"s"}</span><span style="color:#e8590c">● ${n("em_servico")} em serviço</span>${n("escolhido")?`<span style="color:#2563eb">● ${n("escolhido")} indo iniciar</span>`:""}`;
+  const vis=L0.filter(m=>!MM.fil||(MM.fil==="livre"?m.situacao==="livre":m.situacao!=="livre"));
+  $("#mmLista").innerHTML=vis.length?vis.map(m=>{ const [st,cor]=MM_ST[m.situacao]||MM_ST.livre;
+    return `<div class="mm-it" onclick="mmFoco('${m.user_id}')"><div class="mm-dot" style="background:${cor}"></div><div style="flex:1;min-width:0"><b>${esc(m.nome)}</b>
+      <div class="muted small">${esc(CAD_VEIC[m.veiculo]||"")} · ${esc(fmtPlaca(m.placa||""))} · ${m.atualizado_em?mmHa(m.atualizado_em):""}</div>
+      <div class="small" style="color:${cor};font-weight:700">${st}${m.servico_numero?" · serviço #"+m.servico_numero:""}</div></div>
+      ${m.telefone?`<a class="btn sm sec" onclick="event.stopPropagation()" target="_blank" rel="noopener" href="https://wa.me/55${String(m.telefone).replace(/\D/g,"")}">WhatsApp</a>`:""}</div>`; }).join("")
+    :`<p class="muted small">Nenhum motoboy ativo agora. Eles aparecem quando estão com o app aberto em "Serviços perto de mim" ou em serviço.</p>`;
+  if(!MM.map) return;
+  const ids=new Set(vis.map(m=>m.user_id));
+  Object.keys(MM.mk).forEach(id=>{ if(!ids.has(id)){ MM.map.removeLayer(MM.mk[id]); delete MM.mk[id]; } });
+  const b=[];
+  vis.forEach(m=>{ const ll=[m.lat,m.lon]; b.push(ll); const [st]=MM_ST[m.situacao]||MM_ST.livre;
+    const pop=`<b>${esc(m.nome)}</b><br>${st}${m.servico_numero?" · serviço #"+m.servico_numero:""}${m.rastreio_ver?`<br><a target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(m.rastreio_ver)}">Acompanhar ao vivo ↗</a>`:""}`;
+    if(MM.mk[m.user_id]){ MM.mk[m.user_id].setLatLng(ll); MM.mk[m.user_id].setIcon(mmIcone(m)); MM.mk[m.user_id].setPopupContent(pop); }
+    else MM.mk[m.user_id]=L.marker(ll,{icon:mmIcone(m)}).addTo(MM.map).bindPopup(pop).bindTooltip(esc(m.nome),{direction:"top",offset:[0,-16]});
+  });
+  if(b.length && !MM._fit){ MM._fit=1; MM.map.fitBounds(b,{padding:[40,40],maxZoom:14}); }
+}
+function mmFoco(id){ const m=MM.mk[id]; if(!m||!MM.map) return; MM.map.setView(m.getLatLng(),15); m.openPopup(); }
+
 async function ctAbrir(id){
   const x=CT.lista.find(s=>s.id===id); if(!x) return;
   openModal(`<div class="modal-h">Serviço #${x.numero} <span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span></div>
@@ -1631,7 +1701,7 @@ function render(){
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); if(SB && !render._usu){ render._usu=1; renderUsuarios(); } }
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
   if(v==="v-config" && S.papel==="dono" && !render._cfg){ render._cfg=1; cfgCarregar(); }
-  if(v==="v-central" && document.body.classList.contains("perfil-central") && !render._ct){ render._ct=1; ctCarregar(); }
+  if(v==="v-central" && document.body.classList.contains("perfil-central") && !render._ct){ render._ct=1; ctCarregar(); mmIniciar(); }
   if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && ["admin","dono"].includes(S.papel) && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
   if(v==="v-operacional") renderOperacional();
