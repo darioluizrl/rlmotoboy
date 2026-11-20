@@ -285,6 +285,13 @@ textarea{resize:vertical;min-height:60px}
 .chat-n{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:2px}.chat-h{font-size:10.5px;color:var(--muted);text-align:right;margin-top:2px}
 .chat-form{display:flex;gap:8px;padding:10px 16px 0}.chat-form textarea{flex:1;resize:none;font-size:14px;padding:10px}
 .ac-tab tr.clic:hover{background:#f9fafb}
+.ex-pts{display:flex;flex-direction:column;gap:8px}.ex-pt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.ex-pt.on{border:2px solid #0f9d58;background:#f6fbf8}.ex-pt.ok{opacity:.75}.ex-pt label{margin-top:8px}
+.ex-ic{width:28px;height:28px;border-radius:50%;background:#f3f4f6;display:grid;place-items:center;font-weight:800;flex:none}.ex-pt.ok .ex-ic{background:#0f9d58;color:#fff}
+.ex-esp{margin-top:8px;background:#fff7ed;border-radius:8px;padding:6px 10px;font-size:13px}
+.ex-total{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:10px;font-size:15px}.ex-total b{font-size:20px}
+.ex-prog{display:flex;flex-direction:column;gap:4px;font-size:12.5px;margin:6px 0}.ex-prog>div{display:flex;gap:8px}.ex-prog span{width:16px;text-align:center;color:var(--muted)}
+.ex-prog .ok span{color:#0f9d58;font-weight:800}.ex-prog .on span{color:#e8590c}
 </style>
 </head>
 <body>
@@ -1039,7 +1046,7 @@ const PTA={aba:null, rota:null, veic:"moto", quando:"agora", watch:null, pos:nul
 const PT_FATOR={moto:1, carro:1.8, utilitario:2.5, caminhao:4};
 async function ptApp(){
   const box=$("#loginBox"); box.style.maxWidth="980px";
-  try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; }); }catch(e){}
+  try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; if(x.chave==="espera") PTA.esp=x.valor; }); }catch(e){}
   const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
   if(!PTA.aba || !abas.some(a=>a[0]===PTA.aba)) PTA.aba=abas[0][0];
   box.innerHTML=portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div><div id="ptConteudo"></div>`;
@@ -1142,7 +1149,10 @@ async function ptMeus(){
       <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${brl(s.valor)} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div></div>
       <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
       ${s.status==="aberto"?`<button class="btn sm ${nc[s.id]?"":"sec"}" onclick="ptCandidatos('${s.id}',${s.numero})" ${nc[s.id]?"":"disabled"}>🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":"")+" — escolher":"Aguardando interessados"}</button><button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}
-      ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn sm" onclick="ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}</div>`).join("")
+      ${s.status==="em_andamento"&&s.rastreio_ver?`<a class="btn sm in" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(s.rastreio_ver)}">📍 Ao vivo</a>`:""}
+      ${s.status==="concluido"?`<button class="btn sm sec" onclick="ptComprovante('${s.id}')">🧾 Comprovante</button>`:""}
+      ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn sm" onclick="ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}</div>
+      ${s.status==="em_andamento"?`<div style="padding:0 0 10px">${ptProgresso(s)}</div>`:""}`).join("")
     :`<span class="muted">Nenhum serviço ainda.</span>`;
 }
 async function ptCandidatos(id, numero){
@@ -1235,13 +1245,102 @@ async function ptBuscar(){
 async function ptTrabalhos(){
   const box=$("#prTrab"); if(!box) return;
   const r=await sbc.rpc("meus_trabalhos"); if(r.error){ box.innerHTML=""; return; }
-  const L=(r.data||[]).filter(t=>t.minha==="escolhida"&&["aceito","em_andamento"].includes(t.status) || t.minha==="recusada"&&Date.now()-new Date(t.criado_em)<6*3600e3);
+  const L=(r.data||[]).filter(t=>t.minha==="escolhida"&&(["aceito","em_andamento"].includes(t.status)||t.status==="concluido"&&Date.now()-new Date(t.concluido_em)<24*3600e3) || t.minha==="recusada"&&Date.now()-new Date(t.criado_em)<6*3600e3);
   PTA.trab=r.data||[];
+  const andamento=PTA.trab.find(t=>t.minha==="escolhida"&&t.status==="em_andamento");
+  if(andamento) ptRastLigar(andamento.id); else ptRastDesligar();
+  if(PTA.execId && $("#exBox")) ptExecDesenhar();
   box.innerHTML=L.length?`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
-    return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>✅ Você foi escolhido · #${t.numero} · ${brl(t.valor)}</b>
-        <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
-        <button class="btn" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div>`
+    if(t.minha==="escolhida"&&t.status==="concluido") return `<div class="pt-trab ok"><div style="flex:1"><b>🏁 Serviço #${t.numero} concluído</b><div class="muted small">Repasse: <b>${brl(Number(t.valor)+Number(t.espera_valor||0))}</b>${t.espera_valor>0?` (frete ${brl(t.valor)} + espera ${brl(t.espera_valor)})`:""}</div></div></div>`;
+    return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>${t.status==="em_andamento"?"🚦 Em andamento":"✅ Você foi escolhido"} · #${t.numero} · ${brl(t.valor)}</b>
+        <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}${t.paradas.length>1?` <span class="muted">(+${t.paradas.length-1} entrega${t.paradas.length>2?"s":""})</span>`:""}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px">${t.status==="aceito"?`<button class="btn pt-quero" onclick="ptIniciar('${t.id}')">▶ Iniciar serviço</button>`:`<button class="btn pt-quero" onclick="ptExec('${t.id}')">🚦 Continuar serviço</button>`}
+        <button class="btn sec" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div></div>`
       : `<div class="pt-trab"><div style="flex:1"><b>#${t.numero} · ${brl(t.valor)}</b><div class="muted small">Outro motoboy foi escolhido para este serviço.</div></div></div>`; }).join("")}</div>`:"";
+}
+/* ---------- execução do serviço (quem pegou) ---------- */
+async function ptIniciar(id){
+  const r=await sbc.rpc("servico_iniciar",{p_id:id}); if(r.error){ toast(r.error.message); return; }
+  toast("Serviço iniciado. O rastreio ao vivo está ligado."); await ptTrabalhos(); ptExec(id);
+}
+const PT_ESP=()=>({g:Number((PTA.esp||{}).minutos_gratis??15), v:Number((PTA.esp||{}).valor_minuto??0.5)});
+function ptExec(id){
+  PTA.execId=id;
+  openModal(`<div class="modal-h" id="exTit">Serviço</div><div class="modal-b" style="grid-template-columns:1fr" id="exBox"></div>
+    <div class="modal-f"><span class="muted small" id="exGps" style="margin-right:auto"></span><button class="btn sec" onclick="ptExecFechar()">Fechar</button></div>`);
+  $("#modal").style.maxWidth="560px"; ptExecDesenhar();
+  clearInterval(PTA.exT); PTA.exT=setInterval(()=>{ if(!$("#exBox")){ clearInterval(PTA.exT); PTA.execId=null; return; } ptExecRelogio(); },1000);
+}
+function ptExecFechar(){ clearInterval(PTA.exT); PTA.execId=null; closeModal(); }
+function ptExecDesenhar(){
+  const t=(PTA.trab||[]).find(x=>x.id===PTA.execId), box=$("#exBox"); if(!t||!box) return;
+  $("#exTit").textContent=`Serviço #${t.numero} · ${brl(t.valor)}`;
+  if(t.status==="concluido"){ box.innerHTML=`<div class="pt-ok">🏁<b>Serviço concluído!</b><span>Repasse: <b>${brl(Number(t.valor)+Number(t.espera_valor||0))}</b>${t.espera_valor>0?`<br>frete ${brl(t.valor)} + espera ${t.espera_min} min (${brl(t.espera_valor)})`:""}</span></div>`; return; }
+  const pts=[{...t.retirada,_i:0,_tipo:"Retirada"},...t.paradas.map((p,i)=>({...p,_i:i+1,_tipo:t.paradas.length>1?"Entrega "+(i+1):"Entrega"}))];
+  const atual=pts.find(p=>!p.feito_em);
+  box.innerHTML=`<div class="ex-pts">${pts.map(p=>{ const feito=!!p.feito_em, ag=p===atual;
+      return `<div class="ex-pt ${feito?"ok":ag?"on":""}"><div class="ex-ic">${feito?"✓":p._i===0?"🏁":"📦"}</div><div style="flex:1"><b>${p._tipo}</b><div class="small">${esc(p.e)}</div>
+        ${feito?`<div class="small muted">${p._i===0?"Entregue por":"Recebido por"}: <b>${esc(p.nome||"")}</b>${p.rg?" · RG "+esc(p.rg):""} · ${new Date(p.feito_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}${p.espera_min>0?` · espera cobrada ${p.espera_min} min`:""}</div>`:""}
+        ${ag?ptExecAcoes(t,p):""}</div>
+        <a class="btn sm sec" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.la},${p.lo}&travelmode=two-wheeler">Ir ↗</a></div>`; }).join("")}</div>
+    <div class="ex-total"><span>Repasse até agora</span><b id="exTot">${brl(Number(t.valor)+Number(t.espera_valor||0))}</b></div>`;
+  ptExecRelogio();
+}
+function ptExecAcoes(t,p){
+  if(!p.chegou_em) return `<button class="btn pt-big pt-go" onclick="ptChegou('${t.id}',${p._i})">📍 Cheguei ${p._i===0?"na retirada":"no destino"}</button>`;
+  const {g}=PT_ESP();
+  return `<div class="ex-esp" id="exEsp" data-ini="${esc(p.chegou_em)}">⏱ Espera <b>00:00</b> · grátis até ${g} min</div>
+    ${p._i===0?`<label>Nome de quem entregou a carga *</label><input class="pt-in" id="exNome" maxlength="80" placeholder="Ex.: Maria da recepção">
+      <button class="btn pt-big pt-go" onclick="ptRetirei('${t.id}')">📦 Retirei a carga</button>`
+    :`<label>Nome de quem recebeu *</label><input class="pt-in" id="exNome" maxlength="80" placeholder="Nome completo">
+      <label>RG de quem recebeu *</label><input class="pt-in" id="exRg" maxlength="16" placeholder="Ex.: 12.345.678-9">
+      <button class="btn pt-big pt-go" onclick="ptEntreguei('${t.id}',${p._i})">✅ Entreguei</button>`}`;
+}
+function ptExecRelogio(){
+  const e=$("#exEsp"); const gps=$("#exGps"); if(gps) gps.textContent=PTA.rast&&PTA.rast.ok?"🟢 Rastreio ao vivo ligado":"📍 Ligando o rastreio…";
+  if(!e) return; const {g,v}=PT_ESP(); const seg=Math.max(0,Math.floor((Date.now()-new Date(e.dataset.ini))/1000)), m=Math.floor(seg/60);
+  const cob=Math.max(0,Math.ceil(seg/60)-g);
+  e.innerHTML=`⏱ Espera <b>${String(m).padStart(2,"0")}:${String(seg%60).padStart(2,"0")}</b> · ${cob>0?`<span style="color:var(--bad)">+${cob} min = ${brl(cob*v)} no repasse</span>`:`grátis até ${g} min`}`;
+}
+async function ptChegou(id,i){ const r=await sbc.rpc("servico_chegou",{p_id:id,p_ponto:i}); if(r.error){ toast(r.error.message); return; } await ptTrabalhos(); }
+async function ptRetirei(id){
+  const n=val("exNome"); if(n.length<2){ toast("Digite o nome de quem entregou a carga"); return; }
+  const r=await sbc.rpc("servico_retirada",{p_id:id,p_nome:n}); if(r.error){ toast(r.error.message); return; }
+  toast("Retirada registrada"); await ptTrabalhos();
+}
+async function ptEntreguei(id,i){
+  const n=val("exNome"), rg=val("exRg"); if(n.length<2){ toast("Digite o nome de quem recebeu"); return; } if(rg.replace(/\W/g,"").length<5){ toast("Digite o RG de quem recebeu"); return; }
+  const r=await sbc.rpc("servico_entrega",{p_id:id,p_ponto:i,p_nome:n,p_rg:rg}); if(r.error){ toast(r.error.message); return; }
+  toast(r.data==="concluido"?"🏁 Serviço concluído!":"Entrega registrada"); await ptTrabalhos();
+}
+/* rastreio ao vivo do serviço em andamento (mesmo canal da página de acompanhamento) */
+async function ptRastLigar(id){
+  if(PTA.rast&&PTA.rast.id===id) return; ptRastDesligar();
+  const r=await sbc.rpc("servico_meu_rastreio",{p_id:id}); if(r.error||!r.data) return;
+  const R=PTA.rast={id, moto:r.data.moto, ver:r.data.ver, ok:false, tv:0, tb:0, w:null, ch:null};
+  try{ R.ch=sbc.channel("rast-"+R.ver,{config:{broadcast:{self:false,ack:false}}}); R.ch.subscribe(); }catch(e){}
+  if(!("geolocation" in navigator)) return;
+  R.w=navigator.geolocation.watchPosition(async pos=>{
+    const now=Date.now(), c=pos.coords; R.ok=true;
+    if(now-R.tv>=6000){ R.tv=now; try{ R.ch&&R.ch.send({type:"broadcast",event:"pos",payload:{lat:c.latitude,lon:c.longitude,prec:Math.round(c.accuracy||0),t:now}}); }catch(e){} }
+    if(now-R.tb>=12000){ R.tb=now; try{ await sbc.rpc("rastreio_posicao",{p_moto:R.moto,p_lat:c.latitude,p_lon:c.longitude,p_prec:c.accuracy}); }catch(e){} }
+  },()=>{ R.ok=false; },{enableHighAccuracy:true,maximumAge:5000,timeout:30000});
+}
+function ptRastDesligar(){ const R=PTA.rast; if(!R) return; try{ if(R.w!==null) navigator.geolocation.clearWatch(R.w); }catch(e){} try{ R.ch&&sbc.removeChannel(R.ch); }catch(e){} PTA.rast=null; }
+/* progresso do serviço (quem enviou e a RL) */
+function ptProgresso(s){
+  const pts=[{...s.retirada,_l:"Retirada"},...s.paradas.map((p,i)=>({...p,_l:s.paradas.length>1?"Entrega "+(i+1):"Entrega"}))];
+  const hr=t=>new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  return `<div class="ex-prog">${pts.map((p,i)=>`<div class="${p.feito_em?"ok":p.chegou_em?"on":""}"><span>${p.feito_em?"✓":p.chegou_em?"⏱":"○"}</span><div><b>${p._l}</b> · ${esc(String(p.e).split(",").slice(0,2).join(","))}
+      ${p.feito_em?`<div class="muted">${i===0?"Entregue por":"Recebido por"} <b>${esc(p.nome||"")}</b>${p.rg?" · RG "+esc(p.rg):""} · ${hr(p.feito_em)}${p.espera_min>0?` · espera ${p.espera_min} min`:""}</div>`:p.chegou_em?`<div class="muted">Motoboy chegou às ${hr(p.chegou_em)}</div>`:""}</div></div>`).join("")}</div>
+    ${Number(s.espera_valor)>0?`<div class="small">Espera cobrada: <b>${s.espera_min} min = ${brl(s.espera_valor)}</b> · total ao motoboy <b>${brl(Number(s.valor)+Number(s.espera_valor))}</b></div>`:""}`;
+}
+function ptComprovante(id){
+  const s=(PTA.meus||[]).find(x=>x.id===id)||(CT.lista||[]).find(x=>x.id===id); if(!s) return;
+  openModal(`<div class="modal-h">Comprovante — serviço #${s.numero}</div><div class="modal-b" style="grid-template-columns:1fr">
+    <div class="small muted">Solto em ${new Date(s.criado_em).toLocaleString("pt-BR")} · ${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")}${s.concluido_em?" · concluído em "+new Date(s.concluido_em).toLocaleString("pt-BR"):""}</div>
+    ${ptProgresso(s)}<div class="ex-total"><span>Total ao ${s.veiculo==="moto"?"motoboy":"motorista"}</span><b>${brl(Number(s.valor)+Number(s.espera_valor||0))}</b></div></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
 }
 async function ptCandidatar(id){
   const b=document.querySelector(`[data-cand="${id}"]`); if(b){ b.disabled=true; b.textContent="Enviando…"; }
@@ -1382,6 +1481,8 @@ async function ctAbrir(id){
     <div class="modal-b" style="grid-template-columns:1fr"><div class="small">🏁 ${esc(x.retirada.e)}${x.paradas.map(p=>`<br>📦 ${esc(p.e)}`).join("")}</div>
       <div class="small muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")} · ${brl(x.valor)} · ${x.agendado_para?"📅 "+new Date(x.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"} · solto ${ptHa(x.criado_em)}</div>
       <div class="small">Quem enviou: <b>${esc(x.quem_enviou||"—")}</b> · Quem pegou: <b>${esc(x.quem_pegou||"—")}</b></div>
+      ${["em_andamento","concluido"].includes(x.status)?ptProgresso(x):""}
+      ${x.status==="em_andamento"&&x.rastreio_ver?`<a class="btn sm in" style="justify-self:start" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(x.rastreio_ver)}">📍 Acompanhar ao vivo</a>`:""}
       <div><b>Interessados</b><div id="ctCands" class="small muted">Carregando…</div></div></div>
     <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button>${x.quem_pegou?`<button class="btn" onclick="ptChat('${x.id}','Serviço #${x.numero} — conversa')">💬 Ver conversa</button>`:""}</div>`);
   const r=await sbc.rpc("servico_candidatos",{p_id:id}); const b=$("#ctCands"); if(!b) return;
