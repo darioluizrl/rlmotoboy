@@ -532,10 +532,6 @@ textarea{resize:vertical;min-height:60px}
       <select id="ctSt" style="width:auto" onchange="ctDesenhar()"><option value="">Todas as situações</option><option value="aberto">Abertos</option><option value="aceito">Aceitos</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluídos</option><option value="cancelado">Cancelados</option></select>
       <select id="ctDias" style="width:auto" onchange="ctCarregar()"><option value="1">Hoje</option><option value="7" selected>7 dias</option><option value="30">30 dias</option></select>
       <button class="btn sec" onclick="ctCarregar()">Atualizar</button></div>
-    <div class="panel mm-panel"><div class="mm-head"><b>🗺 Motoboys e motoristas agora</b><span class="muted small" id="mmInfo"></span></div>
-      <div class="mm-grid"><div id="mmMapa" class="mm-mapa"></div><div class="mm-lado"><div class="mm-cnt" id="mmCnt"></div>
-        <div class="mm-fil"><button class="on" data-f="" onclick="mmFil('')">Todos</button><button data-f="livre" onclick="mmFil('livre')">Livres</button><button data-f="ocupado" onclick="mmFil('ocupado')">Em serviço</button></div>
-        <div id="mmLista" class="mm-lista"></div></div></div></div>
     <div class="cards" id="ctKpis"></div>
     <div class="panel"><div class="tbl-wrap" id="ctTab"><p class="muted small" style="padding:14px 16px">Carregando…</p></div></div>
   </section>
@@ -569,6 +565,10 @@ textarea{resize:vertical;min-height:60px}
       <button class="btn sec" onclick="renderOperacional(true)">Atualizar</button>
       <a class="btn" id="opsFull" target="_blank" rel="noopener" href="#">🔴 Abrir mapa ao vivo ↗</a>
     </div>
+    <div class="panel mm-panel so-central"><div class="mm-head"><b>🗺 Motoboys e motoristas agora</b><span class="muted small" id="mmInfo"></span></div>
+      <div class="mm-grid"><div id="mmMapa" class="mm-mapa"></div><div class="mm-lado"><div class="mm-cnt" id="mmCnt"></div>
+        <div class="mm-fil"><button class="on" data-f="" onclick="mmFil('')">Todos</button><button data-f="livre" onclick="mmFil('livre')">Livres</button><button data-f="ocupado" onclick="mmFil('ocupado')">Em serviço</button></div>
+        <div id="mmLista" class="mm-lista"></div></div></div></div>
     <div class="panel" id="opsFrameBox" style="padding:0;overflow:hidden"><iframe id="opsFrame" title="Mapa da operação" style="width:100%;height:74vh;border:0;display:block"></iframe></div>
     <div class="panel ops-nat" id="opsNat" style="display:none">
       <div class="ops-mapa"><img id="opsImg" alt="Mapa da operação"><div id="opsMapMsg" class="muted small"></div></div>
@@ -1522,7 +1522,7 @@ async function mmAtualizar(){
   MM.lista=r.data||[]; MM.agora=MM.lista[0]?new Date(MM.lista[0].agora):new Date();
   $("#mmInfo").textContent="atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · atualiza a cada 15 s";
   mmDesenhar();
-  MM.t=setTimeout(()=>{ if($("#v-central").classList.contains("on")) mmAtualizar(); },15000);
+  MM.t=setTimeout(()=>{ if($("#v-operacional").classList.contains("on")) mmAtualizar(); },15000);
 }
 function mmFil(f){ MM.fil=f; document.querySelectorAll(".mm-fil button").forEach(b=>b.classList.toggle("on",b.dataset.f===f)); mmDesenhar(); }
 function mmIcone(m){ const [,cor]=MM_ST[m.situacao]||MM_ST.livre; const em={moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"}[m.veiculo]||"🏍";
@@ -1698,10 +1698,10 @@ function render(){
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); if(SB && !render._usu){ render._usu=1; renderUsuarios(); } }
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
   if(v==="v-config" && S.papel==="dono" && !render._cfg){ render._cfg=1; cfgCarregar(); }
-  if(v==="v-central" && document.body.classList.contains("perfil-central") && !render._ct){ render._ct=1; ctCarregar(); mmIniciar(); }
+  if(v==="v-central" && document.body.classList.contains("perfil-central") && !render._ct){ render._ct=1; ctCarregar(); }
   if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && ["admin","dono"].includes(S.papel) && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
-  if(v==="v-operacional") renderOperacional();
+  if(v==="v-operacional"){ renderOperacional(); if(document.body.classList.contains("perfil-central")) mmIniciar(); }
   if(v==="v-financeiro") renderFinanceiro();
 }
 
