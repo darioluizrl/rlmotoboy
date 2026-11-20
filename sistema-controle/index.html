@@ -1046,7 +1046,7 @@ const PTA={aba:null, rota:null, veic:"moto", quando:"agora", watch:null, pos:nul
 const PT_FATOR={moto:1, carro:1.8, utilitario:2.5, caminhao:4};
 async function ptApp(){
   const box=$("#loginBox"); box.style.maxWidth="980px";
-  try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; if(x.chave==="espera") PTA.esp=x.valor; }); }catch(e){}
+  try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; if(x.chave==="espera") PTA.esp=x.valor; if(x.chave==="distribuicao") PTA.dist=x.valor; }); }catch(e){}
   const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
   if(!PTA.aba || !abas.some(a=>a[0]===PTA.aba)) PTA.aba=abas[0][0];
   box.innerHTML=portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div><div id="ptConteudo"></div>`;
@@ -1148,7 +1148,7 @@ async function ptMeus(){
   box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu"><div style="flex:1"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
       <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${brl(s.valor)} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div></div>
       <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
-      ${s.status==="aberto"?`<button class="btn sm ${nc[s.id]?"":"sec"}" onclick="ptCandidatos('${s.id}',${s.numero})" ${nc[s.id]?"":"disabled"}>🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":"")+" — escolher":"Aguardando interessados"}</button><button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}
+      ${s.status==="aberto"?`<span class="muted small" style="white-space:nowrap">${ptFase(s)}</span><button class="btn sm ${nc[s.id]?"":"sec"}" onclick="ptCandidatos('${s.id}',${s.numero})" ${nc[s.id]?"":"disabled"}>🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":"")+" — escolher":"Aguardando interessados"}</button><button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}
       ${s.status==="em_andamento"&&s.rastreio_ver?`<a class="btn sm in" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(s.rastreio_ver)}">📍 Ao vivo</a>`:""}
       ${s.status==="concluido"?`<button class="btn sm sec" onclick="ptComprovante('${s.id}')">🧾 Comprovante</button>`:""}
       ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn sm" onclick="ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}</div>
@@ -1203,6 +1203,12 @@ async function chatCarregar(){
     d.innerHTML=`<div class="chat-n">${meu?"Você":m.papel==="rl"?"🛡 RL Motoboy":esc(m.nome)}${m.papel==="enviou"?" · enviou":m.papel==="pegou"?" · pegou":meu&&m.papel==="rl"?" · RL":""}</div>${esc(m.texto).replace(/\n/g,"<br>")}<div class="chat-h">${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>`;
     box.appendChild(d); });
   box.scrollTop=box.scrollHeight;
+}
+function ptFase(s){
+  const d=PTA.dist||{}, m=(Date.now()-new Date(s.criado_em))/60000;
+  if(m>=Number(d.minutos_para_todos??10)) return "📢 aberto para todos";
+  if(m>=Number(d.minutos_ate_ampliar??5)) return `📡 até ${String(d.raio_maximo_km??10).replace(".",",")} km`;
+  return `📡 até ${String(d.raio_inicial_km??3).replace(".",",")} km`;
 }
 async function ptCancelar(id){ const r=await sbc.rpc("servico_cancelar",{p_id:id}); if(r.error){ toast(r.error.message); return; } toast("Serviço cancelado"); ptMeus(); }
 function ptHa(t){ const m=Math.max(0,Math.round((Date.now()-new Date(t))/60000)); return m<1?"agora":m<60?`há ${m} min`:m<1440?`há ${Math.round(m/60)} h`:dataBR(t); }
@@ -1357,7 +1363,7 @@ function ptDesenharLista(){
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
     return `<div class="pt-serv">
-      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você</div></div>
+      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
       <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
       <div class="pt-serv-info"><span>${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""}</span><span>${esc(CAD_VEIC[s.veiculo]||"")}</span><span>${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span><span>solto ${ptHa(s.criado_em)}</span></div>
       ${s.obs?`<div class="small" style="margin-top:6px">💬 ${esc(s.obs)}</div>`:""}
@@ -1582,7 +1588,7 @@ function cfgNovoEquipe(){
 /* regras do sistema */
 const CFG_REGRAS=[
   ["distribuicao","📡 Distribuição dos serviços","Como o serviço é avisado aos motoboys e motoristas.",[
-    ["raio_inicial_km","Raio inicial (km)",0.5],["minutos_ate_ampliar","Minutos até ampliar",1],["raio_maximo_km","Raio máximo (km)",0.5],["max_candidatos","Máximo de candidatos",1]]],
+    ["raio_inicial_km","Raio inicial (km)",0.5],["minutos_ate_ampliar","Minutos até ampliar",1],["raio_maximo_km","Raio máximo (km)",0.5],["minutos_para_todos","Minutos até abrir para todos",1],["max_candidatos","Máximo de candidatos",1]]],
   ["espera","⏱ Tempo de espera","Cobrado do cliente e repassado ao motoboy.",[
     ["minutos_gratis","Minutos grátis",1],["valor_minuto","R$ por minuto depois",0.01]]],
   ["creditos","💳 Créditos","Plano: R$ 1,00 de quem envia + R$ 0,50 de quem pega, por O.S. (1 crédito = R$ 0,50).",[
