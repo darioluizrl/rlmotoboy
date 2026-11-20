@@ -264,6 +264,16 @@ textarea{resize:vertical;min-height:60px}
 .pt-total{border:0;font-size:16px}.pt-total b{font-size:18px}
 .pt-ok{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:30px 10px;font-size:15px}.pt-ok b{font-size:22px}
 .pt-meu{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink,#16181d)}
+.pt-meu.clic{cursor:pointer;border-radius:10px;padding:12px 8px;margin:0 -8px}
+.pt-meu.clic:hover,.pt-meu.clic:active{background:var(--soft,#f6f7f9)}
+.pt-meu-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.pt-meu-seta{font-size:22px;color:var(--muted,#8a8f98);flex:none}
+.pt-up{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.pt-up-r{display:flex;flex-wrap:wrap;gap:8px}
+.pt-up-r button{flex:1;min-width:70px}
+.pt-up-in{display:flex;gap:8px;align-items:center}
+.pt-up-in input{flex:1;font-size:18px;font-weight:700}
+.pt-aum{display:inline-block;background:#fff4e5;color:#b45309;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700}
 .pt-gps{border:1.5px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .pt-gps b{font-size:16px}.pt-gps.on{border-color:#0f9d58;background:#e6f4ea}.pt-gps.err{border-color:var(--bad);background:var(--bad-l)}
 .pt-serv{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;margin-top:10px}
@@ -1167,15 +1177,46 @@ async function ptMeus(){
   const ab=PTA.meus.filter(s=>s.status==="aberto").map(s=>s.id), nc={};
   if(ab.length){ const c=await sbc.from("candidaturas").select("servico_id,status").in("servico_id",ab); (c.data||[]).forEach(x=>{ if(x.status==="ativa") nc[x.servico_id]=(nc[x.servico_id]||0)+1; }); }
   PTA.nc=nc; clearTimeout(PTA.tMeus); PTA.tMeus=setTimeout(()=>{ if(PTA.aba==="enviar"&&$("#peMeus")) ptMeus(); },20000);
-  box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu"><div style="flex:1"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
-      <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${brl(s.valor)} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div></div>
-      <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
-      ${s.status==="aberto"?`<span class="muted small" style="white-space:nowrap">${ptFase(s)}</span><button class="btn sm ${nc[s.id]?"":"sec"}" onclick="ptCandidatos('${s.id}',${s.numero})" ${nc[s.id]?"":"disabled"}>🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":"")+" — escolher":"Aguardando interessados"}</button><button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}
-      ${s.status==="em_andamento"&&s.rastreio_ver?`<a class="btn sm in" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(s.rastreio_ver)}">📍 Ao vivo</a>`:""}
-      ${s.status==="concluido"?`<button class="btn sm sec" onclick="ptComprovante('${s.id}')">🧾 Comprovante</button>`:""}
-      ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn sm" onclick="ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}</div>
-      ${s.status==="em_andamento"?`<div style="padding:0 0 10px">${ptProgresso(s)}</div>`:""}`).join("")
+  box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu clic" onclick="ptMeuAbrir('${s.id}')"><div style="flex:1;min-width:0"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
+      <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · <b style="color:var(--ink,#16181d)">${brl(s.valor)}</b>${s.valor_inicial?` <span class="pt-aum">⬆ aumentado</span>`:""} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div>
+      <div class="pt-meu-tags"><span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
+      ${s.status==="aberto"?`<span class="muted small">${ptFase(s)}</span><span class="small" style="font-weight:700;color:${nc[s.id]?"var(--brand)":"var(--muted,#8a8f98)"}">🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":""):"nenhum interessado ainda"}</span>`:""}</div>
+      ${s.status==="em_andamento"?`<div style="padding-top:8px">${ptProgresso(s)}</div>`:""}</div>
+      <span class="pt-meu-seta">›</span></div>`).join("")
     :`<span class="muted">Nenhum serviço ainda.</span>`;
+}
+function ptMeuAbrir(id){
+  const s=(PTA.meus||[]).find(x=>x.id===id); if(!s) return; const n=(PTA.nc||{})[id]||0;
+  const passos=[5,10,20,50];
+  openModal(`<div class="modal-h">Serviço #${s.numero}</div><div class="modal-b" style="grid-template-columns:1fr;gap:12px">
+    <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
+    <div class="muted small">${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div>
+    <div class="row" style="gap:10px;align-items:center"><div style="font-size:26px;font-weight:800">${brl(s.valor)}</div>
+      ${s.valor_inicial?`<span class="muted small">começou em ${brl(s.valor_inicial)} · aumentado ${s.aumentos}x</span>`:""}<div class="spacer"></div>
+      <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span></div>
+    ${s.obs?`<div class="small">💬 ${esc(s.obs)}</div>`:""}
+    ${s.status==="aberto"?`<div class="muted small">${ptFase(s)} · 🙋 ${n?n+" interessado"+(n>1?"s":""):"nenhum interessado ainda"}</div>
+      <div class="pt-up"><b>⬆ Aumentar o valor e reenviar</b>
+        <span class="muted small">O serviço volta para o topo da lista dos ${s.veiculo==="moto"?"motoboys":"motoristas"} com o aviso <b>valor aumentado</b>. Quem já se interessou continua na lista.</span>
+        <div class="pt-up-r">${passos.map(v=>`<button class="btn sec" style="white-space:nowrap;padding-left:6px;padding-right:6px" onclick="ptUpSet(${(Number(s.valor)+v).toFixed(2)})">+ R$ ${v}</button>`).join("")}</div>
+        <div class="pt-up-in"><span class="muted">Novo valor R$</span><input id="upVal" inputmode="decimal" value="${(Number(s.valor)+10).toFixed(2).replace(".",",")}"></div>
+        <button class="btn" id="upBtn" onclick="ptAumentar('${s.id}',${Number(s.valor)})">Aumentar e reenviar</button></div>`:""}
+    </div>
+    <div class="modal-f" style="flex-wrap:wrap;gap:8px">
+      ${s.status==="aberto"?`<button class="btn sec" style="color:var(--bad)" onclick="closeModal();ptCancelar('${s.id}')">Cancelar serviço</button>${n?`<button class="btn in" onclick="closeModal();ptCandidatos('${s.id}',${s.numero})">🙋 Ver ${n} interessado${n>1?"s":""} e escolher</button>`:""}`:""}
+      ${s.status==="em_andamento"&&s.rastreio_ver?`<a class="btn in" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(s.rastreio_ver)}">📍 Ao vivo</a>`:""}
+      ${s.status==="concluido"?`<button class="btn sec" onclick="closeModal();ptComprovante('${s.id}')">🧾 Comprovante</button>`:""}
+      ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn" onclick="closeModal();ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}
+      <button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
+}
+function ptUpSet(v){ const i=$("#upVal"); if(i){ i.value=Number(v).toFixed(2).replace(".",","); i.focus(); } }
+async function ptAumentar(id, atual){
+  const t=String($("#upVal").value||"").replace(/[^\d,.]/g,""), v=Number(t.includes(",")?t.replace(/\./g,"").replace(",","."):t);
+  if(!(v>atual)){ toast("O novo valor precisa ser maior que "+brl(atual)); $("#upVal").focus(); return; }
+  const b=$("#upBtn"); b.disabled=true; b.textContent="Reenviando…";
+  const r=await sbc.rpc("servico_aumentar",{p_id:id,p_valor:Math.round(v*100)/100});
+  if(r.error){ b.disabled=false; b.textContent="Aumentar e reenviar"; toast(r.error.message); return; }
+  closeModal(); toast("Valor aumentado para "+brl(r.data)+" e serviço reenviado!"); ptMeus();
 }
 async function ptCandidatos(id, numero){
   openModal(`<div class="modal-h">Interessados no serviço #${numero}</div><div class="modal-b" style="grid-template-columns:1fr" id="pcBox"><p class="muted">Carregando…</p></div>
@@ -1403,7 +1444,7 @@ function ptDesenharLista(){
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
     return `<div class="pt-serv">
-      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
+      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
       <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
       <div class="pt-serv-info"><span>${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""}</span><span>${esc(CAD_VEIC[s.veiculo]||"")}</span><span>${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span><span>solto ${ptHa(s.criado_em)}</span></div>
       ${s.obs?`<div class="small" style="margin-top:6px">💬 ${esc(s.obs)}</div>`:""}
