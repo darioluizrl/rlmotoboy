@@ -54,7 +54,7 @@ create policy config_ler on public.config_sistema for select to authenticated us
 insert into public.config_sistema (chave, valor) values
   ('distribuicao', '{"raio_inicial_km":3,"minutos_ate_ampliar":5,"raio_maximo_km":10,"max_candidatos":3}'),
   ('espera',       '{"minutos_gratis":15,"valor_minuto":0.50}'),
-  ('creditos',     '{"valor_credito":null,"creditos_por_servico":null}')
+  ('creditos',     '{"valor_credito":0.50,"creditos_envia":2,"creditos_pega":1}')
 on conflict (chave) do nothing;
 
 -- 3) Funções do menu Configuração (todas exigem o dono)
@@ -162,9 +162,11 @@ begin
     v := jsonb_build_object('minutos_gratis',(p_valor->>'minutos_gratis')::int,'valor_minuto',(p_valor->>'valor_minuto')::numeric);
   elsif p_chave = 'creditos' then
     if coalesce((p_valor->>'valor_credito')::numeric,1) not between 0.01 and 1000
-       or coalesce((p_valor->>'creditos_por_servico')::numeric,1) not between 0 and 1000 then
+       or coalesce((p_valor->>'creditos_envia')::numeric,1) not between 0 and 1000
+       or coalesce((p_valor->>'creditos_pega')::numeric,1) not between 0 and 1000 then
       raise exception 'Valores de créditos inválidos'; end if;
-    v := jsonb_build_object('valor_credito',(p_valor->>'valor_credito')::numeric,'creditos_por_servico',(p_valor->>'creditos_por_servico')::numeric);
+    v := jsonb_build_object('valor_credito',(p_valor->>'valor_credito')::numeric,
+                            'creditos_envia',(p_valor->>'creditos_envia')::numeric,'creditos_pega',(p_valor->>'creditos_pega')::numeric);
   else
     raise exception 'Configuração desconhecida';
   end if;

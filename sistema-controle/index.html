@@ -1140,8 +1140,8 @@ const CFG_REGRAS=[
     ["raio_inicial_km","Raio inicial (km)",0.5],["minutos_ate_ampliar","Minutos até ampliar",1],["raio_maximo_km","Raio máximo (km)",0.5],["max_candidatos","Máximo de candidatos",1]]],
   ["espera","⏱ Tempo de espera","Cobrado do cliente e repassado ao motoboy.",[
     ["minutos_gratis","Minutos grátis",1],["valor_minuto","R$ por minuto depois",0.01]]],
-  ["creditos","💳 Créditos","Usado na etapa de créditos e Mercado Pago. Pode deixar em branco por enquanto.",[
-    ["valor_credito","Valor de 1 crédito (R$)",0.01],["creditos_por_servico","Créditos por serviço",0.5]]]];
+  ["creditos","💳 Créditos","Plano: R$ 1,00 de quem envia + R$ 0,50 de quem pega, por O.S. (1 crédito = R$ 0,50).",[
+    ["valor_credito","Valor de 1 crédito (R$)",0.01],["creditos_envia","Créditos por O.S. — quem envia",0.5],["creditos_pega","Créditos por O.S. — quem pega",0.5]]]];
 async function cfgRegras(){
   const r=await sbc.from("config_sistema").select("*");
   if(r.error){ $("#cfgRegBox").innerHTML=`<p class="small" style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
