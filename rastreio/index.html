@@ -62,8 +62,8 @@ function soltarCanal(v){ const ch=canais[v]; if(ch){ try{ sb.removeChannel(ch); 
 /* move o marcador suavemente até a nova posição */
 function deslizar(m,lat,lon){
   if(!m) return; const a=m.getLatLng?m.getLatLng():null; if(!a||!window.requestAnimationFrame){ m.setLatLng([lat,lon]); return; }
-  const t0=performance.now(), d=900; cancelAnimationFrame(m._anim);
-  const passo=t=>{ const k=Math.min(1,(t-t0)/d), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  const t0=performance.now(), d=5000;   /* anda devagar entre um ponto e outro */ cancelAnimationFrame(m._anim);
+  const passo=t=>{ const k=Math.min(1,(t-t0)/d), e=k;
     m.setLatLng([a.lat+(lat-a.lat)*e, a.lng+(lon-a.lng)*e]); if(k<1) m._anim=requestAnimationFrame(passo); };
   m._anim=requestAnimationFrame(passo);
 }
@@ -109,9 +109,9 @@ async function iniciar(){
 }
 async function enviar(p){
   const agora=Date.now();
-  if(V && agora-ultimoAoVivo>=1500){ ultimoAoVivo=agora;
+  if(V && agora-ultimoAoVivo>=6000){   /* ao vivo: 1 posição a cada 6 s (economiza a cota de mensagens) */ ultimoAoVivo=agora;
     try{ canal(V).send({type:"broadcast",event:"pos",payload:{lat:p.coords.latitude,lon:p.coords.longitude,prec:Math.round(p.coords.accuracy||0),t:agora}}); }catch(e){} }
-  if(enviando || agora-ultimoEnvio<5000) return;
+  if(enviando || agora-ultimoEnvio<12000) return;   /* banco: a cada 12 s */
   enviando=true; ultimoEnvio=agora;
   try{
     const {data,error}=await sb.rpc("rastreio_posicao",{p_moto:M,p_lat:p.coords.latitude,p_lon:p.coords.longitude,p_prec:Math.round(p.coords.accuracy||0)});
