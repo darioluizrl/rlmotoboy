@@ -1,8 +1,8 @@
 {
   "name": "rl-motoboy",
-  "productName": "RL Motoboy",
+  "productName": "MegaEntregas",
   "version": "1.0.0",
-  "description": "RL Motoboy - Controle Logístico (versão offline)",
+  "description": "MegaEntregas - Entregas rápidas (versão offline)",
   "main": "main.js",
   "author": "RL Motoboy Entregas Rápidas"
 }

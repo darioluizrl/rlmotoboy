@@ -14,7 +14,7 @@ let win;
 function createWindow() {
   win = new BrowserWindow({
     width: 1366, height: 860, minWidth: 980, minHeight: 640,
-    title: 'RL Motoboy', icon: path.join(__dirname, 'icon.png'),
+    title: 'MegaEntregas', icon: path.join(__dirname, 'icon.png'),
     autoHideMenuBar: true, backgroundColor: '#f4f5f7', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: false, spellcheck: true }
   });

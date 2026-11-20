@@ -2,7 +2,7 @@
 <html lang="pt-BR"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Rastreio — RL Motoboy</title>
+<title>Rastreio — MegaEntregas</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--ink:#16181d;--muted:#6b7280;--line:#e5e7eb;--or:#e8590c;--in:#0f9d58;--in-l:#e7f6ee;--warn:#b45309;--warn-l:#fef3c7;--bad:#c62828;--bad-l:#fdecea}
@@ -33,7 +33,7 @@ body.embed .top{display:none}body.embed .ops{height:calc(100vh - 24px)}
 @media(max-width:760px){.ops{grid-template-columns:1fr;height:auto}.ops #map{height:55vh}}
 .pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;border:3px solid #fff;box-shadow:0 1px 4px #0006}
 </style></head><body>
-<div class="top"><img src="__LOGO__" alt=""><div><b>RL Motoboy e Entregas</b><small id="sub">Rastreio da corrida</small></div></div>
+<div class="top"><img src="__LOGO__" alt=""><div><b>MegaEntregas</b><small id="sub">Rastreio da corrida</small></div></div>
 <div class="wrap" id="app"><div class="card muted">Carregando…</div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -98,7 +98,7 @@ function telaMoto(msg){
     <div class="card"><b>${esc(R.titulo||"Corrida")}</b>${R.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(R.agendado)}</div>`:""}${R.km?`<div class="muted sm">${esc(R.km)} km</div>`:""}<div style="margin-top:8px">${lista(R)}</div>
       ${nav?`<a class="btn sec" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="${nav}">🧭 Abrir navegação no Google Maps</a>`:""}</div>
     ${fim?"":on?`<button class="btn ok" onclick="finalizar()">✓ Finalizar entrega</button><button class="btn sec" onclick="parar()">Pausar rastreio</button>`
-      :`<button class="btn go" onclick="iniciar()">📍 Liberar rastreio</button><p class="muted sm">Ao liberar, sua localização é enviada para a RL Motoboy e para quem tem o link de acompanhamento desta corrida, só enquanto o rastreio estiver ligado. Ele é encerrado quando você finaliza a entrega.</p>`}
+      :`<button class="btn go" onclick="iniciar()">📍 Liberar rastreio</button><p class="muted sm">Ao liberar, sua localização é enviada para a MegaEntregas e para quem tem o link de acompanhamento desta corrida, só enquanto o rastreio estiver ligado. Ele é encerrado quando você finaliza a entrega.</p>`}
     ${msg?`<div class="st err" style="margin-top:10px">${esc(msg)}</div>`:""}`;
 }
 async function iniciar(){
