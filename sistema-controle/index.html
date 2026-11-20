@@ -264,6 +264,27 @@ textarea{resize:vertical;min-height:60px}
 .pt-total{border:0;font-size:16px}.pt-total b{font-size:18px}
 .pt-ok{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:30px 10px;font-size:15px}.pt-ok b{font-size:22px}
 .pt-meu{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink,#16181d)}
+.gs-print-h{display:none;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px}.gs-print-h img{width:56px;height:56px;object-fit:contain}.gs-print-h b{font-size:20px}
+.gs{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.gs-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.gs-top img{width:54px;height:54px;object-fit:contain;border-radius:10px}
+.gs-acoes{display:flex;gap:8px}.gs-fil{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.gs-fil>button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:13px}
+.gs-fil>button.on{background:#16181d;color:#fff;border-color:#16181d}.gs-fil select,.gs-fil input{width:auto;padding:6px 10px}
+#gsQ{min-width:220px}#gsRel{display:flex;flex-direction:column;gap:14px}
+.gs-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.gs-v{font-size:22px;font-weight:800;margin:2px 0}
+.gs-2{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}@media(max-width:820px){.gs-2{grid-template-columns:1fr}}
+.gs-bars{display:flex;align-items:flex-end;gap:4px;height:170px;margin-top:10px;overflow-x:auto}
+.gs-bars>div{flex:1;min-width:22px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.gs-bars i{display:block;width:100%;max-width:34px;background:var(--brand);border-radius:4px 4px 0 0}.gs-bars span{font-size:10px;color:var(--muted)}
+.gs-rk{width:100%;font-size:13px;margin-top:6px;border-collapse:collapse}.gs-rk td{padding:5px 4px;border-bottom:1px solid var(--line)}.gs-rk td:last-child{text-align:right;white-space:nowrap}
+.gs-tab{width:100%;border-collapse:collapse;font-size:14px}.gs-tab th{text-align:left;font-size:12px;color:var(--muted);padding:10px;border-bottom:1px solid var(--line);background:#fafafa}
+.gs-tab td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}.gs-totrow td{background:#fafafa}
+.comp-marca{display:flex;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:12px}
+.comp-marca img{width:64px;height:64px;object-fit:contain;border-radius:10px}.comp-marca b{font-size:18px}
+.pt-marca{border:1px solid var(--line);border-radius:12px;padding:14px}
+.pt-marca-in{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.pt-logo{width:84px;height:84px;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;cursor:pointer;overflow:hidden;background:#fff;flex:none}
+.pt-logo img{max-width:100%;max-height:100%;object-fit:contain}.pt-logo span{color:var(--muted);font-weight:700;font-size:13px}
 .pt-meu.clic{cursor:pointer;border-radius:10px;padding:12px 8px;margin:0 -8px}
 .pt-meu.clic:hover,.pt-meu.clic:active{background:var(--soft,#f6f7f9)}
 .pt-meu-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
@@ -979,7 +1000,7 @@ function portalTela(){
   let banner="";
   if(p.status==="pendente") banner=faltam.length
     ? `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Falta enviar: <b>${faltam.map(esc).join(", ")}</b>. Depois disso a equipe MegaEntregas confere e aprova.</div>`
-    : `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Cadastro <b>em análise</b>. A RL vai conferir seus dados e documentos. Você recebe a resposta aqui.</div>`;
+    : `<div class="eco" style="background:var(--warn-l);color:var(--warn)">Cadastro <b>em análise</b>. A equipe MegaEntregas vai conferir seus dados e documentos. Você recebe a resposta aqui.</div>`;
   if(p.status==="recusado") banner=`<div class="eco" style="background:var(--bad-l);color:var(--bad)"><b>Cadastro recusado:</b> ${esc(p.motivo||"")}<br><span class="small">Corrija os dados ou troque o documento e clique em “Enviar para análise de novo”.</span></div>`;
   if(p.status==="aprovado") banner=`<div class="eco"><b>✓ Cadastro aprovado — Verificado MegaEntregas</b></div>`;
   if(p.status==="bloqueado") banner=`<div class="eco" style="background:var(--bad-l);color:var(--bad)"><b>Cadastro bloqueado.</b> Fale com a MegaEntregas.</div>`;
@@ -994,8 +1015,40 @@ function portalTela(){
         <div style="flex:1;min-width:180px"><b>${esc(l)}</b>${obr?"":' <span class="muted small">(opcional)</span>'}<div class="small ${ds.length?"":"muted"}">${ds.length?`✓ Enviado em ${dataBR(ds[ds.length-1].criado_em)}`:"Ainda não enviado"}</div></div>
         ${edit?`<label class="btn sm ${ds.length?"sec":""}" style="cursor:pointer">${ds.length?"Trocar":"Enviar"}<input type="file" accept="image/*,application/pdf" ${t==="selfie"?'capture="user"':""} style="display:none" onchange="portalUpload('${t}',this)"></label>`:""}</div>`; }).join("")}</div>
       <p class="small" id="ptMsg" style="margin:6px 0 0"></p></div>
+    ${ptEnvia(p)?ptMarcaCard(p):""}
     ${p.status==="recusado"?`<button class="btn" onclick="portalReenviar()">Enviar para análise de novo</button>`:""}
   </div>`;
+}
+/* ---------- marca de quem envia: nome e logo nos comprovantes ---------- */
+function ptMarcaCard(p){
+  return `<div class="pt-marca"><b>🏷 Sua marca nos comprovantes</b>
+    <p class="muted small" style="margin:2px 0 10px">O nome e o logo da sua empresa aparecem nos comprovantes e relatórios dos seus serviços.</p>
+    <div class="pt-marca-in"><label class="pt-logo" title="Trocar logo">${p.marca_logo?`<img src="${esc(p.marca_logo)}" alt="">`:`<span>+ Logo</span>`}
+        <input type="file" accept="image/*" style="display:none" onchange="ptLogoEscolher(this)"></label>
+      <div style="flex:1;min-width:180px"><label class="small">Nome que aparece nos comprovantes</label><input id="mkNome" maxlength="80" value="${esc(p.marca_nome||"")}" placeholder="${esc(p.nome||"Nome da sua empresa")}">
+        <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" id="mkBtn" onclick="ptMarcaSalvar()">Salvar marca</button>${p.marca_logo?`<button class="btn sm sec" onclick="ptMarcaSalvar('')">Tirar logo</button>`:""}<span class="small muted" id="mkMsg"></span></div></div></div></div>`;
+}
+async function ptLogoDataUrl(f){
+  if(!f||!f.type.startsWith("image/")) throw new Error("Escolha uma imagem (PNG ou JPG).");
+  const img=await createImageBitmap(f); const k=Math.min(1,320/Math.max(img.width,img.height));
+  const c=document.createElement("canvas"); c.width=Math.max(1,Math.round(img.width*k)); c.height=Math.max(1,Math.round(img.height*k));
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+  let u=c.toDataURL("image/png"); if(u.length>150000) u=c.toDataURL("image/jpeg",0.85);
+  if(u.length>190000) throw new Error("Imagem muito grande. Use um logo mais simples.");
+  return u;
+}
+async function ptLogoEscolher(inp){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  try{ PT.logoNovo=await ptLogoDataUrl(f); }catch(e){ toast(e.message); return; }
+  const l=inp.closest(".pt-logo"); if(l){ const im=l.querySelector("img")||document.createElement("img"); im.src=PT.logoNovo; l.querySelector("span")?.remove(); if(!im.parentNode) l.prepend(im); }
+  if(document.getElementById("mkBtn")) ptMarcaSalvar();
+}
+async function ptMarcaSalvar(logo){
+  const nome=($("#mkNome")?.value||"").trim(); const lg=logo!==undefined?logo:(PT.logoNovo||null);
+  const r=await sbc.rpc("minha_marca",{p_nome:nome,p_logo:lg});
+  if(r.error){ toast(r.error.message); return; }
+  PT.logoNovo=null; PT.p.marca_nome=nome||null; if(lg!==null) PT.p.marca_logo=lg||null;
+  toast("Marca salva — ela já aparece nos seus comprovantes"); portalTela();
 }
 async function comprimirImg(file){
   if(!file.type.startsWith("image/")) return file;
@@ -1033,7 +1086,7 @@ async function portalForm(p){
   box.innerHTML=portalTopo()+`<form id="ptF"><div class="modal-b">
     <div class="full"><b>${novo?"Complete seu cadastro":"Editar meus dados"}</b></div>
     ${novo?`<div class="full"><label>Código do convite *</label><input id="ptCod" required value="${esc(cod)}" style="text-transform:uppercase" onchange="lsSet('rl_convite',this.value.trim().toUpperCase());portalForm(null)"></div>`:""}
-    ${!tipo?`<p class="full small" style="margin:0;color:var(--bad)">${novo&&cod?"Este convite não é válido (vencido ou já usado). Peça um novo link para a RL.":"Digite o código do convite que você recebeu."}</p>`:`
+    ${!tipo?`<p class="full small" style="margin:0;color:var(--bad)">${novo&&cod?"Este convite não é válido (vencido ou já usado). Peça um novo link para a MegaEntregas.":"Digite o código do convite que você recebeu."}</p>`:`
     <div class="full"><label>Como você vai usar a Central? * <span class="muted small">(pode marcar os dois)</span></label>
       <div class="pt-uso"><label class="pt-op"><input type="checkbox" id="ptEnv" ${(p?ptEnvia(p):tipo==="contratante")?"checked":""} onchange="ptUsoMudou()"><span><b>📦 Envio serviços</b><small>Solto entregas e fretes para motoboys e motoristas</small></span></label>
       <label class="pt-op"><input type="checkbox" id="ptRec" ${(p?ptRecebe(p):tipo==="prestador")?"checked":""} onchange="ptUsoMudou()"><span><b>🏍 Recebo serviços</b><small>Sou motoboy ou motorista e pego trabalhos</small></span></label></div></div>
@@ -1047,6 +1100,9 @@ async function portalForm(p){
     <div><label>Placa *</label><input id="ptPla" required value="${esc(p?fmtPlaca(p.placa):"")}" style="text-transform:uppercase" placeholder="ABC-1D23"></div>
     <div><label>Modelo</label><input id="ptMod" value="${v("modelo")}" placeholder="Ex.: CG 160, Fiorino"></div>
     <div><label>Validade da CNH</label><input type="date" id="ptCnh" value="${v("cnh_validade")}"></div></div>
+    <div class="full" id="ptMarcaBox" style="display:none"><div class="pt-marca"><b>🏷 Sua marca nos comprovantes</b> <span class="muted small">(opcional — dá para colocar depois)</span>
+      <div class="pt-marca-in" style="margin-top:8px"><label class="pt-logo">${p&&p.marca_logo?`<img src="${esc(p.marca_logo)}" alt="">`:`<span>+ Logo</span>`}<input type="file" accept="image/*" style="display:none" onchange="ptLogoEscolher(this)"></label>
+      <div style="flex:1;min-width:180px"><label class="small">Nome da empresa nos comprovantes</label><input id="mkNome" maxlength="80" value="${v("marca_nome")}" placeholder="Ex.: Padaria Bom Dia"></div></div></div></div>
     <p class="full small muted" style="margin:0">Seus dados ficam guardados com segurança e só a administração da MegaEntregas vê os documentos.</p>`}
     <p class="full small" id="ptErr" style="margin:0;color:var(--bad)"></p>
   </div><div class="modal-f">${novo?"":`<button type="button" class="btn sec" onclick="portalTela()">Cancelar</button>`}<button class="btn" id="ptB" ${tipo?"":"disabled"}>${novo?"Salvar e continuar":"Salvar"}</button></div></form>`;
@@ -1066,11 +1122,13 @@ async function portalForm(p){
     const r = novo ? await sbc.rpc("registrar_cadastro",{p_convite:val("ptCod"), p_dados:d}) : await sbc.rpc("atualizar_cadastro",{p_dados:d});
     if(r.error){ err.textContent=r.error.message; $("#ptB").disabled=false; return; }
     if(novo) lsSet("rl_convite","");
+    if(env && ((($("#mkNome")?.value||"").trim()) || PT.logoNovo)){ const m=await sbc.rpc("minha_marca",{p_nome:($("#mkNome")?.value||"").trim(),p_logo:PT.logoNovo||null}); if(!m.error) PT.logoNovo=null; }
     toast(novo?"Cadastro criado! Agora envie os documentos.":"Dados salvos"); portal({user:{id:PT.uid,email:PT.email}});
   };
 }
 
-function ptUsoMudou(){ const r=$("#ptRec"), b=$("#ptVeiBox"); if(!r||!b) return; const on=r.checked;
+function ptUsoMudou(){ const mb=$("#ptMarcaBox"), en=$("#ptEnv"); if(mb&&en) mb.style.display=en.checked?"":"none";
+  const r=$("#ptRec"), b=$("#ptVeiBox"); if(!r||!b) return; const on=r.checked;
   b.style.display=on?"contents":"none"; ["ptVei","ptPla"].forEach(id=>{ const el=$("#"+id); if(el) el.required=on; }); }
 
 /* ================= APP DA CENTRAL (cadastro aprovado) ================= */
@@ -1079,7 +1137,7 @@ const PT_FATOR={moto:1, carro:1.8, utilitario:2.5, caminhao:4};
 async function ptApp(){
   const box=$("#loginBox"); box.style.maxWidth="980px";
   try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; if(x.chave==="espera") PTA.esp=x.valor; if(x.chave==="distribuicao") PTA.dist=x.valor; }); }catch(e){}
-  const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
+  const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptEnvia(p)&&p.gestao) abas.push(["gestao","📊 Gestão"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
   if(!PTA.aba || !abas.some(a=>a[0]===PTA.aba)) PTA.aba=abas[0][0];
   box.innerHTML=portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div><div id="ptConteudo"></div>`;
   ptAba(PTA.aba);
@@ -1087,7 +1145,82 @@ async function ptApp(){
 function ptAba(a){
   PTA.aba=a; document.querySelectorAll(".pt-aba").forEach(b=>b.classList.toggle("on",b.dataset.a===a));
   if(a!=="receber" && !PT.p.disponivel) ptPararGps();
-  if(a==="enviar") ptEnviarTela(); else if(a==="receber") ptReceberTela(); else portalTela();
+  $("#loginBox").style.maxWidth=a==="gestao"?"1240px":"980px";
+  if(a==="enviar") ptEnviarTela(); else if(a==="gestao") ptGestaoTela(); else if(a==="receber") ptReceberTela(); else portalTela();
+}
+/* ---------- painel de GESTÃO de quem envia (liberado pelo dono) ---------- */
+const GS={per:"mes", ini:null, fim:null, st:"", q:""};
+function gsDia(d){ return d.toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"}); }
+function gsPeriodo(){
+  const h=new Date(), d=x=>gsDia(x);
+  if(GS.per==="hoje") return [d(h),d(h)];
+  if(GS.per==="7") return [d(new Date(h-6*864e5)),d(h)];
+  if(GS.per==="30") return [d(new Date(h-29*864e5)),d(h)];
+  if(GS.per==="mes") return [d(new Date(h.getFullYear(),h.getMonth(),1)),d(h)];
+  if(GS.per==="mesp") return [d(new Date(h.getFullYear(),h.getMonth()-1,1)),d(new Date(h.getFullYear(),h.getMonth(),0))];
+  return [GS.ini||d(h),GS.fim||d(h)];
+}
+function ptGestaoTela(){
+  const c=$("#ptConteudo"), p=PT.p, [i,f]=gsPeriodo();
+  c.innerHTML=`<div class="gs">
+    <div class="gs-top">${p.marca_logo?`<img src="${esc(p.marca_logo)}" alt="">`:""}<div style="flex:1"><h2 style="margin:0">Gestão — ${esc(p.marca_nome||p.nome||"")}</h2><div class="muted small">Seus serviços soltos no MegaEntregas</div></div>
+      <div class="gs-acoes no-print"><button class="btn sec sm" onclick="gsCSV()">⬇ Planilha (CSV)</button><button class="btn sec sm" onclick="ptImprimir('gsRel','Relatório de serviços')">🖨 Relatório</button></div></div>
+    <div class="gs-fil no-print">${[["hoje","Hoje"],["7","7 dias"],["30","30 dias"],["mes","Este mês"],["mesp","Mês passado"],["per","Escolher"]].map(([k,l])=>`<button class="${GS.per===k?"on":""}" onclick="GS.per='${k}';ptGestaoTela()">${l}</button>`).join("")}
+      <span style="display:${GS.per==="per"?"inline-flex":"none"};gap:6px;align-items:center"><input type="date" id="gsI" value="${i}" onchange="GS.ini=this.value;gsCarregar()"> até <input type="date" id="gsF" value="${f}" onchange="GS.fim=this.value;gsCarregar()"></span>
+      <div class="spacer"></div><select id="gsSt" onchange="GS.st=this.value;gsDesenhar()"><option value="">Todas as situações</option>${Object.entries(PT_ST).map(([k,[l]])=>`<option value="${k}" ${GS.st===k?"selected":""}>${l}</option>`).join("")}</select>
+      <input id="gsQ" placeholder="Buscar endereço, nº ou motoboy" value="${esc(GS.q)}" oninput="GS.q=this.value;gsDesenhar()"></div>
+    <div id="gsRel"><p class="muted" style="padding:20px">Carregando…</p></div></div>`;
+  gsCarregar();
+}
+async function gsCarregar(){
+  const [i,f]=gsPeriodo(); const box=$("#gsRel"); if(!box) return;
+  const r=await sbc.rpc("gestao_servicos",{p_ini:i,p_fim:f});
+  if(r.error){ box.innerHTML=`<p style="color:var(--bad);padding:16px">${esc(r.error.message)}</p>`; return; }
+  PTA.gest=r.data||[]; gsDesenhar();
+}
+function gsTot(s){ return s.status==="cancelado"?0:Number(s.valor||0)+Number(s.espera_valor||0); }
+function gsDesenhar(){
+  const box=$("#gsRel"); if(!box||!PTA.gest) return; const [i,f]=gsPeriodo(), q=GS.q.toLowerCase().trim();
+  const L=PTA.gest.filter(s=>(!GS.st||s.status===GS.st)&&(!q||String(s.numero)===q.replace("#","")||[s.retirada.e,...s.paradas.map(p=>p.e),s.quem_pegou||""].join(" ").toLowerCase().includes(q)));
+  const ok=L.filter(s=>s.status==="concluido"), at=L.filter(s=>["aberto","aceito","em_andamento"].includes(s.status)), can=L.filter(s=>s.status==="cancelado");
+  const gasto=L.reduce((a,s)=>a+gsTot(s),0), esp=L.reduce((a,s)=>a+(s.status==="cancelado"?0:Number(s.espera_valor||0)),0), km=L.filter(s=>s.status!=="cancelado").reduce((a,s)=>a+Number(s.km||0),0);
+  const vivos=L.length-can.length;
+  /* por dia */
+  const dias={}; L.forEach(s=>{ if(s.status==="cancelado") return; const d=gsDia(new Date(s.criado_em)); dias[d]=(dias[d]||0)+gsTot(s); });
+  const dk=Object.keys(dias).sort(), mx=Math.max(1,...Object.values(dias));
+  /* quem mais fez e destinos */
+  const rk=(arr)=>Object.entries(arr).sort((a,b)=>b[1].v-a[1].v).slice(0,6);
+  const mot={}; ok.forEach(s=>{ const k=s.quem_pegou||"—"; mot[k]=mot[k]||{n:0,v:0}; mot[k].n++; mot[k].v+=gsTot(s); });
+  const dst={}; L.filter(s=>s.status!=="cancelado").forEach(s=>s.paradas.forEach(p=>{ const k=gsBairro(p.e); dst[k]=dst[k]||{n:0,v:0}; dst[k].n++; dst[k].v+=gsTot(s)/s.paradas.length; }));
+  const dt=x=>new Date(x+"T12:00:00").toLocaleDateString("pt-BR");
+  const pm=PT.p||{};
+  box.innerHTML=`<div class="gs-print-h">${pm.marca_logo?`<img src="${esc(pm.marca_logo)}" alt="">`:""}<div><b>${esc(pm.marca_nome||pm.nome||"")}</b><div class="muted small">Relatório de serviços · emitido via MegaEntregas em ${new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div></div></div>
+    <div class="gs-per muted small">Período: <b>${dt(i)}</b> a <b>${dt(f)}</b>${GS.st?" · "+PT_ST[GS.st][0]:""}${q?" · busca “"+esc(GS.q)+"”":""}</div>
+    <div class="gs-kpis">${[["Serviços",vivos,`${L.length} no total`],["Concluídos",ok.length,brl(ok.reduce((a,s)=>a+gsTot(s),0))+(vivos?" · "+Math.round(ok.length/vivos*100)+"%":"")],["Em aberto / andamento",at.length,""],["Cancelados",can.length,""],
+      ["Valor dos serviços",brl(gasto),"sem cancelados"+(esp?" · inclui "+brl(esp)+" de espera":"")],["Valor médio",brl(vivos?gasto/vivos:0),"por serviço"],["Km rodados",fmtKm(km),""]]
+      .map(([l,v,x])=>`<div class="card"><div class="muted small">${l}</div><div class="gs-v">${v}</div><div class="muted small">${x}</div></div>`).join("")}</div>
+    <div class="gs-2">
+      <div class="card"><b>Valor por dia</b>${dk.length?`<div class="gs-bars">${dk.map(d=>`<div title="${dt(d)}: ${brl(dias[d])}"><i style="height:${Math.max(3,dias[d]/mx*100)}%"></i><span>${d.slice(8)}/${d.slice(5,7)}</span></div>`).join("")}</div>`:`<p class="muted small">Sem serviços no período.</p>`}</div>
+      <div class="card"><b>Quem mais fez seus serviços</b>${rk(mot).length?`<table class="gs-rk">${rk(mot).map(([k,o],n)=>`<tr><td>${n+1}º</td><td>${esc(k)}</td><td>${o.n} serv.</td><td>${brl(o.v)}</td></tr>`).join("")}</table>`:`<p class="muted small">Nenhum concluído ainda.</p>`}
+        <b style="display:block;margin-top:12px">Destinos mais frequentes</b>${rk(dst).length?`<table class="gs-rk">${rk(dst).map(([k,o],n)=>`<tr><td>${n+1}º</td><td>${esc(k)}</td><td>${o.n} entrega(s)</td><td>${brl(o.v)}</td></tr>`).join("")}</table>`:`<p class="muted small">—</p>`}</div></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="gs-tab"><tr><th>Nº</th><th>Data</th><th>Retirada → entrega</th><th>Veículo</th><th>Quem fez</th><th>Situação</th><th style="text-align:right">Valor</th><th class="no-print"></th></tr>
+      ${L.length?L.map(s=>{ const u=s.paradas[s.paradas.length-1]||{}; return `<tr><td><b>#${s.numero}</b></td><td class="small">${new Date(s.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</td>
+        <td class="small">${esc(String(s.retirada.e).split(",")[0])} → ${esc(String(u.e||"").split(",")[0])}${s.paradas.length>1?` <span class="muted">(+${s.paradas.length-1})</span>`:""}<div class="muted">${fmtKm(s.km)}</div></td>
+        <td class="small">${esc(CAD_VEIC[s.veiculo]||"")}</td><td class="small">${esc(s.quem_pegou||"—")}${s.placa?`<div class="muted">${esc(fmtPlaca(s.placa))}</div>`:""}</td>
+        <td><span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span></td>
+        <td style="text-align:right;white-space:nowrap">${s.status==="cancelado"?`<s class="muted">${brl(s.valor)}</s>`:brl(gsTot(s))}${Number(s.espera_valor)>0&&s.status!=="cancelado"?`<div class="muted small">espera ${brl(s.espera_valor)}</div>`:""}</td>
+        <td class="no-print">${s.status==="concluido"?`<button class="btn sm sec" onclick="ptComprovante('${s.id}')">🧾</button>`:""}</td></tr>`; }).join("")
+        :`<tr><td colspan="8" class="muted" style="padding:16px">Nenhum serviço neste período.</td></tr>`}
+      ${L.length?`<tr class="gs-totrow"><td colspan="6"><b>Total (sem cancelados)</b></td><td style="text-align:right"><b>${brl(gasto)}</b></td><td class="no-print"></td></tr>`:""}</table></div>`;
+}
+function gsBairro(e){ const p=String(e||"").split(",").map(x=>x.trim()).filter(Boolean); const b=p.find((x,i)=>i>=1&&!/^\d/.test(x)&&!/ - [A-Z]{2}$/.test(x)&&x.length<40); return b||p[1]||p[0]||"—"; }
+function gsCSV(){
+  const L=PTA.gest||[]; if(!L.length){ toast("Nada para exportar neste período"); return; }
+  const c=v=>`"${String(v??"").replace(/"/g,'""')}"`, n=v=>(Number(v)||0).toFixed(2).replace(".",",");
+  const lin=[["Nº","Data","Retirada","Entregas","Km","Veículo","Quem fez","Placa","Situação","Frete","Espera (min)","Espera (R$)","Total"].map(c).join(";")];
+  L.forEach(s=>lin.push([s.numero,new Date(s.criado_em).toLocaleString("pt-BR"),s.retirada.e,s.paradas.map(p=>p.e).join(" | "),n(s.km),CAD_VEIC[s.veiculo]||s.veiculo,s.quem_pegou||"",fmtPlaca(s.placa||""),(PT_ST[s.status]||[s.status])[0],n(s.valor),s.espera_min||0,n(s.espera_valor),n(gsTot(s))].map((v,i)=>[4,9,11,12].includes(i)?v:c(v)).join(";")));
+  const [i,f]=gsPeriodo(); const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob(["\ufeff"+lin.join("\r\n")],{type:"text/csv;charset=utf-8"})); a.download=`servicos-${i}-a-${f}.csv`; document.body.appendChild(a); a.click(); a.remove();
 }
 /* ---------- quem ENVIA: orçamento limpo e decisivo ---------- */
 function ptEnviarTela(){
@@ -1422,12 +1555,26 @@ function ptProgresso(s){
       ${p.feito_em?`<div class="muted">${i===0?"Entregue por":"Recebido por"} <b>${esc(p.nome||"")}</b>${p.rg?" · RG "+esc(p.rg):""} · ${hr(p.feito_em)}${p.espera_min>0?` · espera ${p.espera_min} min`:""}</div>`:p.chegou_em?`<div class="muted">Motoboy chegou às ${hr(p.chegou_em)}</div>`:""}</div></div>`).join("")}</div>
     ${Number(s.espera_valor)>0?`<div class="small">Espera cobrada: <b>${s.espera_min} min = ${brl(s.espera_valor)}</b> · total ao motoboy <b>${brl(Number(s.valor)+Number(s.espera_valor))}</b></div>`:""}`;
 }
-function ptComprovante(id){
-  const s=(PTA.meus||[]).find(x=>x.id===id)||(CT.lista||[]).find(x=>x.id===id); if(!s) return;
-  openModal(`<div class="modal-h">Comprovante — serviço #${s.numero}</div><div class="modal-b" style="grid-template-columns:1fr">
+async function ptComprovante(id){
+  const s=(PTA.meus||[]).find(x=>x.id===id)||(PTA.gest||[]).find(x=>x.id===id)||(CT.lista||[]).find(x=>x.id===id); if(!s) return;
+  let mk=null;
+  if(PT.p && PT.uid && (!s.criado_por || s.criado_por===PT.uid)) mk=PT.p;
+  else if(s.criado_por){ try{ const r=await sbc.from("perfis").select("nome,marca_nome,marca_logo").eq("user_id",s.criado_por).maybeSingle(); mk=r.data; }catch(e){} }
+  const nomeMk=mk?(mk.marca_nome||mk.nome||""):"";
+  openModal(`<div class="modal-h">Comprovante — serviço #${s.numero}</div><div class="modal-b" style="grid-template-columns:1fr" id="compBox">
+    ${nomeMk||mk?.marca_logo?`<div class="comp-marca">${mk.marca_logo?`<img src="${esc(mk.marca_logo)}" alt="">`:""}<div><b>${esc(nomeMk)}</b><div class="muted small">Comprovante de entrega nº ${s.numero}</div></div></div>`:""}
     <div class="small muted">Solto em ${new Date(s.criado_em).toLocaleString("pt-BR")} · ${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")}${s.concluido_em?" · concluído em "+new Date(s.concluido_em).toLocaleString("pt-BR"):""}</div>
-    ${ptProgresso(s)}<div class="ex-total"><span>Total ao ${s.veiculo==="moto"?"motoboy":"motorista"}</span><b>${brl(Number(s.valor)+Number(s.espera_valor||0))}</b></div></div>
-    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
+    ${ptProgresso(s)}<div class="ex-total"><span>Total ao ${s.veiculo==="moto"?"motoboy":"motorista"}</span><b>${brl(Number(s.valor)+Number(s.espera_valor||0))}</b></div>
+    <div class="muted small" style="text-align:center">Emitido via MegaEntregas · ${new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div></div>
+    <div class="modal-f"><button class="btn sec" onclick="ptImprimir('compBox','Comprovante ${s.numero}')">🖨 Imprimir / PDF</button><button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
+}
+function ptImprimir(id, titulo){
+  const el=document.getElementById(id); if(!el) return;
+  const css=[...document.querySelectorAll("style")].map(x=>x.textContent).join("\n");
+  const w=window.open("","_blank"); if(!w){ toast("Libere as janelas (pop-up) para imprimir"); return; }
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${esc(titulo)}</title><style>${css}
+    body{background:#fff;padding:24px;max-width:1100px;margin:auto}.no-print{display:none!important}.gs-print-h{display:flex!important}#gsRel,.gs{display:flex;flex-direction:column;gap:14px}@media print{body{padding:0}}</style></head><body>${el.innerHTML}</body></html>`);
+  w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },400);
 }
 async function ptCandidatar(id){
   const b=document.querySelector(`[data-cand="${id}"]`); if(b){ b.disabled=true; b.textContent="Enviando…"; }
@@ -1691,11 +1838,12 @@ function cfgDesenhar(){
   L.forEach(u=>{ const k=g(u); if(n[k]!=null) n[k]++; if(!u.removido_em && cfgSit(u)[0]==="Bloqueado") n.bloq++; });
   $("#cfgKpis").innerHTML=[["Equipe",n.equipe],["Empresas / pessoas",n.contratante],["Motoboys / motoristas",n.prestador],["Só criaram o acesso",n.acesso],["Bloqueados",n.bloq],["Removidos",n.removido]]
     .map(([l,v])=>`<div class="card"><div class="muted small">${l}</div><div style="font-size:22px;font-weight:800">${v}</div></div>`).join("");
-  const fil=$("#cfgFil"); const opts=[["","Todos"],["equipe","Equipe da RL"],["contratante","Empresas e pessoas"],["prestador","Motoboys e motoristas"],["acesso","Só criaram o acesso"],["bloq","Bloqueados"],["removido","Removidos"]];
+  const fil=$("#cfgFil"); const opts=[["","Todos"],["equipe","Equipe da RL"],["contratante","Empresas e pessoas"],["prestador","Motoboys e motoristas"],["acesso","Só criaram o acesso"],["gestao","Com gestão liberada"],["bloq","Bloqueados"],["removido","Removidos"]];
   if(!fil.options.length) fil.innerHTML=opts.map(([k,l])=>`<option value="${k}">${l}</option>`).join("");
   const f=fil.value, q=($("#cfgBusca").value||"").toLowerCase().trim();
   const vis=L.filter(u=>{ const k=g(u);
     if(f==="bloq"){ if(u.removido_em || cfgSit(u)[0]!=="Bloqueado") return false; }
+    else if(f==="gestao"){ if(!u.gestao) return false; }
     else if(f && k!==f) return false;
     if(!f && k==="removido") return false;            /* removidos só no filtro próprio */
     return !q || (u.nome||"").toLowerCase().includes(q) || (u.email||"").toLowerCase().includes(q); });
@@ -1708,6 +1856,8 @@ function cfgDesenhar(){
     else {
       if(k==="equipe"||k==="acesso") ac+=`<select style="width:auto;padding:5px 8px" title="Perfil na equipe" onchange='cfgPapel(${em},this.value,this)'>
           ${k==="acesso"?`<option value="">Liberar como…</option>`:""}${["admin","funcionario","orcamento"].map(p=>`<option value="${p}" ${u.papel===p?"selected":""}>${CFG_PAPEL[p]}</option>`).join("")}</select>`;
+      if(u.envia && u.tipo) ac+= u.gestao?`<button class="btn sm in" title="Painel de gestão liberado — clique para desligar" onclick="cfgGestao('${id}',false)">📊 Gestão liberada</button>`
+                                     :`<button class="btn sm sec" onclick="cfgGestao('${id}',true)">📊 Liberar gestão</button>`;
       if(k!=="acesso"){ const bl=st==="Bloqueado";
         ac+= bl?`<button class="btn sm in" onclick="cfgBloq('${id}',false)">Desbloquear</button>`:`<button class="btn sm sec" style="color:var(--bad)" onclick="cfgBloq('${id}',true)">Bloquear</button>`; }
       ac+=`<button class="btn sm sec" style="color:var(--bad)" onclick="cfgRemover('${id}',true)">Remover</button>`;
@@ -1733,6 +1883,12 @@ function cfgBloq(id, bloquear){
     closeModal(); toast(bloquear?"Bloqueado":"Desbloqueado"); cfgCarregar(); };
   if(!bloquear) return go();
   cfgConfirmar("Bloquear usuário",`Bloquear <b>${cfgNome(id)}</b>? Ele não consegue mais entrar até você desbloquear.`,"Bloquear",go);
+}
+function cfgGestao(id, ligar){
+  const go=async()=>{ const r=await sbc.rpc("cfg_gestao",{p_user:id,p_ligar:ligar}); if(r.error){ toast(r.error.message); closeModal(); return; }
+    closeModal(); toast(ligar?"Painel de gestão liberado":"Painel de gestão desligado"); cfgCarregar(); };
+  if(ligar) return go();
+  cfgConfirmar("Desligar painel de gestão",`Desligar o painel de gestão de <b>${cfgNome(id)}</b>? Ele continua soltando serviços normalmente, só perde o acesso ao painel.`,"Desligar",go);
 }
 function cfgRemover(id, remover){
   const go=async()=>{ const r=await sbc.rpc("cfg_remover",{p_user:id,p_remover:remover}); if(r.error){ toast(r.error.message); closeModal(); return; }
