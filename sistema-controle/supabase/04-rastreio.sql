@@ -55,7 +55,7 @@ begin
   if r.status = 'finalizado' then return 'finalizado'; end if;
   if r.iniciado_em is not null and r.iniciado_em < now() - interval '24 hours' then return 'expirado'; end if;
   if p_lat is null or p_lon is null or p_lat not between -34 and 6 or p_lon not between -75 and -28 then raise exception 'Posição inválida'; end if;
-  if r.atualizado_em is not null and r.atualizado_em > now() - interval '8 seconds' then return 'ok'; end if;
+  if r.atualizado_em is not null and r.atualizado_em > now() - interval '4 seconds' then return 'ok'; end if;
   update public.rastreios set lat = p_lat, lon = p_lon, precisao = p_prec, atualizado_em = now(),
     status = 'em_rota', iniciado_em = coalesce(iniciado_em, now())
   where token_moto = p_moto;

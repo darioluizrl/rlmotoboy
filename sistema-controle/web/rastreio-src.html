@@ -44,6 +44,29 @@ const $=s=>document.querySelector(s), app=$("#app");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const q=new URLSearchParams(location.search), M=q.get("m"), V=q.get("v");
 const TIPO={entrega:"Entrega",retirada:"Retirada",ambos:"Retirada e entrega"};
+/* Tempo real: o celular do motoboy transmite a posição no canal da corrida (nome = token secreto de acompanhamento).
+   Quem tem o link de acompanhamento escuta o canal e vê a moto andar na hora. O banco continua recebendo a posição
+   a cada 5 s — se o tempo real falhar, a tela segue atualizando pelo banco. */
+const canais={};
+function canal(v,onPos){
+  if(canais[v]) return canais[v];
+  const nada={send(){}};
+  try{
+    const ch=sb.channel("rast-"+v,{config:{broadcast:{self:false,ack:false}}});
+    if(onPos) ch.on("broadcast",{event:"pos"},m=>{ try{ onPos(m.payload||{}); }catch(e){} });
+    ch.subscribe(st=>{ ch._ok = st==="SUBSCRIBED"; });
+    canais[v]=ch; return ch;
+  }catch(e){ return nada; }   /* sem tempo real: a tela continua atualizando pelo banco */
+}
+function soltarCanal(v){ const ch=canais[v]; if(ch){ try{ sb.removeChannel(ch); }catch(e){} delete canais[v]; } }
+/* move o marcador suavemente até a nova posição */
+function deslizar(m,lat,lon){
+  if(!m) return; const a=m.getLatLng?m.getLatLng():null; if(!a||!window.requestAnimationFrame){ m.setLatLng([lat,lon]); return; }
+  const t0=performance.now(), d=900; cancelAnimationFrame(m._anim);
+  const passo=t=>{ const k=Math.min(1,(t-t0)/d), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    m.setLatLng([a.lat+(lat-a.lat)*e, a.lng+(lon-a.lng)*e]); if(k<1) m._anim=requestAnimationFrame(passo); };
+  m._anim=requestAnimationFrame(passo);
+}
 function dados(){ try{ const h=location.hash.slice(1); if(!h) return {}; const b=h.replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(decodeURIComponent(escape(atob(b)))); }catch(e){ return {}; } }
 const hora=s=>s?new Date(s).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
 function lista(r){
@@ -58,7 +81,7 @@ function navLink(r){
 }
 
 /* ================= MOTOBOY ================= */
-let R=null, watch=null, lock=null, ultimoEnvio=0, ultimaPos=null, enviando=false;
+let R=null, watch=null, lock=null, ultimoEnvio=0, ultimaPos=null, enviando=false, ultimoAoVivo=0;
 async function motoboy(){
   $("#sub").textContent="Liberar rastreio (motoboy)";
   const {data,error}=await sb.rpc("rastreio_abrir",{p_moto:M,p_ver:V,p_dados:dados()});
@@ -81,11 +104,14 @@ function telaMoto(msg){
 async function iniciar(){
   if(!("geolocation" in navigator)){ telaMoto("Este celular não permite localização pelo navegador."); return; }
   try{ if("wakeLock" in navigator) lock=await navigator.wakeLock.request("screen"); }catch(e){}
-  watch=navigator.geolocation.watchPosition(enviar, e=>{ const m={1:"Você não permitiu a localização. Toque no cadeado ao lado do endereço e permita.",2:"GPS indisponível agora. Verifique se a localização do celular está ligada.",3:"O GPS demorou para responder."}[e.code]||e.message; telaMoto(m); }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
+  watch=navigator.geolocation.watchPosition(enviar, e=>{ const m={1:"Você não permitiu a localização. Toque no cadeado ao lado do endereço e permita.",2:"GPS indisponível agora. Verifique se a localização do celular está ligada.",3:"O GPS demorou para responder."}[e.code]||e.message; telaMoto(m); }, {enableHighAccuracy:true, maximumAge:2000, timeout:30000});
   telaMoto();
 }
 async function enviar(p){
-  const agora=Date.now(); if(enviando || agora-ultimoEnvio<10000) return;
+  const agora=Date.now();
+  if(V && agora-ultimoAoVivo>=1500){ ultimoAoVivo=agora;
+    try{ canal(V).send({type:"broadcast",event:"pos",payload:{lat:p.coords.latitude,lon:p.coords.longitude,prec:Math.round(p.coords.accuracy||0),t:agora}}); }catch(e){} }
+  if(enviando || agora-ultimoEnvio<5000) return;
   enviando=true; ultimoEnvio=agora;
   try{
     const {data,error}=await sb.rpc("rastreio_posicao",{p_moto:M,p_lat:p.coords.latitude,p_lon:p.coords.longitude,p_prec:Math.round(p.coords.accuracy||0)});
@@ -97,6 +123,7 @@ function parar(){ if(watch!==null) navigator.geolocation.clearWatch(watch); watc
 async function finalizar(){
   if(!confirmar) { confirmar=true; const b=document.querySelector(".btn.ok"); if(b){ b.textContent="Toque de novo para confirmar"; } setTimeout(()=>{confirmar=false; if(watch!==null) telaMoto();},4000); return; }
   parar(); const {error}=await sb.rpc("rastreio_finalizar",{p_moto:M});
+  try{ if(V) canal(V).send({type:"broadcast",event:"pos",payload:{fim:true,t:Date.now()}}); }catch(e){}
   if(!error){ R.status="finalizado"; R.finalizado_em=new Date().toISOString(); } telaMoto(error?error.message:"");
 }
 let confirmar=false;
@@ -111,11 +138,25 @@ async function acompanhar(){
   map=L.map("map",{zoomControl:true}).setView([-23.6,-46.57],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
   await atualizar(); setInterval(atualizar,10000);
+  canal(V,p=>{ if(p.fim){ atualizar(); return; } if(p.lat==null) return;
+    VIVO.t=Date.now();
+    if(!mk) mk=L.marker([p.lat,p.lon],{icon:pin("#e8590c","🏍"),zIndexOffset:1000}).addTo(map).bindPopup("Motoboy"); else deslizar(mk,p.lat,p.lon);
+    if(seguir) map.panTo([p.lat,p.lon],{animate:true});
+    vivoTxt(); });
+  setInterval(vivoTxt,1000);
+  map.on("dragstart",()=>{ seguir=false; });
+}
+let VIVO={t:0}, seguir=false, ULT=null;
+function vivoTxt(){
+  const b=$("#stBox"); if(!b||!ULT||ULT.status==="finalizado"||ULT.status==="aguardando") return;
+  if(VIVO.t && Date.now()-VIVO.t<30000){ const seg=Math.round((Date.now()-VIVO.t)/1000);
+    b.innerHTML=`<div class="st on">🔴 AO VIVO · Motoboy a caminho<small>Posição em tempo real · atualizada há ${seg} s · <a href="#" onclick="seguir=!seguir;if(seguir&&mk)map.panTo(mk.getLatLng());vivoTxt();return false">${seguir?"parar de seguir":"seguir a moto"}</a></small></div>`; }
 }
 async function atualizar(){
   const {data:r,error}=await sb.rpc("rastreio_ver",{p_ver:V});
   if(error){ $("#stBox").innerHTML=`<div class="st err">Não foi possível carregar.<small>${esc(error.message)}</small></div>`; return; }
   if(!r){ $("#stBox").innerHTML=`<div class="st ag">Aguardando o motoboy abrir o link de rastreio<small>Esta página atualiza sozinha.</small></div>`; return; }
+  ULT=r;
   const seg=r.atualizado_em?Math.round((new Date(r.agora)-new Date(r.atualizado_em))/1000):null;
   const antigo=seg!=null&&seg>120;
   $("#stBox").innerHTML = r.status==="finalizado" ? `<div class="st fim">✓ Corrida finalizada${r.finalizado_em?" às "+hora(r.finalizado_em):""}</div>`
@@ -130,10 +171,11 @@ async function atualizar(){
   if(r.origem&&r.origem.la!=null) b.push([r.origem.la,r.origem.lo]);
   (r.destinos||[]).forEach(d=>{ if(d.la!=null) b.push([d.la,d.lo]); });
   if(r.lat!=null && r.status!=="aguardando"){
-    if(!mk) mk=L.marker([r.lat,r.lon],{icon:pin("#e8590c","🏍"),zIndexOffset:1000}).addTo(map).bindPopup("Motoboy"); else mk.setLatLng([r.lat,r.lon]);
+    if(!mk) mk=L.marker([r.lat,r.lon],{icon:pin("#e8590c","🏍"),zIndexOffset:1000}).addTo(map).bindPopup("Motoboy"); else if(!(VIVO.t&&Date.now()-VIVO.t<15000)) mk.setLatLng([r.lat,r.lon]);
     b.push([r.lat,r.lon]);
   }
   if(b.length && !atualizar._fit){ atualizar._fit=1; map.fitBounds(b,{padding:[30,30],maxZoom:16}); }
+  if(r.status==="finalizado") soltarCanal(V); else vivoTxt();
 }
 
 /* ================= OPERAÇÃO (todos os rastreios) ================= */
@@ -151,15 +193,34 @@ async function operacao(){
   map=L.map("map").setView([-23.6,-46.57],11);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
   if(!OPS.length){ $("#lst").innerHTML=`<div class="st ag">Nenhum rastreio gerado ainda<small>Gere os links de rastreio nas O.S. do sistema.</small></div>`; return; }
-  await opsAtualizar(); setInterval(opsAtualizar,10000);
+  await opsAtualizar(); setInterval(opsAtualizar,10000); setInterval(opsVivoTxt,1000);
+}
+const OVIVO={};   /* v -> hora da última posição ao vivo */
+function opsOuvir(){
+  /* escuta ao vivo só as corridas que não terminaram (até 90 canais numa conexão) */
+  const ativos=OPS.filter(x=>{ const r=OPSD[x.v]; return !r||r.status!=="finalizado"; }).slice(0,90).map(x=>x.v);
+  Object.keys(canais).forEach(v=>{ if(!ativos.includes(v)) soltarCanal(v); });
+  ativos.forEach(v=>canal(v,p=>{
+    if(p.fim){ opsAtualizar(); return; } if(p.lat==null) return;
+    OVIVO[v]=Date.now(); const r=OPSD[v]; if(r){ r.lat=p.lat; r.lon=p.lon; if(r.status==="aguardando") r.status="em_rota"; r.atualizado_em=new Date().toISOString(); r.agora=r.atualizado_em; }
+    const x=OPS.find(o=>o.v===v), i=OPS.indexOf(x)+1;
+    if(mks[v]) deslizar(mks[v],p.lat,p.lon);
+    else if(r) opsDesenhar();
+    opsVivoTxt();
+  }));
+}
+function opsVivoTxt(){
+  const n=Object.values(OVIVO).filter(t=>Date.now()-t<30000).length;
+  const u=$("#upd"); if(u) u.innerHTML=(n?`<b style="color:#c62828">🔴 AO VIVO</b> · ${n} moto(s) transmitindo agora · `:"")+"banco conferido às "+(opsAtualizar._h||"—");
+  document.querySelectorAll("[data-vivo]").forEach(e=>{ const t=OVIVO[e.dataset.vivo]; if(t&&Date.now()-t<30000) e.textContent="🔴 Ao vivo · há "+Math.round((Date.now()-t)/1000)+" s"; });
 }
 let OPSD={};
 async function opsAtualizar(){
   const {data,error}=await sb.rpc("rastreio_varios",{p_vers:OPS.map(x=>x.v)});
   if(error){ $("#upd").textContent="Erro ao atualizar: "+error.message; return; }
   OPSD={}; (data||[]).forEach(r=>OPSD[r.v]=r);
-  $("#upd").textContent="Atualizado às "+new Date().toLocaleTimeString("pt-BR")+" · atualiza sozinho a cada 10 s";
-  opsDesenhar();
+  opsAtualizar._h=new Date().toLocaleTimeString("pt-BR");
+  opsDesenhar(); opsOuvir(); opsVivoTxt();
 }
 function opsSit(r){
   if(!r) return ["ag","Aguardando o motoboy abrir o link"];
@@ -175,7 +236,7 @@ function opsDesenhar(){
   const vis=OPS.map((x,i)=>({...x,i:i+1,r:OPSD[x.v]})).filter(x=>FIL==="todos"||!x.r||x.r.status!=="finalizado");
   $("#lst").innerHTML=vis.length?vis.map(x=>{ const [c,t]=opsSit(x.r); return `<div class="it" onclick="opsFoco('${x.v}')">
       <b>${x.i}. ${esc((x.r&&x.r.titulo)||x.t||"Corrida")}</b>${x.c?`<div class="muted sm">${esc(x.c)}</div>`:""}
-      <div class="st ${c}" style="margin:6px 0 0;padding:6px 10px;font-size:13px">${esc(t)}</div>
+      <div class="st ${c}" style="margin:6px 0 0;padding:6px 10px;font-size:13px"${c==="on"?` data-vivo="${x.v}"`:""}>${esc(t)}</div>
       ${x.r&&x.r.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(x.r.agendado)}</div>`:""}
       ${x.r&&x.r.destinos&&x.r.destinos.length?`<div class="muted sm" style="margin-top:4px">${esc(x.r.destinos.map(d=>d.e.split(",")[0]).join(" → "))}</div>`:""}
       <a class="sm" href="?v=${x.v}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Abrir acompanhamento ↗</a></div>`; }).join("")
@@ -188,7 +249,7 @@ function opsDesenhar(){
       const cor={on:"#e8590c",err:"#c62828",fim:"#3730a3"}[opsSit(r)[0]]||"#e8590c";
       const ic=pin(cor,x.i);
       if(!mks[x.v]) mks[x.v]=L.marker([r.lat,r.lon],{icon:ic,zIndexOffset:1000}).addTo(map).bindPopup(`<b>${esc(r.titulo||x.t)}</b><br>${esc(opsSit(r)[1])}`);
-      else { mks[x.v].setLatLng([r.lat,r.lon]); mks[x.v].setIcon&&mks[x.v].setIcon(ic); }
+      else { if(!(OVIVO[x.v]&&Date.now()-OVIVO[x.v]<15000)) mks[x.v].setLatLng([r.lat,r.lon]); mks[x.v].setIcon&&mks[x.v].setIcon(ic); }
       b.push([r.lat,r.lon]);
     }
     if(r.status!=="finalizado") (r.destinos||[]).forEach((d,j)=>{ if(d.la!=null){ dmk.push(L.circleMarker([d.la,d.lo],{radius:6,color:"#fff",weight:2,fillColor:d.t==="retirada"?"#b45309":"#0f9d58",fillOpacity:1}).addTo(map).bindPopup(`${esc(x.i+". "+(r.titulo||""))}<br>${esc((TIPO[d.t]||"Entrega")+": "+d.e)}`)); b.push([d.la,d.lo]); } });
