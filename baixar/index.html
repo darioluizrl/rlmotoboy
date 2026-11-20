@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Baixar o app Central RL</title>
+<meta property="og:title" content="App Central RL — RL Motoboy e Entregas">
+<meta property="og:description" content="Baixe o app para enviar e pegar serviços com segurança.">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f5f7;color:#16181d}
+.top{background:#16181d;color:#fff;padding:28px 20px 34px;text-align:center}.top h1{margin:8px 0 4px;font-size:24px}.top p{margin:0;color:#c9cbd1}
+.wrap{max-width:520px;margin:-18px auto 30px;padding:0 14px;display:flex;flex-direction:column;gap:14px}
+.card{background:#fff;border:1px solid #e3e5e8;border-radius:16px;padding:18px}
+.card h2{margin:0 0 10px;font-size:17px}
+.btn{display:block;text-align:center;background:#e8590c;color:#fff;text-decoration:none;font-weight:800;font-size:17px;padding:16px;border-radius:12px}
+.btn.verde{background:#0f9d58}
+ol{margin:10px 0 0;padding-left:20px;line-height:1.55;font-size:14.5px}.muted{color:#6b7280;font-size:13px}
+</style></head><body>
+<div class="top"><div style="font-size:42px">🏍</div><h1>Central RL</h1><p>RL Motoboy e Entregas</p></div>
+<div class="wrap">
+  <div class="card" id="android">
+    <h2>🤖 Celular Android</h2>
+    <a class="btn" href="../download/central-rl.apk" download>Baixar o app (APK)</a>
+    <p class="muted" id="ver" style="text-align:center;margin:8px 0 0"></p>
+    <ol>
+      <li>Toque em <b>Baixar o app</b> e depois em <b>Abrir</b>.</li>
+      <li>Se o celular perguntar, toque em <b>Configurações</b> e ligue <b>Permitir desta fonte</b>. Volte e toque em <b>Instalar</b>.</li>
+      <li>Abra o <b>Central RL</b>, entre com seu e-mail e, se for motoboy, permita a <b>localização</b>.</li>
+    </ol>
+    <p class="muted">O app é registrado no Google em nome da RL Motoboy (desenvolvedor verificado).</p>
+  </div>
+  <div class="card" id="iphone">
+    <h2>🍎 iPhone</h2>
+    <a class="btn verde" href="../central/">Abrir a Central</a>
+    <ol>
+      <li>Abra pelo <b>Safari</b> no botão acima.</li>
+      <li>Toque em <b>Compartilhar</b> (quadrado com seta) → <b>Adicionar à Tela de Início</b>.</li>
+      <li>Pronto: o ícone da Central fica na tela como um app.</li>
+    </ol>
+  </div>
+  <p class="muted" style="text-align:center">Dúvidas? Fale com a RL Motoboy.</p>
+</div>
+<script>
+fetch("../download/versao.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{ if(v) document.getElementById("ver").textContent="Versão "+v.versao; }).catch(()=>{});
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)) document.querySelector(".wrap").prepend(document.getElementById("iphone"));
+</script>
+</body></html>
