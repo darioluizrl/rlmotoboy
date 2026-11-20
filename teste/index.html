@@ -1811,11 +1811,12 @@ function openOrc(id){
   OR = { desc: rItem?.descricao || "Entrega", origem: rItem ? (rItem.origem||"") : (S.config.base||""),
     paradas: rItem ? (rItem.paradas&&rItem.paradas.length ? rItem.paradas.map(p=>p.end) : [rItem.destino||""]) : [""],
     otimizar: rItem ? (rItem.paradas ? !!rItem.otimizada : true) : true, retorno: !!rItem?.retorno,
-    res: rItem && rItem.km ? { origem:{end:rItem.origem||"", nome:""}, paradas:(rItem.paradas&&rItem.paradas.length?rItem.paradas:[{end:rItem.destino||"", nome:rItem.destinoEnd||""}]),
+    res: rItem && rItem.km ? { origem:{end:rItem.origem||"", nome:"", lat:rItem.origemPt?.lat, lon:rItem.origemPt?.lon}, paradas:(rItem.paradas&&rItem.paradas.length?rItem.paradas:[{end:rItem.destino||"", nome:rItem.destinoEnd||""}]),
       retorno:!!rItem.retorno, km:rItem.km, min:rItem.min, url:rItem.mapsUrl, economia:0, otimizada:!!rItem.otimizada, salvo:true } : null,
     valor: rItem ? (Number(rItem.valor)||0)*(Number(rItem.qtd)||1) : "",
     repasse: rItem ? (Number(rItem.repasse)|| (rItem.km?precoMotoboy(rItem.km):"")) : "",
     agData: o?.agData||"", agHora: o?.agHora||"" };
+  OR.rast = o?.rastreio||null; OR._orc = o||null;
   OR.ptipo = rItem&&rItem.paradas&&rItem.paradas.length ? rItem.paradas.map(p=>p.tipo||"entrega") : OR.paradas.map(()=>"entrega");
   orcItens = its;
   const d0=o?.data||today();
@@ -1864,6 +1865,7 @@ function openOrc(id){
     if(ends.length || Number(OR.valor)>0){
       const r=OR.res;
       itens.push({descricao:(OR.desc||"Entrega").trim(), origem:OR.origem.trim(), destino: r ? resumoParadas(r.paradas)+(r.retorno?" | retorno":"") : resumoParadas(ends.map(x=>({end:x}))),
+        origemPt: r&&r.origem&&r.origem.lat!=null ? {lat:r.origem.lat, lon:r.origem.lon} : (rItem0()?.origemPt||null),
         paradas: r ? r.paradas.map(p=>({...p, tipo: OR.paradas.length>=2 ? orTipo(p.end) : "entrega"})) : null, otimizada: r ? !!r.otimizada : false, retorno: r ? !!r.retorno : OR.retorno,
         km: r ? r.km : 0, min: r ? (r.min||0) : 0, mapsUrl: r ? r.url : (OR.origem&&ends.length ? gmapsUrl(null,null,OR.origem.trim(),ends[ends.length-1]) : ""),
         qtd:1, valor:Number(OR.valor)||0, repasse: Number(OR.repasse) || (r&&r.km ? precoMotoboy(r.km) : 0), origemEnd:"", destinoEnd:""});
@@ -1876,7 +1878,7 @@ function openOrc(id){
     const numero = o?.numero || (Math.max(0,...S.orcamentos.map(x=>x.numero||0))+1);
     const data={numero,clienteId:val("oCli"),clienteNome:cli?.nome||"",contatoNome:val("oCli")?"":val("oContato"),contatoTel:val("oCli")?"":val("oContTel"),data:val("oData"),validade:val("oVal"),itens,
       desconto:Number(val("oDesc"))||0,taxa:Number(val("oTaxa"))||0,prazo:val("oPrazo"),pagamento:val("oPag"),status:val("oSt"),obs:val("oObs"),
-      agData:val("oAgData")||"",agHora:val("oAgHora")||"",
+      agData:val("oAgData")||"",agHora:val("oAgHora")||"",rastreio:OR.rast||null,
       convertido:o?.convertido||false,movId:o?.movId||"",criadoEm:o?.criadoEm||Date.now(),atualizadoEm:Date.now()};
     data.total=orcTotal(data);
     $("#oSave").disabled=true;
@@ -1911,6 +1913,56 @@ function orTotal(){
   const sub=(Number(OR?.valor)||0)+orcItens.reduce((s,i)=>s+(Number(i.qtd)||0)*(Number(i.valor)||0),0);
   return Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
 }
+/* ---------- rastreio por link (motoboy libera; RL e cliente acompanham) ---------- */
+const RAST_BASE="https://darioluizrl.github.io/rlmotoboy/rastreio/";
+const hexTok=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
+const b64url=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const r5=n=>n==null||isNaN(n)?null:Math.round(n*1e5)/1e5;
+function rItem0(){ const o=OR&&OR._orc; return o?(o.itens||[]).find(temRota):null; }
+function agendaTxt(d,h){ return (d||h)?[d?fmtD(d):"",h?"às "+h:""].filter(Boolean).join(" "):""; }
+function rastDados(titulo, agenda, origem, paradas, km){
+  return {t:titulo, a:agenda||undefined, km:km?String(kmCobrado(km)):undefined,
+    o:{e:String(origem.end||origem.e||"").trim(), la:r5(origem.lat), lo:r5(origem.lon)},
+    d:(paradas||[]).map(p=>({e:String(p.end||"").trim(), t:p.tipo||"entrega", la:r5(p.lat), lo:r5(p.lon)}))};
+}
+function rastDadosOR(){
+  const r=OR.res; const o=OR._orc;
+  return rastDados(o?"O.S. "+orcNum(o):"O.S. RL Motoboy", agendaTxt($("#oAgData")?.value||OR.agData, $("#oAgHora")?.value||OR.agHora), r.origem,
+    r.paradas.map(p=>({...p, tipo: OR.paradas.length>=2 ? orTipo(p.end) : "entrega"})), r.km);
+}
+function rastDadosOrc(o){
+  const ri=(o.itens||[]).find(temRota); if(!ri||!ri.km) return null;
+  const par=ri.paradas&&ri.paradas.length?ri.paradas:[{end:ri.destino||""}];
+  return rastDados("O.S. "+orcNum(o), agendaTxt(o.agData,o.agHora), {end:ri.origem||"", lat:ri.origemPt?.lat, lon:ri.origemPt?.lon}, par, ri.km);
+}
+function rastLinks(t, dados){ return { moto: RAST_BASE+"?m="+t.m+"&v="+t.v+"#"+b64url(dados), ver: RAST_BASE+"?v="+t.v }; }
+function rastHTML(L){
+  const wm="🏍 *Rastreio da corrida – RL Motoboy*\nAo sair para a corrida, abra o link e toque em *Liberar rastreio*. Deixe a tela do celular aberta até finalizar.\n"+L.moto;
+  const wc="📍 *RL Motoboy* – acompanhe sua entrega em tempo real:\n"+L.ver;
+  const lin=(tit,sub,link,msg,abrir)=>`<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px">
+    <b>${tit}</b><div class="muted small">${sub}</div>
+    <input readonly value="${esc(link)}" onclick="this.select()" style="margin:6px 0;font-size:12px">
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn sm" onclick="copiarTxt(${esc(JSON.stringify(link))})">Copiar link</button>
+      <a class="btn sm sec" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">WhatsApp</a>
+      ${abrir?`<a class="btn sm sec" target="_blank" rel="noopener" href="${esc(link)}">Abrir acompanhamento</a>`:""}</div></div>`;
+  return `<div style="margin-top:4px"><b>📍 Rastreio</b>
+    ${lin("1. Link do motoboy","Mande só para o motoboy que pegou a corrida. Ele abre e toca em “Liberar rastreio”.",L.moto,wm,false)}
+    ${lin("2. Link de acompanhamento","Para a RL e para o cliente verem a moto no mapa.",L.ver,wc,true)}</div>`;
+}
+async function copiarTxt(t){ let ok=false; try{ await navigator.clipboard.writeText(t); ok=true; }catch(e){}
+  if(!ok){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{ ok=document.execCommand("copy"); }catch(e){} ta.remove(); }
+  toast(ok?"Link copiado":"Não consegui copiar; selecione e copie"); }
+function rastGerarOR(){
+  if(!OR.res){ toast("Calcule a rota primeiro"); return; }
+  OR.rast={m:hexTok(), v:hexTok(), criado:Date.now()};
+  $("#rastBox").innerHTML=rastHTML(rastLinks(OR.rast, rastDadosOR()))+`<p class="muted small" style="margin:6px 0 0">Os links ficam guardados no orçamento quando você clicar em Salvar.</p>`;
+}
+async function rastAbrirOrc(id){
+  const o=S.orcamentos.find(x=>x.id===id); const d=o&&rastDadosOrc(o); if(!d){ toast("Este orçamento não tem rota calculada"); return; }
+  if(!o.rastreio){ const t={m:hexTok(), v:hexTok(), criado:Date.now()}; const {id:_,...dd}=o; dd.rastreio=t; await save("orcamentos",id,dd); o.rastreio=t; }
+  openModal2(`<div class="modal-h">Rastreio — ${esc(orcNum(o))}</div><div class="modal-b" style="grid-template-columns:1fr">${rastHTML(rastLinks(o.rastreio,d))}</div>
+    <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal2()">Fechar</button></div>`);
+}
 function osAgenda(d,h){ if(!d&&!h) return ""; return "*📅 AGENDADO: "+[d?fmtD(d):"",h?"às "+h:""].filter(Boolean).join(" ")+"*"; }
 function osMontar(origem, paradas, retorno, km, url, repasse, agenda){
   const ent=(paradas||[]).map(x=>typeof x==="string"?{end:x,tipo:"entrega"}:{end:x.end,tipo:x.tipo||"entrega"}).map(x=>({...x,end:String(x.end||"").trim()})).filter(x=>x.end);
@@ -1942,7 +1994,8 @@ async function copyOS(id){
 function gerarOS(){
   if(!OR||!OR.res){ toast("Calcule a rota primeiro"); return; }
   openModal2(`<div class="modal-h">Ordem de serviço (O.S.)</div><div class="modal-b" style="grid-template-columns:1fr">
-    <textarea id="osTxt" readonly rows="16" style="font-family:inherit;line-height:1.45;resize:vertical">${esc(osTexto())}</textarea></div>
+    <textarea id="osTxt" readonly rows="16" style="font-family:inherit;line-height:1.45;resize:vertical">${esc(osTexto())}</textarea>
+    <div id="rastBox">${OR.rast?rastHTML(rastLinks(OR.rast, rastDadosOR())):`<button type="button" class="btn sec" onclick="rastGerarOR()">📍 Gerar links de rastreio</button>`}</div></div>
     <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal2()">Fechar</button><button type="button" class="btn" onclick="copiarOS()">📋 Copiar O.S.</button></div>`);
 }
 async function copiarOS(){
@@ -2023,7 +2076,7 @@ function viewOrc(id){
     ${["Aberto","Enviado"].includes(o.status)?`<button class="btn sec" onclick="setOrcStatus('${esc(o.id)}','Recusado')">Recusado</button>${S.papel!=="orcamento"?`<button class="btn in" onclick="setOrcStatus('${esc(o.id)}','Aprovado')">Aprovado</button>`:""}`:""}
     ${o.status==="Aprovado"&&!o.convertido&&S.papel!=="orcamento"?`<button class="btn out" onclick="convertOrc('${esc(o.id)}')">Lançar como saída</button>`:""}
     <button class="btn sec" onclick="closeModal();openOrc('${esc(o.id)}')">Editar</button>
-    ${osDeOrc(o)?`<button class="btn in" onclick="copyOS('${esc(o.id)}')">📋 Copiar O.S.</button>`:""}
+    ${osDeOrc(o)?`<button class="btn sec" onclick="rastAbrirOrc('${esc(o.id)}')">📍 Rastreio</button><button class="btn in" onclick="copyOS('${esc(o.id)}')">📋 Copiar O.S.</button>`:""}
     <button class="btn" onclick="copyOrc('${esc(o.id)}')">Copiar texto</button>
   </div>`);
 }

@@ -18,3 +18,14 @@ import os; os.makedirs('teste',exist_ok=True)
 open('teste/index.html','w',encoding='utf-8').write(t)
 PY
 echo "app/index.html e teste/index.html gerados"
+
+# página pública de rastreio (motoboy libera / RL e cliente acompanham)
+python3 - <<'PY'
+import re, os
+src=open('sistema-controle/index.html',encoding='utf-8').read()
+logo=re.search(r'const LOGO="(data:image/[^"]+)"',src).group(1)
+p=open('sistema-controle/web/rastreio-src.html',encoding='utf-8').read()
+p=p.replace('__LOGO__',logo).replace('__CFG__','{url:"https://uemtwxukdclxujffltfs.supabase.co",key:"sb_publishable_z2P88k5F3LQGcUWqzELxIw_JSlfYxYg"}')
+os.makedirs('rastreio',exist_ok=True); open('rastreio/index.html','w',encoding='utf-8').write(p)
+PY
+echo "rastreio/index.html gerado"

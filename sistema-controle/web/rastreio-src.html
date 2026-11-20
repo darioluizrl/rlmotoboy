@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Rastreio — RL Motoboy</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--ink:#16181d;--muted:#6b7280;--line:#e5e7eb;--or:#e8590c;--in:#0f9d58;--in-l:#e7f6ee;--warn:#b45309;--warn-l:#fef3c7;--bad:#c62828;--bad-l:#fdecea}
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:#f3f4f6}
+.top{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#16181d;color:#fff}
+.top img{width:40px;height:40px;border-radius:8px}.top b{font-size:15px}.top small{display:block;color:#cbd5e1;font-size:12px}
+.wrap{max-width:720px;margin:0 auto;padding:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.st{border-radius:12px;padding:12px 14px;font-weight:700;margin-bottom:12px}
+.st small{display:block;font-weight:500;margin-top:3px}
+.st.ag{background:var(--warn-l);color:var(--warn)}.st.on{background:var(--in-l);color:var(--in)}.st.fim{background:#eef2ff;color:#3730a3}.st.err{background:var(--bad-l);color:var(--bad)}
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;margin-top:10px}
+.btn.go{background:var(--or);color:#fff}.btn.ok{background:var(--in);color:#fff}.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line);font-size:15px;padding:12px}
+.btn:disabled{opacity:.5}
+#map{height:56vh;min-height:300px;border-radius:14px;border:1px solid var(--line)}
+.lst div{padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}.lst div:last-child{border:0}
+.tg{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;margin-right:6px;background:#e5e7eb}
+.tg.retirada{background:var(--warn-l);color:var(--warn)}.tg.entrega{background:var(--in-l);color:var(--in)}.tg.ambos{background:#ffedd5;color:#c2410c}.tg.saida{background:#16181d;color:#fff}
+.muted{color:var(--muted)}.sm{font-size:13px}a{color:var(--or)}
+.pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;border:3px solid #fff;box-shadow:0 1px 4px #0006}
+</style></head><body>
+<div class="top"><img src="__LOGO__" alt=""><div><b>RL Motoboy e Entregas</b><small id="sub">Rastreio da corrida</small></div></div>
+<div class="wrap" id="app"><div class="card muted">Carregando…</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const CFG=__CFG__;
+const sb=supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:false}});
+const $=s=>document.querySelector(s), app=$("#app");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const q=new URLSearchParams(location.search), M=q.get("m"), V=q.get("v");
+const TIPO={entrega:"Entrega",retirada:"Retirada",ambos:"Retirada e entrega"};
+function dados(){ try{ const h=location.hash.slice(1); if(!h) return {}; const b=h.replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(decodeURIComponent(escape(atob(b)))); }catch(e){ return {}; } }
+const hora=s=>s?new Date(s).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
+function lista(r){
+  const L=[]; if(r.origem&&r.origem.e) L.push(`<div><span class="tg saida">Saída</span>${esc(r.origem.e)}</div>`);
+  (r.destinos||[]).forEach((d,i)=>L.push(`<div><span class="tg ${esc(d.t||"entrega")}">${i+1}. ${TIPO[d.t]||"Entrega"}</span>${esc(d.e)}</div>`));
+  return `<div class="lst">${L.join("")}</div>`;
+}
+function navLink(r){
+  const pts=(r.destinos||[]).filter(d=>d.la!=null); if(!pts.length) return "";
+  const last=pts[pts.length-1], wp=pts.slice(0,-1).map(d=>d.la+","+d.lo).join("|");
+  return `https://www.google.com/maps/dir/?api=1&destination=${last.la},${last.lo}${wp?"&waypoints="+encodeURIComponent(wp):""}&travelmode=two-wheeler`;
+}
+
+/* ================= MOTOBOY ================= */
+let R=null, watch=null, lock=null, ultimoEnvio=0, ultimaPos=null, enviando=false;
+async function motoboy(){
+  $("#sub").textContent="Liberar rastreio (motoboy)";
+  const {data,error}=await sb.rpc("rastreio_abrir",{p_moto:M,p_ver:V,p_dados:dados()});
+  if(error){ app.innerHTML=`<div class="st err">Este link de rastreio não é válido.<small>${esc(error.message)}</small></div>`; return; }
+  R=data; telaMoto();
+}
+function telaMoto(msg){
+  const on=watch!==null, fim=R.status==="finalizado";
+  const st = fim ? `<div class="st fim">✓ Corrida finalizada${R.finalizado_em?" às "+hora(R.finalizado_em):""}<small>O rastreio foi encerrado. Obrigado!</small></div>`
+    : on ? `<div class="st on">● Rastreio ATIVO<small>Mantenha esta tela aberta e o celular desbloqueado. ${ultimaPos?"Última posição enviada às "+hora(ultimaPos):"Buscando o GPS…"}</small></div>`
+    : `<div class="st ag">Rastreio desligado<small>Toque em “Liberar rastreio” quando sair para a corrida.</small></div>`;
+  const nav=navLink(R);
+  app.innerHTML=`${st}
+    <div class="card"><b>${esc(R.titulo||"Corrida")}</b>${R.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(R.agendado)}</div>`:""}${R.km?`<div class="muted sm">${esc(R.km)} km</div>`:""}<div style="margin-top:8px">${lista(R)}</div>
+      ${nav?`<a class="btn sec" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="${nav}">🧭 Abrir navegação no Google Maps</a>`:""}</div>
+    ${fim?"":on?`<button class="btn ok" onclick="finalizar()">✓ Finalizar entrega</button><button class="btn sec" onclick="parar()">Pausar rastreio</button>`
+      :`<button class="btn go" onclick="iniciar()">📍 Liberar rastreio</button><p class="muted sm">Ao liberar, sua localização é enviada para a RL Motoboy e para quem tem o link de acompanhamento desta corrida, só enquanto o rastreio estiver ligado. Ele é encerrado quando você finaliza a entrega.</p>`}
+    ${msg?`<div class="st err" style="margin-top:10px">${esc(msg)}</div>`:""}`;
+}
+async function iniciar(){
+  if(!("geolocation" in navigator)){ telaMoto("Este celular não permite localização pelo navegador."); return; }
+  try{ if("wakeLock" in navigator) lock=await navigator.wakeLock.request("screen"); }catch(e){}
+  watch=navigator.geolocation.watchPosition(enviar, e=>{ const m={1:"Você não permitiu a localização. Toque no cadeado ao lado do endereço e permita.",2:"GPS indisponível agora. Verifique se a localização do celular está ligada.",3:"O GPS demorou para responder."}[e.code]||e.message; telaMoto(m); }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
+  telaMoto();
+}
+async function enviar(p){
+  const agora=Date.now(); if(enviando || agora-ultimoEnvio<10000) return;
+  enviando=true; ultimoEnvio=agora;
+  try{
+    const {data,error}=await sb.rpc("rastreio_posicao",{p_moto:M,p_lat:p.coords.latitude,p_lon:p.coords.longitude,p_prec:Math.round(p.coords.accuracy||0)});
+    if(!error){ ultimaPos=new Date().toISOString(); if(data==="finalizado"||data==="expirado"){ parar(); R.status="finalizado"; } }
+  }catch(e){} finally{ enviando=false; }
+  telaMoto();
+}
+function parar(){ if(watch!==null) navigator.geolocation.clearWatch(watch); watch=null; try{ lock&&lock.release(); }catch(e){} lock=null; telaMoto(); }
+async function finalizar(){
+  if(!confirmar) { confirmar=true; const b=document.querySelector(".btn.ok"); if(b){ b.textContent="Toque de novo para confirmar"; } setTimeout(()=>{confirmar=false; if(watch!==null) telaMoto();},4000); return; }
+  parar(); const {error}=await sb.rpc("rastreio_finalizar",{p_moto:M});
+  if(!error){ R.status="finalizado"; R.finalizado_em=new Date().toISOString(); } telaMoto(error?error.message:"");
+}
+let confirmar=false;
+document.addEventListener("visibilitychange",async()=>{ if(document.visibilityState==="visible" && watch!==null){ try{ if("wakeLock" in navigator) lock=await navigator.wakeLock.request("screen"); }catch(e){} } });
+
+/* ================= ACOMPANHAMENTO (RL e cliente) ================= */
+let map=null, mk=null, fixos=false;
+function pin(cor,txt){ return L.divIcon({className:"",html:`<div class="pin" style="background:${cor}">${txt}</div>`,iconSize:[30,30],iconAnchor:[15,15]}); }
+async function acompanhar(){
+  $("#sub").textContent="Acompanhamento da corrida";
+  app.innerHTML=`<div id="stBox"></div><div id="map"></div><div class="card" id="info" style="margin-top:12px"></div>`;
+  map=L.map("map",{zoomControl:true}).setView([-23.6,-46.57],11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  await atualizar(); setInterval(atualizar,10000);
+}
+async function atualizar(){
+  const {data:r,error}=await sb.rpc("rastreio_ver",{p_ver:V});
+  if(error){ $("#stBox").innerHTML=`<div class="st err">Não foi possível carregar.<small>${esc(error.message)}</small></div>`; return; }
+  if(!r){ $("#stBox").innerHTML=`<div class="st ag">Aguardando o motoboy abrir o link de rastreio<small>Esta página atualiza sozinha.</small></div>`; return; }
+  const seg=r.atualizado_em?Math.round((new Date(r.agora)-new Date(r.atualizado_em))/1000):null;
+  const antigo=seg!=null&&seg>120;
+  $("#stBox").innerHTML = r.status==="finalizado" ? `<div class="st fim">✓ Corrida finalizada${r.finalizado_em?" às "+hora(r.finalizado_em):""}</div>`
+    : r.status==="aguardando" ? `<div class="st ag">Aguardando o motoboy liberar o rastreio<small>Esta página atualiza sozinha.</small></div>`
+    : `<div class="st ${antigo?"ag":"on"}">${antigo?"Sem sinal do motoboy há "+Math.round(seg/60)+" min":"● Motoboy a caminho"}<small>Última posição às ${hora(r.atualizado_em)}${seg!=null&&!antigo?" (há "+seg+" s)":""}</small></div>`;
+  $("#info").innerHTML=`<b>${esc(r.titulo||"Corrida")}</b>${r.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(r.agendado)}</div>`:""}<div style="margin-top:8px">${lista(r)}</div>`;
+  const b=[];
+  if(!fixos){ fixos=true;
+    if(r.origem&&r.origem.la!=null){ L.marker([r.origem.la,r.origem.lo],{icon:pin("#16181d","S")}).addTo(map).bindPopup("Saída: "+esc(r.origem.e)); }
+    (r.destinos||[]).forEach((d,i)=>{ if(d.la!=null) L.marker([d.la,d.lo],{icon:pin(d.t==="retirada"?"#b45309":d.t==="ambos"?"#c2410c":"#0f9d58",i+1)}).addTo(map).bindPopup(esc((TIPO[d.t]||"Entrega")+": "+d.e)); });
+  }
+  if(r.origem&&r.origem.la!=null) b.push([r.origem.la,r.origem.lo]);
+  (r.destinos||[]).forEach(d=>{ if(d.la!=null) b.push([d.la,d.lo]); });
+  if(r.lat!=null && r.status!=="aguardando"){
+    if(!mk) mk=L.marker([r.lat,r.lon],{icon:pin("#e8590c","🏍"),zIndexOffset:1000}).addTo(map).bindPopup("Motoboy"); else mk.setLatLng([r.lat,r.lon]);
+    b.push([r.lat,r.lon]);
+  }
+  if(b.length && !atualizar._fit){ atualizar._fit=1; map.fitBounds(b,{padding:[30,30],maxZoom:16}); }
+}
+
+if(M && V && /^[a-f0-9]{32}$/.test(M) && /^[a-f0-9]{32}$/.test(V)) motoboy();
+else if(V && /^[a-f0-9]{32}$/.test(V)) acompanhar();
+else app.innerHTML=`<div class="st err">Link de rastreio inválido.</div>`;
+</script></body></html>
