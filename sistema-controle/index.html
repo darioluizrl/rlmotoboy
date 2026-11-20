@@ -216,6 +216,20 @@ textarea{resize:vertical;min-height:60px}
 .small{font-size:12px}
 .view{display:none}.view.on{display:block}
 .search{max-width:280px}
+.ops-nat{display:grid;grid-template-columns:1fr 330px;gap:12px;padding:12px}
+.ops-mapa{position:relative;min-height:60vh;background:#e8eaed;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.ops-mapa img{width:100%;height:100%;object-fit:cover;display:block}
+.ops-mapa img:not([src]){display:none}
+#opsMapMsg{position:absolute;left:10px;bottom:8px;background:#fffd;padding:3px 8px;border-radius:6px}
+.ops-lado{max-height:74vh;overflow:auto}
+.ops-cnt{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;font-size:12px;font-weight:700}
+.ops-cnt span{border:1px solid #e3e5e8;border-radius:20px;padding:3px 9px;background:#fff}
+.ops-fil{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.ops-fil .on{background:#16181d;color:#fff}
+.ops-it{border:1px solid #e3e5e8;border-radius:10px;padding:10px 12px;margin-bottom:6px;background:#fff}
+.ops-it .st{border-radius:8px;padding:5px 9px;font-size:13px;font-weight:700;margin-top:6px}
+.st-on{background:#e6f4ea;color:#0f9d58}.st-ag{background:#fef3c7;color:#b45309}.st-err{background:#fde8e8;color:#c62828}.st-fim{background:#eef2ff;color:#3730a3}
+@media(max-width:900px){.ops-nat{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -440,14 +454,20 @@ textarea{resize:vertical;min-height:60px}
   <!-- RELATÓRIOS -->
   <section class="view" id="v-operacional">
     <div class="row" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div><h2>Operacional</h2><p class="sub" style="margin:0">Mapa com o rastreio de todas as corridas · atualiza sozinho a cada 10 segundos</p></div>
+      <div><h2>Operacional</h2><p class="sub" style="margin:0">Mapa com o rastreio de todas as corridas · atualiza sozinho</p></div>
       <div class="spacer"></div>
       <label class="small muted" style="display:flex;align-items:center;gap:6px">Mostrar rastreios dos últimos
         <select id="opsDias" style="width:auto" onchange="renderOperacional(true)"><option value="1">24 horas</option><option value="3" selected>3 dias</option><option value="7">7 dias</option></select></label>
       <button class="btn sec" onclick="renderOperacional(true)">Atualizar</button>
       <a class="btn" id="opsFull" target="_blank" rel="noopener" href="#">Abrir mapa em tela cheia ↗</a>
     </div>
-    <div class="panel" style="padding:0;overflow:hidden"><iframe id="opsFrame" title="Mapa da operação" style="width:100%;height:74vh;border:0;display:block"></iframe></div>
+    <div class="panel" id="opsFrameBox" style="padding:0;overflow:hidden"><iframe id="opsFrame" title="Mapa da operação" style="width:100%;height:74vh;border:0;display:block"></iframe></div>
+    <div class="panel ops-nat" id="opsNat" style="display:none">
+      <div class="ops-mapa"><img id="opsImg" alt="Mapa da operação"><div id="opsMapMsg" class="muted small"></div></div>
+      <div class="ops-lado"><div id="opsCnt" class="ops-cnt"></div>
+        <div class="ops-fil"><button class="btn sec on" id="opsFA" onclick="opsFil('ativos')">Em andamento</button><button class="btn sec" id="opsFT" onclick="opsFil('todos')">Todos</button></div>
+        <div id="opsLst"></div><p class="muted small" id="opsHora"></p></div>
+    </div>
     <p class="muted small" id="opsInfo" style="margin-top:8px"></p>
   </section>
 
@@ -1983,11 +2003,103 @@ function opsLink(embed){
   return {n:L.length, url: RAST_BASE+"?ops=1"+(embed?"&embed=1":"")+"#"+b64url(L)};
 }
 function renderOperacional(forcar){
+  if(OPS_NAT()){ return opsNatRender(forcar); }
   const f=$("#opsFrame"); if(!f) return; const a=opsLink(true), b=opsLink(false);
   $("#opsFull").href=b.url;
   if(forcar || f.dataset.src!==a.url){ f.dataset.src=a.url; f.src=a.url; }
   $("#opsInfo").innerHTML = a.n ? `${a.n} corrida(s) com rastreio no período. Para incluir uma corrida aqui, gere os links de rastreio na O.S. dela.`
     : `Nenhuma corrida com rastreio no período. Gere os links em <b>Orçamentos → Gerar O.S. → 📍 Gerar links de rastreio</b>.`;
+}
+/* ---- Operacional dentro do claude.ai: o navegador do artifact não abre o site do rastreio,
+   então os dados vêm pelo conector do Supabase e o mapa é uma imagem do Mapbox ---- */
+const OPS_PROJ="uemtwxukdclxujffltfs";
+const OPS_NAT=()=>!window.RL_OFFLINE && !SB;
+const OPSN={fil:"ativos",dados:{},lista:[],mapaChave:"",timer:0,busy:false,err:""};
+function opsFil(f){ OPSN.fil=f; opsNatDesenhar(); opsNatMapa(); }
+function opsSitN(r){
+  if(!r) return ["ag","Aguardando o motoboy abrir o link"];
+  if(r.status==="finalizado") return ["fim","Finalizada"+(r.finalizado_em?" às "+new Date(r.finalizado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"")];
+  if(r.status==="aguardando") return ["ag","Aguardando liberar o rastreio"];
+  const seg=r.atualizado_em?Math.round((new Date(r.agora)-new Date(r.atualizado_em))/1000):null;
+  return seg!=null&&seg>120 ? ["err","Sem sinal há "+Math.round(seg/60)+" min"] : ["on","Em rota"+(seg!=null?" · há "+seg+" s":"")];
+}
+function opsNatRender(forcar){
+  $("#opsFrameBox").style.display="none"; $("#opsNat").style.display="";
+  const b=opsLink(false); $("#opsFull").href=b.url;
+  const dias=Number($("#opsDias")?.value||3), lim=Date.now()-dias*864e5;
+  OPSN.lista=S.orcamentos.filter(o=>o.rastreio&&/^[a-f0-9]{32}$/.test(o.rastreio.v||"")&&(o.rastreio.criado||0)>=lim)
+    .sort((a,b)=>(b.rastreio.criado||0)-(a.rastreio.criado||0)).slice(0,150)
+    .map(o=>({v:o.rastreio.v,t:"O.S. "+orcNum(o),c:orcCli(o)!=="—"?orcCli(o):(o.contatoNome||"")}));
+  $("#opsInfo").innerHTML = OPSN.lista.length ? `${OPSN.lista.length} corrida(s) com rastreio no período.`
+    : `Nenhuma corrida com rastreio no período. Gere os links em <b>Orçamentos → Gerar O.S. → 📍 Gerar links de rastreio</b>.`;
+  opsNatDesenhar();
+  clearInterval(OPSN.timer);
+  OPSN.timer=setInterval(()=>{ if(!$("#v-operacional").classList.contains("on")){ clearInterval(OPSN.timer); return; } opsNatBuscar(); },20000);
+  opsNatBuscar(forcar);
+}
+async function opsNatBuscar(forcar){
+  if(OPSN.busy || !OPSN.lista.length){ if(!OPSN.lista.length) opsNatMapa(); return; }
+  OPSN.busy=true;
+  try{
+    const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
+    const arr=OPSN.lista.map(x=>"'"+x.v+"'").join(",");   /* tokens validados: só [a-f0-9]{32} */
+    const r=await mcp.callTool("Supabase","execute_sql",{project_id:OPS_PROJ,query:`select public.rastreio_varios(array[${arr}]::text[]) as r`});
+    const txt=typeof r.payload==="string"?r.payload:(r.payload&&r.payload.result)||resText(r);
+    const m=String(txt).match(/\[\s*\{\s*"r"[\s\S]*\}\s*\]/); if(!m) throw {code:"parse",message:"resposta inesperada do banco"};
+    let j; try{ j=JSON.parse(m[0]); }catch(_){ j=JSON.parse(JSON.parse('"'+m[0]+'"')); }
+    const linhas=(j[0]||{}).r||[];
+    OPSN.dados={}; linhas.forEach(x=>{ OPSN.dados[x.v]=x; }); OPSN.err=""; OPSN.hora=new Date();
+  }catch(e){
+    const c=e&&e.code;
+    OPSN.err = (c==="server_not_connected"||c==="server_not_found") ? "Conecte o Supabase em claude.ai → Configurações → Conectores para ver as posições."
+      : (c==="no_mcp"||c==="not_granted") ? "Permita o acesso ao Supabase quando o claude.ai pedir, para ver as posições."
+      : "Não consegui buscar as posições agora ("+((e&&e.message)||c||"erro")+"). Tento de novo em 20 s.";
+  }
+  OPSN.busy=false; opsNatDesenhar(); opsNatMapa(forcar);
+}
+function opsNatVis(){ return OPSN.lista.map((x,i)=>({...x,i:i+1,r:OPSN.dados[x.v]})).filter(x=>OPSN.fil==="todos"||!x.r||x.r.status!=="finalizado"); }
+function opsNatDesenhar(){
+  $("#opsFA").classList.toggle("on",OPSN.fil==="ativos"); $("#opsFT").classList.toggle("on",OPSN.fil==="todos");
+  const n={on:0,ag:0,err:0,fim:0}; OPSN.lista.forEach(x=>n[opsSitN(OPSN.dados[x.v])[0]]++);
+  $("#opsCnt").innerHTML=`<span style="color:#0f9d58">● ${n.on} em rota</span><span style="color:#b45309">${n.ag} aguardando</span>${n.err?`<span style="color:#c62828">${n.err} sem sinal</span>`:""}<span style="color:#3730a3">${n.fim} finalizadas</span>`;
+  const vis=opsNatVis();
+  $("#opsLst").innerHTML=vis.length?vis.map(x=>{ const [c,t]=opsSitN(x.r); const d=(x.r&&x.r.destinos)||[];
+    return `<div class="ops-it"><b>${x.i}. ${esc((x.r&&x.r.titulo)||x.t)}</b>${x.c?`<div class="muted small">${esc(x.c)}</div>`:""}
+      <div class="st st-${c}">${esc(t)}</div>${d.length?`<div class="muted small" style="margin-top:4px">${esc(String(d[d.length-1].e||"").split(",")[0])}</div>`:""}
+      <a class="small" target="_blank" rel="noopener" href="${RAST_BASE}?v=${x.v}">Abrir acompanhamento ↗</a></div>`; }).join("")
+    : `<p class="muted small">Nenhuma corrida ${OPSN.fil==="ativos"?"em andamento":"no período"}.</p>`;
+  $("#opsHora").textContent = OPSN.err || (OPSN.hora?"Atualizado às "+OPSN.hora.toLocaleTimeString("pt-BR")+" · atualiza sozinho a cada 20 s":"Buscando posições…");
+}
+function opsZoom(b,W,H){
+  const y=l=>Math.log(Math.tan(Math.PI/4+l*Math.PI/360));
+  const dLon=Math.max(b.x2-b.x1,0.004), dY=Math.max(Math.abs(y(b.y2)-y(b.y1)),0.004*Math.PI/180);
+  const z=Math.min(Math.log2(W*360/(256*dLon)), Math.log2(H*2*Math.PI/(256*dY)))-0.4;
+  return Math.max(8,Math.min(15,Math.round(z*100)/100));
+}
+async function opsNatMapa(){
+  const msg=$("#opsMapMsg"), img=$("#opsImg");
+  const ov=[], pts=[];
+  opsNatVis().forEach(x=>{ const r=x.r; if(!r) return;
+    (r.destinos||[]).forEach(d=>{ if(d.la!=null&&d.lo!=null&&r.status!=="finalizado"){ ov.push({type:"marker",longitude:+d.lo,latitude:+d.la,color:"f97316",size:"small",label:String(x.i%100)}); pts.push([+d.lo,+d.la]); } });
+  });
+  opsNatVis().forEach(x=>{ const r=x.r; if(!r||r.lat==null||r.lon==null) return; const c=opsSitN(r)[0];
+    ov.push({type:"marker",longitude:+r.lon,latitude:+r.lat,color:c==="on"?"0f9d58":c==="fim"?"3730a3":"9ca3af",size:"large",label:String(x.i%100)}); pts.push([+r.lon,+r.lat]); });
+  const ovs=ov.slice(-80);
+  const W=1000,H=640;
+  let center={longitude:-46.63,latitude:-23.55}, zoom=10;
+  if(pts.length){ const b={x1:Math.min(...pts.map(p=>p[0])),x2:Math.max(...pts.map(p=>p[0])),y1:Math.min(...pts.map(p=>p[1])),y2:Math.max(...pts.map(p=>p[1]))};
+    center={longitude:(b.x1+b.x2)/2,latitude:(b.y1+b.y2)/2}; zoom=pts.length===1?14:opsZoom(b,W,H); }
+  const chave=JSON.stringify([ovs,center,zoom]); if(chave===OPSN.mapaChave && img.getAttribute("src")) return;
+  msg.textContent = pts.length ? "Atualizando mapa…" : "Nenhum motoboy com posição ainda — o mapa mostra São Paulo.";
+  try{
+    const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
+    const r=await mcp.callTool("Mapbox","static_map_image_tool",{center,zoom,size:{width:W,height:H},overlays:ovs,style:"mapbox/streets-v12"});
+    const blocos=(r&&r.content)||[]; const im=blocos.find(b=>b.type==="image"&&b.data);
+    if(im) img.src="data:"+(im.mimeType||"image/png")+";base64,"+im.data;
+    else { const u=resText(r).match(/https:\/\/api\.mapbox\.com\/\S+/); if(!u) throw {code:"parse",message:"sem imagem"}; img.src=u[0]; }
+    OPSN.mapaChave=chave;
+    msg.innerHTML = pts.length ? "🟢 em rota · ⚪ sem sinal · 🟣 finalizada · 🟠 destino (o número é o da lista)" : "Nenhum motoboy com posição ainda — o mapa mostra São Paulo.";
+  }catch(e){ msg.textContent=mapboxErr(e)||"Não consegui gerar o mapa agora."; }
 }
 function osAgenda(d,h){ if(!d&&!h) return ""; return "*📅 AGENDADO: "+[d?fmtD(d):"",h?"às "+h:""].filter(Boolean).join(" ")+"*"; }
 function osMontar(origem, paradas, retorno, km, url, repasse, agenda){
