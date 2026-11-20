@@ -63,7 +63,8 @@ td.wrap{white-space:normal;min-width:180px}
 .tag{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700}
 .tag:empty{display:none}
 table.ptab{table-layout:fixed}table.ptab td{white-space:normal;word-break:break-word}
-body.so-portal>*:not(#login):not(#toast):not(script):not(#acBox){display:none!important}
+body.so-portal>*:not(#login):not(#toast):not(script):not(#acBox):not(#ov){display:none!important}
+body.so-portal #ov{z-index:95}
 .t-entrada{background:var(--in-l);color:var(--in)}
 .t-saida{background:var(--out-l);color:var(--out)}
 .s-Pendente{background:var(--warn-l);color:var(--warn)}
@@ -170,6 +171,7 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .eco{background:var(--in-l);color:var(--in);font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px}
 body.perfil-orc .so-admin{display:none!important}
 body:not(.perfil-dono) .so-dono{display:none!important}
+body:not(.perfil-central) .so-central{display:none!important}
 .cfg-tabs{display:flex;gap:6px;margin-bottom:12px}.cfg-tabs .on{background:var(--ink,#16181d);color:#fff}
 .cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
 .cfg-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
@@ -272,6 +274,20 @@ textarea{resize:vertical;min-height:60px}
 .pt-serv-dist{font-weight:700;font-size:14px}.pt-serv-rota{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:13.5px}.pt-serv-rota div{display:flex;gap:6px}
 .pt-serv-info{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pt-serv-info span{background:#f3f4f6;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
 @media(max-width:760px){.pt-env{grid-template-columns:1fr}.pt-uso{grid-template-columns:1fr}}
+.pt-vagas{display:flex;align-items:center;gap:4px;margin-top:8px}.pt-vagas i{width:22px;height:8px;border-radius:4px;background:#e5e7eb}.pt-vagas i.on{background:var(--brand)}
+.pt-vagas span{font-size:12px;color:var(--muted);margin-left:6px}
+.pt-cand-ok{margin-top:8px;background:#e6f4ea;color:#0f9d58;border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px}
+.pt-quero{background:#0f9d58;border-color:#0f9d58;padding:10px 16px}
+.pt-trab{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}.pt-trab.ok b{color:#0f9d58}
+.pt-cand{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.pt-cand-av{width:40px;height:40px;border-radius:50%;background:var(--brand-l);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:18px;flex:none}
+.chat-info{font-size:12px;color:var(--muted);padding:0 20px 6px}
+.chat-msgs{height:min(55vh,420px);overflow-y:auto;background:#f6f7f9;margin:0 16px;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.chat-b{max-width:80%;background:#fff;border:1px solid var(--line);border-radius:12px;padding:7px 10px;font-size:14px;align-self:flex-start;word-wrap:break-word}
+.chat-b.eu{align-self:flex-end;background:#e8f0fe;border-color:#c6dafc}.chat-b.rl{background:#fff7ed;border-color:#fdba74}
+.chat-n{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:2px}.chat-h{font-size:10.5px;color:var(--muted);text-align:right;margin-top:2px}
+.chat-form{display:flex;gap:8px;padding:10px 16px 0}.chat-form textarea{flex:1;resize:none;font-size:14px;padding:10px}
+.ac-tab tr.clic:hover{background:#f9fafb}
 </style>
 </head>
 <body>
@@ -290,6 +306,7 @@ textarea{resize:vertical;min-height:60px}
     <button data-v="equipe">Motoboys e motoristas</button>
     <button data-v="financeiro">Financeiro</button>
     <button data-v="relatorios">Relatórios</button>
+    <button data-v="central" class="so-central">🛰 Central</button>
     <button data-v="config" class="so-dono">⚙ Configuração</button>
   </nav>
   <div id="userBar" style="display:flex;gap:8px;align-items:center;color:#cbd5e1;font-size:12.5px"></div>
@@ -494,6 +511,17 @@ textarea{resize:vertical;min-height:60px}
     <div class="panel"><div class="panel-h">A pagar a motoboys e motoristas</div><div class="tbl-wrap"><table id="fiMot"></table></div></div>
   </section>
 
+  <!-- CENTRAL: serviços soltos na Central, candidatos e conversas (administradores) -->
+  <section class="view" id="v-central">
+    <div class="row" style="margin-bottom:12px;gap:8px;flex-wrap:wrap"><div><h2>🛰 Central — serviços</h2><p class="sub" style="margin:0">Tudo que foi solto na Central: quem enviou, quem pegou, interessados e a conversa de cada serviço.</p></div>
+      <div class="spacer"></div>
+      <select id="ctSt" style="width:auto" onchange="ctDesenhar()"><option value="">Todas as situações</option><option value="aberto">Abertos</option><option value="aceito">Aceitos</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluídos</option><option value="cancelado">Cancelados</option></select>
+      <select id="ctDias" style="width:auto" onchange="ctCarregar()"><option value="1">Hoje</option><option value="7" selected>7 dias</option><option value="30">30 dias</option></select>
+      <button class="btn sec" onclick="ctCarregar()">Atualizar</button></div>
+    <div class="cards" id="ctKpis"></div>
+    <div class="panel"><div class="tbl-wrap" id="ctTab"><p class="muted small" style="padding:14px 16px">Carregando…</p></div></div>
+  </section>
+
   <!-- CONFIGURAÇÃO (só a RL) -->
   <section class="view" id="v-config">
     <div class="row" style="margin-bottom:12px"><div><h2>⚙ Configuração</h2><p class="sub" style="margin:0">Só a RL vê esta tela. Aqui você adiciona, muda o perfil, bloqueia e remove qualquer usuário, e ajusta as regras do sistema.</p></div></div>
@@ -599,11 +627,12 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
 function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.classList.toggle("show",!!msg); }
 
 /* ---------- navegação ---------- */
-const VIEWS = ["painel","dashboard","movs","orcamentos","operacional","clientes","equipe","financeiro","relatorios","config"];
+const VIEWS = ["painel","dashboard","movs","orcamentos","operacional","clientes","equipe","financeiro","relatorios","central","config"];
 function show(v){
   if(!VIEWS.includes(v)) v="painel";
   if(S.papel==="orcamento" && v!=="operacional") v="orcamentos";
   if(v==="config" && S.papel!=="dono") v="painel";
+  if(v==="central" && !document.body.classList.contains("perfil-central")) v="painel";
   document.querySelectorAll(".view").forEach(el=>el.classList.toggle("on", el.id==="v-"+v));
   document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
   render();
@@ -734,8 +763,9 @@ async function sbIniciarSessao(session){
   if(!me || !me.ativo){
     telaLogin("aguardando", session.user.email); return null;
   }
-  S.papel=me.papel;
+  S.papel=me.papel; S.uid=session.user.id;
   if(S.papel==="dono") document.body.classList.add("perfil-dono");
+  if(window.RL_CENTRAL && ["dono","admin"].includes(S.papel)) document.body.classList.add("perfil-central");
   if(S.papel==="orcamento"){ document.body.classList.add("perfil-orc"); show("orcamentos"); }
   try{ await sbCarregar(); }catch(e){ notice("Não foi possível carregar os dados: "+e.message); return null; }
   sbc.channel("docs-rt").on("postgres_changes",{event:"*",schema:"public",table:"docs"},pl=>{
@@ -1108,10 +1138,64 @@ async function ptMeus(){
   const r=await sbc.from("servicos").select("*").eq("criado_por",PT.uid).order("criado_em",{ascending:false}).range(0,19);
   if(r.error){ box.textContent=r.error.message; return; }
   PTA.meus=r.data||[];
+  const ab=PTA.meus.filter(s=>s.status==="aberto").map(s=>s.id), nc={};
+  if(ab.length){ const c=await sbc.from("candidaturas").select("servico_id,status").in("servico_id",ab); (c.data||[]).forEach(x=>{ if(x.status==="ativa") nc[x.servico_id]=(nc[x.servico_id]||0)+1; }); }
+  PTA.nc=nc; clearTimeout(PTA.tMeus); PTA.tMeus=setTimeout(()=>{ if(PTA.aba==="enviar"&&$("#peMeus")) ptMeus(); },20000);
   box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu"><div style="flex:1"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
       <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${brl(s.valor)} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div></div>
-      <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>${s.status==="aberto"?`<button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}</div>`).join("")
+      <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
+      ${s.status==="aberto"?`<button class="btn sm ${nc[s.id]?"":"sec"}" onclick="ptCandidatos('${s.id}',${s.numero})" ${nc[s.id]?"":"disabled"}>🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":"")+" — escolher":"Aguardando interessados"}</button><button class="btn sm sec" style="color:var(--bad)" onclick="ptCancelar('${s.id}')">Cancelar</button>`:""}
+      ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn sm" onclick="ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}</div>`).join("")
     :`<span class="muted">Nenhum serviço ainda.</span>`;
+}
+async function ptCandidatos(id, numero){
+  openModal(`<div class="modal-h">Interessados no serviço #${numero}</div><div class="modal-b" style="grid-template-columns:1fr" id="pcBox"><p class="muted">Carregando…</p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
+  const r=await sbc.rpc("servico_candidatos",{p_id:id}); const box=$("#pcBox");
+  if(r.error){ box.innerHTML=`<p style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
+  const L=r.data||[]; if(!L.length){ box.innerHTML=`<p class="muted">Ninguém se candidatou ainda.</p>`; return; }
+  box.innerHTML=`<p class="muted small" style="margin:0">Escolha quem vai fazer o serviço. Todos têm cadastro verificado pela RL.</p>`+L.map(c=>`<div class="pt-cand">
+      <div class="pt-cand-av">${esc((c.nome||"?").trim()[0]||"?")}</div>
+      <div style="flex:1"><b>${esc(c.nome)}</b> <span class="tag s-Concluída">✓ Verificado RL</span>
+        <div class="small">${esc(CAD_VEIC[c.veiculo]||"")}${c.modelo?" · "+esc(c.modelo):""} · placa ${esc(c.placa||"")}</div>
+        <div class="muted small">📍 a ${String(c.distancia_km??"?").replace(".",",")} km da retirada · ${c.servicos_feitos} serviço(s) feito(s) na Central · interessado ${ptHa(c.criado_em)}</div></div>
+      <button class="btn in" onclick="ptEscolher('${id}','${c.prestador_id}',${JSON.stringify(esc(c.nome)).replace(/"/g,"&quot;")})">Escolher</button></div>`).join("");
+}
+async function ptEscolher(id, prest, nome){
+  const r=await sbc.rpc("servico_escolher",{p_id:id,p_prestador:prest});
+  if(r.error){ toast(r.error.message); ptCandidatos(id,""); return; }
+  closeModal(); toast(nome+" foi escolhido. O chat do serviço está aberto."); ptMeus();
+}
+/* ---------- chat do serviço (quem enviou, quem pegou e a RL) ---------- */
+const CHAT={id:null, ult:0, ch:null, t:null};
+function ptChat(id, titulo){
+  chatFechar(); CHAT.id=id; CHAT.ult=0;
+  openModal(`<div class="modal-h">💬 ${esc(titulo)}</div><div class="chat-info">A RL acompanha esta conversa para ajudar se precisar.</div>
+    <div class="chat-msgs" id="chatMsgs"><p class="muted small" style="text-align:center">Carregando…</p></div>
+    <form class="chat-form" id="chatF"><textarea id="chatT" rows="1" maxlength="1000" placeholder="Escreva uma mensagem…"></textarea><button class="btn">Enviar</button></form>
+    <div class="modal-f"><button class="btn sec" onclick="chatFechar();closeModal()">Fechar</button></div>`);
+  $("#modal").style.maxWidth="560px";
+  $("#chatF").onsubmit=async e=>{ e.preventDefault(); const t=$("#chatT").value.trim(); if(!t) return; $("#chatT").value="";
+    const r=await sbc.rpc("chat_enviar",{p_id:id,p_texto:t}); if(r.error){ toast(r.error.message); $("#chatT").value=t; return; } chatCarregar(); };
+  $("#chatT").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); $("#chatF").requestSubmit(); } });
+  chatCarregar();
+  try{ CHAT.ch=sbc.channel("chat-"+id).on("postgres_changes",{event:"INSERT",schema:"public",table:"mensagens",filter:"servico_id=eq."+id},()=>chatCarregar()).subscribe(); }catch(e){}
+  CHAT.t=setInterval(()=>{ if(!$("#chatMsgs")){ chatFechar(); return; } chatCarregar(); },8000);
+}
+function chatFechar(){ clearInterval(CHAT.t); if(CHAT.ch){ try{ sbc.removeChannel(CHAT.ch); }catch(e){} } CHAT.ch=null; CHAT.id=null; }
+async function chatCarregar(){
+  const id=CHAT.id, box=$("#chatMsgs"); if(!id||!box) return;
+  const r=await sbc.rpc("chat_listar",{p_id:id,p_depois:CHAT.ult});
+  if(r.error){ box.innerHTML=`<p style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
+  const novas=r.data||[]; if(!CHAT.ult) box.innerHTML=novas.length?"":`<p class="muted small" style="text-align:center">Nenhuma mensagem ainda.</p>`;
+  if(!novas.length) return;
+  if(box.querySelector("p.muted")) box.innerHTML="";
+  const eu=PT.uid||S.uid||null;
+  novas.forEach(m=>{ CHAT.ult=Math.max(CHAT.ult,m.id); const meu=m.autor===eu;
+    const d=document.createElement("div"); d.className="chat-b "+(meu?"eu":"")+(m.papel==="rl"?" rl":"");
+    d.innerHTML=`<div class="chat-n">${meu?"Você":m.papel==="rl"?"🛡 RL Motoboy":esc(m.nome)}${m.papel==="enviou"?" · enviou":m.papel==="pegou"?" · pegou":meu&&m.papel==="rl"?" · RL":""}</div>${esc(m.texto).replace(/\n/g,"<br>")}<div class="chat-h">${new Date(m.criado_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>`;
+    box.appendChild(d); });
+  box.scrollTop=box.scrollHeight;
 }
 async function ptCancelar(id){ const r=await sbc.rpc("servico_cancelar",{p_id:id}); if(r.error){ toast(r.error.message); return; } toast("Serviço cancelado"); ptMeus(); }
 function ptHa(t){ const m=Math.max(0,Math.round((Date.now()-new Date(t))/60000)); return m<1?"agora":m<60?`há ${m} min`:m<1440?`há ${Math.round(m/60)} h`:dataBR(t); }
@@ -1119,7 +1203,8 @@ function ptHa(t){ const m=Math.max(0,Math.round((Date.now()-new Date(t))/60000))
 function ptReceberTela(){
   const c=$("#ptConteudo");
   c.innerHTML=`<div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
-    <div id="prGps"></div><div id="prLista"></div></div>`;
+    <div id="prTrab"></div><div id="prGps"></div><div id="prLista"></div></div>`;
+  ptTrabalhos();
   if(PTA.watch!==null){ ptGpsTxt(); ptDesenharLista(); } else ptGpsPedir(false);
 }
 function ptGpsPedir(clicou){
@@ -1148,13 +1233,31 @@ async function ptBuscar(){
   if(!PTA.pos) return; PTA.ultBusca=Date.now();
   const r=await sbc.rpc("servicos_proximos",{p_lat:PTA.pos.lat,p_lon:PTA.pos.lon});
   if(r.error){ const l=$("#prLista"); if(l) l.innerHTML=`<div class="pt-gps err">${esc(r.error.message)}</div>`; return; }
-  PTA.lista=r.data||[]; ptGpsTxt(); ptDesenharLista();
+  PTA.lista=r.data||[]; ptGpsTxt(); ptDesenharLista(); ptTrabalhos();
 }
+async function ptTrabalhos(){
+  const box=$("#prTrab"); if(!box) return;
+  const r=await sbc.rpc("meus_trabalhos"); if(r.error){ box.innerHTML=""; return; }
+  const L=(r.data||[]).filter(t=>t.minha==="escolhida"&&["aceito","em_andamento"].includes(t.status) || t.minha==="recusada"&&Date.now()-new Date(t.criado_em)<6*3600e3);
+  PTA.trab=r.data||[];
+  box.innerHTML=L.length?`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
+    return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>✅ Você foi escolhido · #${t.numero} · ${brl(t.valor)}</b>
+        <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
+        <button class="btn" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div>`
+      : `<div class="pt-trab"><div style="flex:1"><b>#${t.numero} · ${brl(t.valor)}</b><div class="muted small">Outro motoboy foi escolhido para este serviço.</div></div></div>`; }).join("")}</div>`:"";
+}
+async function ptCandidatar(id){
+  const b=document.querySelector(`[data-cand="${id}"]`); if(b){ b.disabled=true; b.textContent="Enviando…"; }
+  const r=await sbc.rpc("servico_candidatar",{p_id:id});
+  if(r.error){ toast(r.error.message); } else toast(r.data==="ja"?"Você já está na lista deste serviço":"Pronto! Agora é só aguardar quem enviou escolher.");
+  ptBuscar();
+}
+async function ptDesistir(id){ const r=await sbc.rpc("servico_desistir",{p_id:id}); if(r.error) toast(r.error.message); else toast("Você saiu da lista deste serviço"); ptBuscar(); }
 function ptDesenharLista(){
   const l=$("#prLista"); if(!l) return;
   if(!PTA.pos){ l.innerHTML=""; return; }
   if(!PTA.lista.length){ l.innerHTML=`<div class="pt-vazio">Nenhum serviço aberto perto de você agora.<br><span class="small">Deixe esta tela aberta: quando surgir um, ele aparece aqui.</span></div>`; return; }
-  l.innerHTML=`<div class="muted small">${PTA.lista.length} serviço(s) perto de você · a candidatura (até ${3} por serviço) entra na próxima etapa</div>`+PTA.lista.map(s=>{
+  l.innerHTML=`<div class="muted small">${PTA.lista.length} serviço(s) perto de você · cada serviço aceita até ${PTA.lista[0].max_candidatos||3} interessados e quem enviou escolhe um</div>`+PTA.lista.map(s=>{
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
     return `<div class="pt-serv">
@@ -1162,7 +1265,10 @@ function ptDesenharLista(){
       <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
       <div class="pt-serv-info"><span>${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""}</span><span>${esc(CAD_VEIC[s.veiculo]||"")}</span><span>${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span><span>solto ${ptHa(s.criado_em)}</span></div>
       ${s.obs?`<div class="small" style="margin-top:6px">💬 ${esc(s.obs)}</div>`:""}
-      <div class="row" style="margin-top:10px;gap:8px"><a class="btn sm sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><button class="btn sm" disabled title="Chega na próxima etapa">Quero este serviço (em breve)</button></div>
+      <div class="pt-vagas">${Array.from({length:s.max_candidatos||3},(_,i)=>`<i class="${i<s.candidatos?"on":""}"></i>`).join("")}<span>${s.candidatos} de ${s.max_candidatos||3} interessados</span></div>
+      ${s.eu_candidato?`<div class="pt-cand-ok">✓ Você está na lista · aguardando quem enviou escolher</div>`:""}
+      <div class="row" style="margin-top:10px;gap:8px"><a class="btn sm sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><div class="spacer"></div>
+        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="btn pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">🙋 Quero este serviço</button>`}</div>
     </div>`; }).join("");
 }
 
@@ -1251,6 +1357,38 @@ async function cadDecidir(uid, ok){
 async function cadBloq(uid, bloquear){
   const r=bloquear?await sbc.rpc("bloquear_usuario",{p_user:uid}):await sbc.rpc("desbloquear_cadastro",{p_user:uid});
   if(r.error){ toast(r.error.message); return; } closeModal(); toast(bloquear?"Bloqueado":"Desbloqueado"); renderCadastros();
+}
+
+/* ================= CENTRAL (administradores): serviços, interessados e conversas ================= */
+const CT={lista:[]};
+async function ctCarregar(){
+  const r=await sbc.rpc("adm_servicos",{p_dias:Number($("#ctDias").value)||7}); render._ct=0;
+  if(r.error){ $("#ctTab").innerHTML=`<p class="small" style="color:var(--bad);padding:14px 16px">${esc(r.error.message)}</p>`; return; }
+  CT.lista=r.data||[]; ctDesenhar();
+  clearTimeout(CT.t); CT.t=setTimeout(()=>{ if($("#v-central").classList.contains("on")) ctCarregar(); },30000);
+}
+function ctDesenhar(){
+  const L=CT.lista, f=$("#ctSt").value, n=k=>L.filter(x=>x.status===k).length;
+  $("#ctKpis").innerHTML=[["Abertos",n("aberto")],["Aceitos",n("aceito")+n("em_andamento")],["Concluídos",n("concluido")],["Cancelados",n("cancelado")],["Valor em fretes",brl(L.filter(x=>x.status!=="cancelado").reduce((a,x)=>a+Number(x.valor||0),0))]]
+    .map(([l,v])=>`<div class="card"><div class="muted small">${l}</div><div style="font-size:22px;font-weight:800">${v}</div></div>`).join("");
+  const V=L.filter(x=>!f||x.status===f);
+  $("#ctTab").innerHTML=V.length?`<table class="ac-tab"><tr><th>#</th><th>Quando</th><th>Retirada → entrega</th><th>Quem enviou</th><th>Quem pegou</th><th>Valor</th><th>Situação</th><th></th></tr>${V.map(x=>{ const ult=x.paradas[x.paradas.length-1]||{};
+    return `<tr class="clic" onclick="ctAbrir('${x.id}')"><td><b>${x.numero}</b></td><td class="small">${new Date(x.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</td>
+      <td class="small">${esc(String(x.retirada.e).split(",")[0])} → ${esc(String(ult.e||"").split(",")[0])}<div class="muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")}</div></td>
+      <td>${esc(x.quem_enviou||"—")}</td><td>${esc(x.quem_pegou||(x.status==="aberto"?x.candidatos+" interessado(s)":"—"))}</td><td>${brl(x.valor)}</td>
+      <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span></td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
+    :`<p class="muted small" style="padding:14px 16px">Nenhum serviço neste período.</p>`;
+}
+async function ctAbrir(id){
+  const x=CT.lista.find(s=>s.id===id); if(!x) return;
+  openModal(`<div class="modal-h">Serviço #${x.numero} <span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span></div>
+    <div class="modal-b" style="grid-template-columns:1fr"><div class="small">🏁 ${esc(x.retirada.e)}${x.paradas.map(p=>`<br>📦 ${esc(p.e)}`).join("")}</div>
+      <div class="small muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")} · ${brl(x.valor)} · ${x.agendado_para?"📅 "+new Date(x.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"} · solto ${ptHa(x.criado_em)}</div>
+      <div class="small">Quem enviou: <b>${esc(x.quem_enviou||"—")}</b> · Quem pegou: <b>${esc(x.quem_pegou||"—")}</b></div>
+      <div><b>Interessados</b><div id="ctCands" class="small muted">Carregando…</div></div></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button>${x.quem_pegou?`<button class="btn" onclick="ptChat('${x.id}','Serviço #${x.numero} — conversa')">💬 Ver conversa</button>`:""}</div>`);
+  const r=await sbc.rpc("servico_candidatos",{p_id:id}); const b=$("#ctCands"); if(!b) return;
+  b.innerHTML=r.error?esc(r.error.message):(r.data||[]).length?(r.data).map(c=>`${c.status==="escolhida"?"✅":"🙋"} <b>${esc(c.nome)}</b> · ${esc(CAD_VEIC[c.veiculo]||"")} ${esc(c.placa||"")} · a ${String(c.distancia_km??"?").replace(".",",")} km`).join("<br>"):"Ninguém se candidatou.";
 }
 
 /* ================= CONFIGURAÇÃO (só a RL / perfil "dono") ================= */
@@ -1386,6 +1524,7 @@ function render(){
   if(v==="v-orcamentos"){ renderOrcamentos(); renderCfg(); if(SB && !render._usu){ render._usu=1; renderUsuarios(); } }
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
   if(v==="v-config" && S.papel==="dono" && !render._cfg){ render._cfg=1; cfgCarregar(); }
+  if(v==="v-central" && document.body.classList.contains("perfil-central") && !render._ct){ render._ct=1; ctCarregar(); }
   if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && ["admin","dono"].includes(S.papel) && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
   if(v==="v-operacional") renderOperacional();
