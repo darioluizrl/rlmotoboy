@@ -1540,8 +1540,15 @@ async function mmIniciar(){
   setTimeout(()=>MM.map&&MM.map.invalidateSize(),200);
   mmAtualizar();
 }
+const MM_SEG=5; /* a cada quantos segundos o mapa do Operacional se atualiza */
+function mmAgendar(){ clearTimeout(MM.t); MM.t=setTimeout(()=>{ if($("#v-operacional").classList.contains("on") && document.visibilityState!=="hidden") mmAtualizar(); else mmAgendar(); },MM_SEG*1000); }
 async function mmAtualizar(){
   clearTimeout(MM.t);
+  if(MM.busy) return; MM.busy=1;
+  try{ await mmAtualizar2(); }catch(e){ $("#mmInfo").textContent="sem conexão · tentando de novo em "+MM_SEG+" s"; }
+  finally{ MM.busy=0; mmAgendar(); }
+}
+async function mmAtualizar2(){
   const r=await sbc.rpc("adm_motoboys");
   if(r.error){ $("#mmLista").innerHTML=`<p class="small" style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
   MM.lista=r.data||[]; MM.agora=MM.lista[0]?new Date(MM.lista[0].agora):new Date();
@@ -1554,10 +1561,10 @@ async function mmAtualizar(){
       if(q.data&&q.data[0]) MM.agora=new Date(q.data[0].agora);
     } else MM.os=[];
   }catch(e){ MM.os=[]; }
-  $("#mmInfo").textContent="atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · atualiza a cada 15 s";
+  $("#mmInfo").textContent="atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · 🔴 ao vivo, atualiza a cada "+MM_SEG+" s";
   mmDesenhar();
-  MM.t=setTimeout(()=>{ if($("#v-operacional").classList.contains("on")) mmAtualizar(); },15000);
 }
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && MM.map && $("#v-operacional")?.classList.contains("on")) mmAtualizar(); });
 function mmFil(f){ MM.fil=f; document.querySelectorAll(".mm-fil button").forEach(b=>b.classList.toggle("on",b.dataset.f===f)); mmDesenhar(); }
 function mmHa(t){ const s=Math.max(0,Math.round((MM.agora-new Date(t))/1000)); return s<60?`há ${s} s`:`há ${Math.round(s/60)} min`; }
 function mmItens(){
@@ -2759,7 +2766,7 @@ function opsNatRender(forcar){
     : `Nenhuma corrida com rastreio no período. Gere os links em <b>Orçamentos → Gerar O.S. → 📍 Gerar links de rastreio</b>.`;
   opsNatDesenhar();
   clearInterval(OPSN.timer);
-  OPSN.timer=setInterval(()=>{ if(!$("#v-operacional").classList.contains("on")){ clearInterval(OPSN.timer); return; } opsNatBuscar(); },10000);
+  OPSN.timer=setInterval(()=>{ if(!$("#v-operacional").classList.contains("on")){ clearInterval(OPSN.timer); return; } opsNatBuscar(); },5000);
   opsNatBuscar(forcar);
 }
 async function opsNatBuscar(forcar){
