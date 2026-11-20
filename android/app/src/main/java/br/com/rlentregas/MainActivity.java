@@ -98,7 +98,7 @@ public class MainActivity extends Activity {
 
         Uri link = getIntent() != null ? getIntent().getData() : null;
         if (salvo != null) web.restoreState(salvo);
-        else web.loadUrl(link != null && hostInterno(link) ? link.toString() : INICIO);
+        else web.loadUrl(link != null && hostInterno(link) ? link.toString() : INICIO + "?t=" + System.currentTimeMillis());
     }
 
     private boolean hostInterno(Uri u) {

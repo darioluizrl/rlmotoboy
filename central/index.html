@@ -7,5 +7,8 @@
 /* Endereço de entrada do app. Hoje aponta para o ambiente de teste;
    quando a Central for para o oficial, só muda esta linha (o app não precisa ser reinstalado). */
 var DESTINO = "../teste/";
-location.replace(DESTINO + location.search + location.hash);
+/* sempre abre a versão mais nova do sistema (pergunta a versão sem cache) */
+function abrir(v){ var q=new URLSearchParams(location.search); q.delete("t"); if(v) q.set("v",v); var t=q.toString(); location.replace(DESTINO + (t?"?"+t:"") + location.hash); }
+var pronto=false; setTimeout(function(){ if(!pronto){ pronto=true; abrir(String(Date.now())); } },2500);
+fetch(DESTINO+"versao.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():""}).then(function(v){ if(!pronto){ pronto=true; abrir((v||"").trim()||String(Date.now())); } }).catch(function(){ if(!pronto){ pronto=true; abrir(String(Date.now())); } });
 </script></body></html>
