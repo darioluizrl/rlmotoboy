@@ -27,7 +27,7 @@ open('app/index.html','w',encoding='utf-8').write(carimbo(s,VER)); open('app/ver
 # versão de TESTE (banco separado rl-motoboy-teste): nada aqui mexe nos dados reais
 t=s.replace(cfg,'<script>window.RL_SUPABASE={url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"};window.RL_CENTRAL=true;</script>\n',1)
 selo='<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div>'
-t=t.replace('</body>',selo+'</body>',1).replace('<title>','<title>[TESTE] ',1)
+t=t.replace('</body>',selo+'</body>',1).replace('<title>RL Motoboy — Controle Logístico</title>','<title>[TESTE] MegaEntregas — Entregas rápidas</title>\n<link rel="icon" href="../marca/megaentregas-192.png"><link rel="apple-touch-icon" href="../marca/megaentregas-192.png"><meta name="apple-mobile-web-app-title" content="MegaEntregas"><meta name="theme-color" content="#e0480a">',1)
 import os; os.makedirs('teste',exist_ok=True)
 VT=hashlib.sha1(t.encode()).hexdigest()[:10]
 open('teste/index.html','w',encoding='utf-8').write(carimbo(t,VT)); open('teste/versao.txt','w').write(VT+"\n")

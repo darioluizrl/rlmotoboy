@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a1f"/><stop offset="1" stop-color="#e0480a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- linhas de velocidade -->
+  <g stroke="#fff" stroke-linecap="round" stroke-width="22" opacity=".95">
+    <line x1="58" y1="214" x2="150" y2="214"/>
+    <line x1="34" y1="268" x2="138" y2="268"/>
+    <line x1="72" y1="322" x2="150" y2="322"/>
+  </g>
+  <!-- caixa inclinada para frente -->
+  <g transform="translate(300 262) skewX(-12)">
+    <rect x="-128" y="-112" width="256" height="224" rx="26" fill="#fff"/>
+    <path d="M-128 -40 H128" stroke="#e0480a" stroke-width="18"/>
+    <rect x="-30" y="-112" width="60" height="96" fill="#ffd9bf"/>
+    <path d="M-30 -112 V-16 M30 -112 V-16" stroke="#e0480a" stroke-width="10"/>
+    <!-- seta de entrega -->
+    <path d="M-62 52 H42 M14 22 L48 52 L14 82" fill="none" stroke="#e0480a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

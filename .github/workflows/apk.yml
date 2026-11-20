@@ -1,4 +1,4 @@
-name: APK Central RL
+name: APK MegaEntregas
 
 on:
   workflow_dispatch:
@@ -57,10 +57,10 @@ jobs:
       - name: Publicar o APK no site (pasta download)
         run: |
           mkdir -p download
-          cp android/app/build/outputs/apk/release/app-release.apk download/central-rl.apk
+          cp android/app/build/outputs/apk/release/app-release.apk download/megaentregas.apk
           echo "{\"versao\":\"1.0.${{ github.run_number }}\",\"data\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > download/versao.json
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add download/central-rl.apk download/versao.json
-          git commit -m "APK Central RL 1.0.${{ github.run_number }} [skip ci]" || exit 0
+          git add download/megaentregas.apk download/versao.json
+          git commit -m "APK MegaEntregas 1.0.${{ github.run_number }} [skip ci]" || exit 0
           git pull --rebase origin main && git push
