@@ -169,7 +169,7 @@ details.mais .in{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:
 .rt-res .it small{display:block;color:var(--muted);font-size:11.5px}
 .eco{background:var(--in-l);color:var(--in);font-weight:700;border-radius:8px;padding:8px 12px;font-size:13px}
 body.perfil-orc .so-admin{display:none!important}
-body.perfil-orc #nav button:not([data-v="orcamentos"]){display:none}
+body.perfil-orc #nav button:not([data-v="orcamentos"]):not([data-v="operacional"]){display:none}
 #acBox{position:fixed;z-index:200;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden;display:none;max-height:300px;overflow-y:auto}
 #acBox .ai{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f2f4;display:flex;gap:8px;align-items:flex-start}
 #acBox .ai:last-child{border-bottom:0}
@@ -543,7 +543,7 @@ function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.classList.t
 const VIEWS = ["painel","dashboard","movs","orcamentos","operacional","clientes","equipe","financeiro","relatorios"];
 function show(v){
   if(!VIEWS.includes(v)) v="painel";
-  if(S.papel==="orcamento") v="orcamentos";
+  if(S.papel==="orcamento" && v!=="operacional") v="orcamentos";
   document.querySelectorAll(".view").forEach(el=>el.classList.toggle("on", el.id==="v-"+v));
   document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
   render();
@@ -736,7 +736,7 @@ async function sbEsqueci(){
   $("#lgM").style.color=error?"var(--bad)":"var(--in)"; $("#lgM").textContent=error?traduzAuth(error.message):"Enviamos um link para criar uma nova senha no seu e-mail.";
 }
 /* administração de usuários (só admin) */
-const PERFIS={admin:"Administrador", funcionario:"Funcionário (acesso completo)", orcamento:"Só orçamentos"};
+const PERFIS={admin:"Administrador", funcionario:"Funcionário (acesso completo)", orcamento:"Orçamentos e operacional"};
 async function renderUsuarios(){
   const box=$("#usuBox"); if(!box) return;
   if(!SB || S.papel!=="admin"){ $("#usuPanel").style.display="none"; return; }
