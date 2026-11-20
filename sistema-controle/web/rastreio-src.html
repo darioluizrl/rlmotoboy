@@ -22,6 +22,15 @@
 .tg{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;margin-right:6px;background:#e5e7eb}
 .tg.retirada{background:var(--warn-l);color:var(--warn)}.tg.entrega{background:var(--in-l);color:var(--in)}.tg.ambos{background:#ffedd5;color:#c2410c}.tg.saida{background:#16181d;color:#fff}
 .muted{color:var(--muted)}.sm{font-size:13px}a{color:var(--or)}
+.ops{display:grid;grid-template-columns:1fr 340px;gap:12px;height:calc(100vh - 84px)}
+.ops #map{height:100%;min-height:0}
+.ops .side{overflow:auto;display:flex;flex-direction:column;gap:8px}
+.it{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.it:hover{border-color:var(--or)}.it b{font-size:14px}
+.cnt{display:flex;gap:6px;flex-wrap:wrap}.cnt span{font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;background:#fff;border:1px solid var(--line)}
+.fl{display:flex;gap:6px}.fl button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;font-weight:700;cursor:pointer}.fl button.on{background:#16181d;color:#fff}
+body.embed .top{display:none}body.embed .ops{height:calc(100vh - 24px)}
+@media(max-width:760px){.ops{grid-template-columns:1fr;height:auto}.ops #map{height:55vh}}
 .pin{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;border:3px solid #fff;box-shadow:0 1px 4px #0006}
 </style></head><body>
 <div class="top"><img src="__LOGO__" alt=""><div><b>RL Motoboy e Entregas</b><small id="sub">Rastreio da corrida</small></div></div>
@@ -127,7 +136,69 @@ async function atualizar(){
   if(b.length && !atualizar._fit){ atualizar._fit=1; map.fitBounds(b,{padding:[30,30],maxZoom:16}); }
 }
 
-if(M && V && /^[a-f0-9]{32}$/.test(M) && /^[a-f0-9]{32}$/.test(V)) motoboy();
+/* ================= OPERAÇÃO (todos os rastreios) ================= */
+let OPS=[], FIL="ativos", mks={}, dmk=[], opsFit=false;
+function opsLista(){ try{ const h=location.hash.slice(1); const b=h.replace(/-/g,"+").replace(/_/g,"/"); const a=JSON.parse(decodeURIComponent(escape(atob(b)))); return Array.isArray(a)?a.filter(x=>/^[a-f0-9]{32}$/.test(x.v)).slice(0,150):[]; }catch(e){ return []; } }
+async function operacao(){
+  if(q.get("embed")) document.body.classList.add("embed");
+  $("#sub").textContent="Operação — todos os rastreios";
+  OPS=opsLista();
+  app.style.maxWidth="none";
+  app.innerHTML=`<div class="ops"><div id="map"></div><div class="side">
+    <div class="cnt" id="cnt"></div>
+    <div class="fl"><button id="fA" class="on" onclick="FIL='ativos';opsDesenhar()">Em andamento</button><button id="fT" onclick="FIL='todos';opsDesenhar()">Todos</button></div>
+    <div id="lst"></div><p class="muted sm" id="upd"></p></div></div>`;
+  map=L.map("map").setView([-23.6,-46.57],11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  if(!OPS.length){ $("#lst").innerHTML=`<div class="st ag">Nenhum rastreio gerado ainda<small>Gere os links de rastreio nas O.S. do sistema.</small></div>`; return; }
+  await opsAtualizar(); setInterval(opsAtualizar,10000);
+}
+let OPSD={};
+async function opsAtualizar(){
+  const {data,error}=await sb.rpc("rastreio_varios",{p_vers:OPS.map(x=>x.v)});
+  if(error){ $("#upd").textContent="Erro ao atualizar: "+error.message; return; }
+  OPSD={}; (data||[]).forEach(r=>OPSD[r.v]=r);
+  $("#upd").textContent="Atualizado às "+new Date().toLocaleTimeString("pt-BR")+" · atualiza sozinho a cada 10 s";
+  opsDesenhar();
+}
+function opsSit(r){
+  if(!r) return ["ag","Aguardando o motoboy abrir o link"];
+  if(r.status==="finalizado") return ["fim","Finalizada"+(r.finalizado_em?" às "+hora(r.finalizado_em):"")];
+  if(r.status==="aguardando") return ["ag","Aguardando liberar o rastreio"];
+  const seg=r.atualizado_em?Math.round((new Date(r.agora)-new Date(r.atualizado_em))/1000):null;
+  return seg!=null&&seg>120 ? ["err","Sem sinal há "+Math.round(seg/60)+" min"] : ["on","Em rota · "+(seg!=null?"há "+seg+" s":"")];
+}
+function opsDesenhar(){
+  $("#fA").classList.toggle("on",FIL==="ativos"); $("#fT").classList.toggle("on",FIL==="todos");
+  const n={on:0,ag:0,err:0,fim:0}; OPS.forEach(x=>n[opsSit(OPSD[x.v])[0]]++);
+  $("#cnt").innerHTML=`<span style="color:#0f9d58">● ${n.on} em rota</span><span style="color:#b45309">${n.ag} aguardando</span>${n.err?`<span style="color:#c62828">${n.err} sem sinal</span>`:""}<span style="color:#3730a3">${n.fim} finalizadas</span>`;
+  const vis=OPS.map((x,i)=>({...x,i:i+1,r:OPSD[x.v]})).filter(x=>FIL==="todos"||!x.r||x.r.status!=="finalizado");
+  $("#lst").innerHTML=vis.length?vis.map(x=>{ const [c,t]=opsSit(x.r); return `<div class="it" onclick="opsFoco('${x.v}')">
+      <b>${x.i}. ${esc((x.r&&x.r.titulo)||x.t||"Corrida")}</b>${x.c?`<div class="muted sm">${esc(x.c)}</div>`:""}
+      <div class="st ${c}" style="margin:6px 0 0;padding:6px 10px;font-size:13px">${esc(t)}</div>
+      ${x.r&&x.r.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(x.r.agendado)}</div>`:""}
+      ${x.r&&x.r.destinos&&x.r.destinos.length?`<div class="muted sm" style="margin-top:4px">${esc(x.r.destinos.map(d=>d.e.split(",")[0]).join(" → "))}</div>`:""}
+      <a class="sm" href="?v=${x.v}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Abrir acompanhamento ↗</a></div>`; }).join("")
+    : `<div class="st fim">Nenhuma corrida em andamento agora.</div>`;
+  const b=[];
+  Object.keys(mks).forEach(v=>{ if(!vis.some(x=>x.v===v&&x.r&&x.r.lat!=null&&x.r.status!=="aguardando")){ map.removeLayer(mks[v]); delete mks[v]; } });
+  dmk.forEach(m=>map.removeLayer(m)); dmk=[];
+  vis.forEach(x=>{ const r=x.r; if(!r) return;
+    if(r.lat!=null && r.status!=="aguardando"){
+      const cor={on:"#e8590c",err:"#c62828",fim:"#3730a3"}[opsSit(r)[0]]||"#e8590c";
+      const ic=pin(cor,x.i);
+      if(!mks[x.v]) mks[x.v]=L.marker([r.lat,r.lon],{icon:ic,zIndexOffset:1000}).addTo(map).bindPopup(`<b>${esc(r.titulo||x.t)}</b><br>${esc(opsSit(r)[1])}`);
+      else { mks[x.v].setLatLng([r.lat,r.lon]); mks[x.v].setIcon&&mks[x.v].setIcon(ic); }
+      b.push([r.lat,r.lon]);
+    }
+    if(r.status!=="finalizado") (r.destinos||[]).forEach((d,j)=>{ if(d.la!=null){ dmk.push(L.circleMarker([d.la,d.lo],{radius:6,color:"#fff",weight:2,fillColor:d.t==="retirada"?"#b45309":"#0f9d58",fillOpacity:1}).addTo(map).bindPopup(`${esc(x.i+". "+(r.titulo||""))}<br>${esc((TIPO[d.t]||"Entrega")+": "+d.e)}`)); b.push([d.la,d.lo]); } });
+  });
+  if(b.length && !opsFit){ opsFit=true; map.fitBounds(b,{padding:[30,30],maxZoom:15}); }
+}
+function opsFoco(v){ const m=mks[v]; if(m){ map.setView(m.getLatLng(),15); m.openPopup(); } else { const r=OPSD[v]; const d=r&&(r.destinos||[]).find(d=>d.la!=null); if(d) map.setView([d.la,d.lo],14); } }
+
+if(q.get("ops")) operacao();
+else if(M && V && /^[a-f0-9]{32}$/.test(M) && /^[a-f0-9]{32}$/.test(V)) motoboy();
 else if(V && /^[a-f0-9]{32}$/.test(V)) acompanhar();
 else app.innerHTML=`<div class="st err">Link de rastreio inválido.</div>`;
 </script></body></html>

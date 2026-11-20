@@ -230,6 +230,7 @@ textarea{resize:vertical;min-height:60px}
     <button data-v="movs">Entradas e saídas</button>
     <button data-v="orcamentos">Orçamentos</button>
     <button data-v="clientes">Clientes</button>
+    <button data-v="operacional">Operacional</button>
     <button data-v="equipe">Motoboys e motoristas</button>
     <button data-v="financeiro">Financeiro</button>
     <button data-v="relatorios">Relatórios</button>
@@ -437,6 +438,19 @@ textarea{resize:vertical;min-height:60px}
   </section>
 
   <!-- RELATÓRIOS -->
+  <section class="view" id="v-operacional">
+    <div class="row" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div><h2>Operacional</h2><p class="sub" style="margin:0">Mapa com o rastreio de todas as corridas · atualiza sozinho a cada 10 segundos</p></div>
+      <div class="spacer"></div>
+      <label class="small muted" style="display:flex;align-items:center;gap:6px">Mostrar rastreios dos últimos
+        <select id="opsDias" style="width:auto" onchange="renderOperacional(true)"><option value="1">24 horas</option><option value="3" selected>3 dias</option><option value="7">7 dias</option></select></label>
+      <button class="btn sec" onclick="renderOperacional(true)">Atualizar</button>
+      <a class="btn" id="opsFull" target="_blank" rel="noopener" href="#">Abrir mapa em tela cheia ↗</a>
+    </div>
+    <div class="panel" style="padding:0;overflow:hidden"><iframe id="opsFrame" title="Mapa da operação" style="width:100%;height:74vh;border:0;display:block"></iframe></div>
+    <p class="muted small" id="opsInfo" style="margin-top:8px"></p>
+  </section>
+
   <section class="view" id="v-relatorios">
     <div class="row" style="margin-bottom:14px">
       <div><h2>Relatórios</h2><p class="sub" style="margin:0">Fechamento por período (sem cancelados)</p></div>
@@ -503,7 +517,7 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
 function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.classList.toggle("show",!!msg); }
 
 /* ---------- navegação ---------- */
-const VIEWS = ["painel","dashboard","movs","orcamentos","clientes","equipe","financeiro","relatorios"];
+const VIEWS = ["painel","dashboard","movs","orcamentos","operacional","clientes","equipe","financeiro","relatorios"];
 function show(v){
   if(!VIEWS.includes(v)) v="painel";
   if(S.papel==="orcamento") v="orcamentos";
@@ -994,6 +1008,7 @@ function render(){
   if(v==="v-clientes"){ renderRanking(); renderClientes(); }
   if(v==="v-equipe"){ renderEquipe(); if(SB && window.RL_CENTRAL && S.papel==="admin" && !render._cad){ render._cad=1; renderCadastros(); setTimeout(()=>{render._cad=0;},15000); } }
   if(v==="v-relatorios") renderRelatorios();
+  if(v==="v-operacional") renderOperacional();
   if(v==="v-financeiro") renderFinanceiro();
 }
 
@@ -1959,6 +1974,20 @@ async function rastAbrirOrc(id){
   if(!o.rastreio){ const t={m:hexTok(), v:hexTok(), criado:Date.now()}; const {id:_,...dd}=o; dd.rastreio=t; await save("orcamentos",id,dd); o.rastreio=t; }
   openModal2(`<div class="modal-h">Rastreio — ${esc(orcNum(o))}</div><div class="modal-b" style="grid-template-columns:1fr">${rastHTML(rastLinks(o.rastreio,d))}</div>
     <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal2()">Fechar</button></div>`);
+}
+/* menu Operacional: junta os rastreios gerados nas O.S. num mapa só */
+function opsLink(embed){
+  const dias=Number($("#opsDias")?.value||3), lim=Date.now()-dias*864e5;
+  const L=S.orcamentos.filter(o=>o.rastreio&&o.rastreio.v&&(o.rastreio.criado||0)>=lim).sort((a,b)=>(b.rastreio.criado||0)-(a.rastreio.criado||0)).slice(0,150)
+    .map(o=>({v:o.rastreio.v, t:"O.S. "+orcNum(o), c:orcCli(o)!=="—"?orcCli(o):(o.contatoNome||"")}));
+  return {n:L.length, url: RAST_BASE+"?ops=1"+(embed?"&embed=1":"")+"#"+b64url(L)};
+}
+function renderOperacional(forcar){
+  const f=$("#opsFrame"); if(!f) return; const a=opsLink(true), b=opsLink(false);
+  $("#opsFull").href=b.url;
+  if(forcar || f.dataset.src!==a.url){ f.dataset.src=a.url; f.src=a.url; }
+  $("#opsInfo").innerHTML = a.n ? `${a.n} corrida(s) com rastreio no período. Para incluir uma corrida aqui, gere os links de rastreio na O.S. dela.`
+    : `Nenhuma corrida com rastreio no período. Gere os links em <b>Orçamentos → Gerar O.S. → 📍 Gerar links de rastreio</b>.`;
 }
 function osAgenda(d,h){ if(!d&&!h) return ""; return "*📅 AGENDADO: "+[d?fmtD(d):"",h?"às "+h:""].filter(Boolean).join(" ")+"*"; }
 function osMontar(origem, paradas, retorno, km, url, repasse, agenda){

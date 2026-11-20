@@ -83,3 +83,15 @@ revoke all on function public.rastreio_abrir(text,text,jsonb), public.rastreio_p
   public.rastreio_finalizar(text), public.rastreio_ver(text) from public;
 grant execute on function public.rastreio_abrir(text,text,jsonb), public.rastreio_posicao(text,double precision,double precision,double precision),
   public.rastreio_finalizar(text), public.rastreio_ver(text) to anon, authenticated;
+
+-- painel Operacional: vários rastreios de uma vez (só os códigos de acompanhamento informados; até 150)
+create or replace function public.rastreio_varios(p_vers text[])
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('v',token_ver,'titulo',titulo,'agendado',agendado,'origem',origem,'destinos',destinos,'km',km,'status',status,
+    'lat',lat,'lon',lon,'atualizado_em',atualizado_em,'iniciado_em',iniciado_em,'finalizado_em',finalizado_em,'agora',now())), '[]'::jsonb)
+  from public.rastreios
+  where token_ver in (select unnest(p_vers[1:150]))
+    and token_ver ~ '^[a-f0-9]{32}$';
+$$;
+revoke all on function public.rastreio_varios(text[]) from public;
+grant execute on function public.rastreio_varios(text[]) to anon, authenticated;
