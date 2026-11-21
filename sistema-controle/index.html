@@ -855,7 +855,8 @@ async function sbIniciarSessao(session){
 async function sbSair(){ try{ await sbc.auth.signOut(); }catch(e){} location.hash=""; location.reload(); }
 function telaLogin(modo, email){
   const box=$("#loginBox"); $("#login").classList.add("show"); box.style.maxWidth="400px";
-  const topo=`<div style="text-align:center;padding:22px 20px 6px"><img src="${LOGO}" style="width:84px;height:84px;border-radius:14px"><h2 style="margin:10px 0 2px">RL Motoboy</h2><p class="muted small" style="margin:0">Controle Logístico</p></div>`;
+  const CT_=!!window.RL_CENTRAL;
+  const topo=`<div style="text-align:center;padding:22px 20px 6px"><img src="${CT_?LOGO_ME:LOGO}" style="width:84px;height:84px;border-radius:${CT_?20:14}px"><h2 style="margin:10px 0 2px">${CT_?"MegaEntregas":"RL Motoboy"}</h2><p class="muted small" style="margin:0">${CT_?"Entregas rápidas":"Controle Logístico"}</p></div>`;
   if(modo==="removido"||modo==="bloqueado"){
     box.innerHTML=topo+`<div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0;text-align:center">Olá, <b>${esc(email||"")}</b>.<br>${modo==="removido"?"Seu acesso a este sistema foi <b>encerrado</b>.":"Seu acesso está <b>bloqueado</b> no momento."}</p>
       <p class="muted small" style="margin:0;text-align:center">Se acha que é um engano, fale com a RL Motoboy.</p></div>
