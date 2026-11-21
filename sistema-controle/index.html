@@ -639,6 +639,7 @@ textarea{resize:vertical;min-height:60px}
 
 <!-- MODAL GENÉRICO -->
 <div class="overlay" id="login" style="z-index:90;background:#16181d;align-items:center"><div class="modal" style="max-width:400px" id="loginBox"></div></div>
+<script>if(window.RL_SUPABASE){document.getElementById("login").classList.add("show");document.getElementById("loginBox").innerHTML='<div style="padding:40px;text-align:center;color:#666">Carregando…</div>';}</script>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
 <div class="overlay" id="ov2" style="z-index:55"><div class="modal" id="modal2" style="max-width:860px"></div></div>
 <div class="toast" id="toast"></div>
@@ -795,9 +796,22 @@ async function sbCarregar(){
   }
   SBC.cache=cache; Object.keys(SBC.listeners).forEach(sbEmit);
 }
+function telaCarregando(erro){
+  const nome=window.RL_CENTRAL?"MegaEntregas":"RL Motoboy", lg=window.RL_CENTRAL&&typeof LOGO_ME!=="undefined"?LOGO_ME:LOGO;
+  $("#loginBox").innerHTML=`<div class="modal-b" style="grid-template-columns:1fr;text-align:center;padding:30px 24px">
+    <img src="${lg}" style="width:84px;height:84px;border-radius:20px;margin:0 auto"><h2 style="margin:10px 0 4px">${nome}</h2>
+    ${erro?`<p style="color:var(--bad)">Não foi possível conectar. Verifique a internet.</p><button class="btn" onclick="location.reload()">Tentar de novo</button>`
+          :`<p class="muted">Carregando…</p>`}</div>`;
+  $("#login").classList.add("show");
+}
+function loadScriptT(src,ms){ return Promise.race([loadScript(src), new Promise((_,f)=>setTimeout(()=>f(new Error("tempo")),ms))]); }
 async function initSupabase(){
-  try{ await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"); }
-  catch(e){ notice("Não foi possível carregar o sistema. Verifique a internet e recarregue a página."); return null; }
+  telaCarregando(false);
+  if(!window.supabase){
+    try{ await loadScriptT("../lib/supabase.js?v=2.119.2",12000); }
+    catch(e){ try{ await loadScriptT("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",15000); }catch(e2){} }
+  }
+  if(!window.supabase||!window.supabase.createClient){ telaCarregando(true); return null; }
   sbc=window.supabase.createClient(SB.url, SB.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
   sbc.auth.onAuthStateChange((ev)=>{ if(ev==="PASSWORD_RECOVERY") telaLogin("nova"); });
   const {data:{session}}=await sbc.auth.getSession();
@@ -1573,7 +1587,7 @@ function ptImprimir(id, titulo){
   const css=[...document.querySelectorAll("style")].map(x=>x.textContent).join("\n");
   const w=window.open("","_blank"); if(!w){ toast("Libere as janelas (pop-up) para imprimir"); return; }
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${esc(titulo)}</title><style>${css}
-    body{background:#fff;padding:24px;max-width:1100px;margin:auto}.no-print{display:none!important}.gs-print-h{display:flex!important}#gsRel,.gs{display:flex;flex-direction:column;gap:14px}@media print{body{padding:0}}</style></head><body>${el.innerHTML}</body></html>`);
+    body{background:#fff;padding:24px;max-width:1100px;margin:auto}.no-print{display:none!important}.gs-print-h{display:flex!important}#gsRel,.gs{display:flex;flex-direction:column;gap:14px}@media print{body{padding:0}}</st${""}yle></he${""}ad><bo${""}dy>${el.innerHTML}</bo${""}dy></ht${""}ml>`);
   w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },400);
 }
 async function ptCandidatar(id){

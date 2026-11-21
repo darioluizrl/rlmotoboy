@@ -21,7 +21,9 @@ function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) r
 function ver(){ fetch("versao.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():""}).then(function(t){t=(t||"").trim(); if(t) novo(t);}).catch(function(){}); }
 setTimeout(ver,4000); setInterval(ver,120000); document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="visible") ver(); });
 })();</script>""")
-def carimbo(html,ver): return html.replace('</body>',(auto%ver)+'</body>',1)
+def carimbo(html,ver):
+    i=html.rfind('</body>')
+    return html[:i]+(auto%ver)+html[i:]
 open('app/index.html','w',encoding='utf-8').write(carimbo(s,VER)); open('app/versao.txt','w').write(VER+"\n")
 
 # versão de TESTE (banco separado rl-motoboy-teste): nada aqui mexe nos dados reais
