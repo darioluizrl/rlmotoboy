@@ -246,6 +246,8 @@ textarea{resize:vertical;min-height:60px}
 .pt-op{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;font-weight:400;margin:0}
 .pt-op:has(input:checked){border-color:var(--brand);background:var(--brand-l)}
 .pt-op input{width:18px;height:18px;margin-top:2px;flex:none}.pt-op small{display:block;color:var(--muted);font-size:12px}
+.pt-fixo{position:sticky;top:-30px;z-index:20;background:#fff;border-radius:14px 14px 0 0;box-shadow:0 6px 14px -12px rgba(0,0,0,.35)}
+@media(max-width:600px){.pt-fixo img{width:36px!important;height:36px!important}.pt-fixo>div:first-child{padding:10px 14px!important}.pt-abas{padding:4px 10px 0!important}}
 .pt-abas{display:flex;gap:4px;padding:10px 20px 0;border-bottom:1px solid var(--line);overflow-x:auto}
 .pt-aba{border:0;background:none;padding:10px 14px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-size:14px}
 .pt-aba.on{color:var(--ink,#16181d);border-bottom-color:var(--brand)}
@@ -1157,7 +1159,7 @@ async function ptApp(){
   try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; if(x.chave==="espera") PTA.esp=x.valor; if(x.chave==="distribuicao") PTA.dist=x.valor; }); }catch(e){}
   const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptEnvia(p)&&p.gestao) abas.push(["gestao","📊 Gestão"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
   if(!PTA.aba || !abas.some(a=>a[0]===PTA.aba)) PTA.aba=abas[0][0];
-  box.innerHTML=portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div><div id="ptConteudo"></div>`;
+  box.innerHTML=`<div class="pt-fixo">`+portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div></div><div id="ptConteudo"></div>`;
   ptAba(PTA.aba);
 }
 function ptAba(a){
@@ -3864,7 +3866,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div><script>(function(){var V="0793c49533";
+<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div><script>(function(){var V="af04eadb8b";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
