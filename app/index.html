@@ -645,7 +645,7 @@ textarea{resize:vertical;min-height:60px}
 </main>
 
 <!-- MODAL GENÉRICO -->
-<div class="overlay" id="login" style="z-index:90;background:#16181d;align-items:center"><div class="modal" style="max-width:400px" id="loginBox"></div></div>
+<div class="overlay" id="login" style="z-index:90;background:#16181d;align-items:flex-start"><div class="modal" style="max-width:400px;margin:auto 0" id="loginBox"></div></div>
 <script>if(window.RL_SUPABASE){document.getElementById("login").classList.add("show");document.getElementById("loginBox").innerHTML='<div style="padding:40px;text-align:center;color:#666">Carregando…</div>';}</script>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
 <div class="overlay" id="ov2" style="z-index:55"><div class="modal" id="modal2" style="max-width:860px"></div></div>
@@ -3868,7 +3868,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="5f3a6dc169";
+<script>(function(){var V="76365604d6";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
