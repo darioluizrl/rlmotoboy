@@ -847,6 +847,7 @@ async function sbIniciarSessao(session){
   if(window.RL_CENTRAL && ["dono","admin"].includes(S.papel)) document.body.classList.add("perfil-central");
   if(S.papel==="orcamento"){ document.body.classList.add("perfil-orc"); show("orcamentos"); }
   try{ await sbCarregar(); }catch(e){ notice("Não foi possível carregar os dados: "+e.message); return null; }
+  if(window.RL_CENTRAL && !mbToken()){ try{ const r=await sbc.from("config_sistema").select("valor").eq("chave","mapa").maybeSingle(); if(r.data&&r.data.valor&&r.data.valor.token) window.RL_MAPBOX_TOKEN=r.data.valor.token; }catch(e){} }
   sbc.channel("docs-rt").on("postgres_changes",{event:"*",schema:"public",table:"docs"},pl=>{
     const r=(pl.new&&pl.new.colecao)?pl.new:pl.old; if(!r||!r.colecao) return;
     const m=(SBC.cache[r.colecao]=SBC.cache[r.colecao]||new Map());
@@ -3870,7 +3871,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div><script>(function(){var V="4ab4e8508f";
+<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div><script>(function(){var V="aa1dffdde2";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }

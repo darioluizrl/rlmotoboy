@@ -843,6 +843,7 @@ async function sbIniciarSessao(session){
   if(window.RL_CENTRAL && ["dono","admin"].includes(S.papel)) document.body.classList.add("perfil-central");
   if(S.papel==="orcamento"){ document.body.classList.add("perfil-orc"); show("orcamentos"); }
   try{ await sbCarregar(); }catch(e){ notice("Não foi possível carregar os dados: "+e.message); return null; }
+  if(window.RL_CENTRAL && !mbToken()){ try{ const r=await sbc.from("config_sistema").select("valor").eq("chave","mapa").maybeSingle(); if(r.data&&r.data.valor&&r.data.valor.token) window.RL_MAPBOX_TOKEN=r.data.valor.token; }catch(e){} }
   sbc.channel("docs-rt").on("postgres_changes",{event:"*",schema:"public",table:"docs"},pl=>{
     const r=(pl.new&&pl.new.colecao)?pl.new:pl.old; if(!r||!r.colecao) return;
     const m=(SBC.cache[r.colecao]=SBC.cache[r.colecao]||new Map());
