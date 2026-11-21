@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MegaEntregas</title><link rel="icon" href="../marca/megaentregas-192.png"><meta name="robots" content="noindex">
+<style>body{margin:0;background:#16181d;color:#fff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}</style></head>
+<body><div><img src="../marca/megaentregas-192.png" style="width:72px;height:72px;border-radius:18px;display:block;margin:0 auto 10px">Abrindo o MegaEntregas…</div>
+<script>
+/* Endereço de entrada do app. Hoje aponta para o ambiente de teste;
+   quando a Central for para o oficial, só muda esta linha (o app não precisa ser reinstalado). */
+var DESTINO = "../teste/";
+/* sempre abre a versão mais nova do sistema (pergunta a versão sem cache) */
+function abrir(v){ var q=new URLSearchParams(location.search); q.delete("t"); if(v) q.set("v",v); var t=q.toString(); location.replace(DESTINO + (t?"?"+t:"") + location.hash); }
+var pronto=false; setTimeout(function(){ if(!pronto){ pronto=true; abrir(String(Date.now())); } },2500);
+fetch(DESTINO+"versao.txt?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.ok?r.text():""}).then(function(v){ if(!pronto){ pronto=true; abrir((v||"").trim()||String(Date.now())); } }).catch(function(){ if(!pronto){ pronto=true; abrir(String(Date.now())); } });
+</script></body></html>
