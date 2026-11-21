@@ -887,7 +887,7 @@ function telaLogin(modo, email){
     e.preventDefault(); $("#lgB").disabled=true; $("#lgM").textContent="";
     const em=val("lgE"), pw=val("lgP");
     if(criar){
-      const {data,error}=await sbc.auth.signUp({email:em,password:pw,options:{emailRedirectTo:location.origin+location.pathname}});
+      const {data,error}=await sbc.auth.signUp({email:em,password:pw,options:{emailRedirectTo:authVolta()}});
       if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false; return; }
       if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Acesso criado! Confirme pelo link enviado ao seu e-mail e depois entre aqui."; $("#lgB").disabled=false; return; }
       location.reload(); return;
@@ -907,7 +907,7 @@ function traduzAuth(m){
 }
 async function sbEsqueci(){
   const em=val("lgE"); if(!em){ $("#lgM").textContent="Digite seu e-mail acima e clique de novo em “Esqueci a senha”."; return; }
-  const {error}=await sbc.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
+  const {error}=await sbc.auth.resetPasswordForEmail(em,{redirectTo:authVolta()});
   $("#lgM").style.color=error?"var(--bad)":"var(--in)"; $("#lgM").textContent=error?traduzAuth(error.message):"Enviamos um link para criar uma nova senha no seu e-mail.";
 }
 /* administração de usuários (só admin) */
@@ -952,6 +952,8 @@ function fmtTel(t){ t=soNum(t); return t.length===11?t.replace(/(\d{2})(\d{5})(\
 function fmtPlaca(p){ p=String(p||"").toUpperCase(); return p.length===7?p.slice(0,3)+"-"+p.slice(3):p; }
 function dataBR(s){ if(!s) return "—"; const d=new Date(s.length===10?s+"T12:00:00":s); return d.toLocaleDateString("pt-BR"); }
 const appLink=()=>location.origin+location.pathname;
+/* volta do e-mail (confirmação / nova senha): o Supabase só aceita o endereço antigo /teste/, que redireciona para /megaentregas/ levando o login junto */
+const authVolta=()=>location.origin+location.pathname.replace(/\/megaentregas\/(index\.html)?$/,"/teste/");
 
 /* documentos pedidos em cada tipo de cadastro */
 function cadDocsNecessarios(p){
@@ -987,7 +989,7 @@ async function telaConvite(){
   </div><div class="modal-f"><button class="btn" id="lgB" style="width:100%;justify-content:center">Criar minha conta</button></div></form>`;
   $("#cvF").onsubmit=async e=>{
     e.preventDefault(); $("#lgB").disabled=true; $("#lgM").textContent="";
-    const {data,error}=await sbc.auth.signUp({email:val("lgE"),password:val("lgP"),options:{emailRedirectTo:appLink()+"?convite="+encodeURIComponent(cod)}});
+    const {data,error}=await sbc.auth.signUp({email:val("lgE"),password:val("lgP"),options:{emailRedirectTo:authVolta()+"?convite="+encodeURIComponent(cod)}});
     if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false; return; }
     if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Conta criada! Abra o link que enviamos para o seu e-mail para confirmar. Depois volte e entre."; $("#lgB").disabled=false; return; }
     location.reload();

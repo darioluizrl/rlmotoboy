@@ -26,15 +26,17 @@ def carimbo(html,ver):
     return html[:i]+(auto%ver)+html[i:]
 open('app/index.html','w',encoding='utf-8').write(carimbo(s,VER)); open('app/versao.txt','w').write(VER+"\n")
 
-# versão de TESTE (banco separado rl-motoboy-teste): nada aqui mexe nos dados reais
+# MegaEntregas OFICIAL (banco próprio, separado do sistema da RL) — publicado em /megaentregas/
 t=s.replace(cfg,'<script>window.RL_SUPABASE={url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"};window.RL_CENTRAL=true;</script>\n',1)
-selo='<div style="position:fixed;left:8px;bottom:8px;z-index:9999;background:#7c3aed;color:#fff;font:700 11px system-ui;padding:4px 9px;border-radius:999px;pointer-events:none">AMBIENTE DE TESTE</div>'
-t=t.replace('</body>',selo+'</body>',1).replace('<title>RL Motoboy — Controle Logístico</title>','<title>[TESTE] MegaEntregas — Entregas rápidas</title>\n<link rel="icon" href="../marca/megaentregas-192.png"><link rel="apple-touch-icon" href="../marca/megaentregas-192.png"><meta name="apple-mobile-web-app-title" content="MegaEntregas"><meta name="theme-color" content="#e0480a">',1)
-import os; os.makedirs('teste',exist_ok=True)
+t=t.replace('<title>RL Motoboy — Controle Logístico</title>','<title>MegaEntregas — Entregas rápidas</title>\n<link rel="icon" href="../marca/megaentregas-192.png"><link rel="apple-touch-icon" href="../marca/megaentregas-192.png"><meta name="apple-mobile-web-app-title" content="MegaEntregas"><meta name="theme-color" content="#e0480a">',1)
+import os; os.makedirs('megaentregas',exist_ok=True); os.makedirs('teste',exist_ok=True)
 VT=hashlib.sha1(t.encode()).hexdigest()[:10]
-open('teste/index.html','w',encoding='utf-8').write(carimbo(t,VT)); open('teste/versao.txt','w').write(VT+"\n")
+open('megaentregas/index.html','w',encoding='utf-8').write(carimbo(t,VT)); open('megaentregas/versao.txt','w').write(VT+"\n")
+# endereço antigo de teste: só leva para o novo (mantém login, mesmo site)
+open('teste/index.html','w',encoding='utf-8').write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>MegaEntregas</title><script>location.replace("../megaentregas/"+location.search+location.hash);</script></head><body>Abrindo o MegaEntregas…</body></html>')
+open('teste/versao.txt','w').write("mudou-"+VT+"\n")
 PY
-echo "app/index.html e teste/index.html gerados"
+echo "app/ e megaentregas/ gerados"
 
 # página pública de rastreio (motoboy libera / RL e cliente acompanham)
 python3 - <<'PY'
