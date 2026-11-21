@@ -893,11 +893,13 @@ function telaLogin(modo, email){
     if(criar){
       const {data,error}=await sbc.auth.signUp({email:em,password:pw,options:{emailRedirectTo:authVolta()}});
       if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false; return; }
-      if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Acesso criado! Confirme pelo link enviado ao seu e-mail e depois entre aqui."; $("#lgB").disabled=false; return; }
+      if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Acesso criado! Confirme pelo link enviado ao seu e-mail (veja também o spam) e depois entre aqui."; $("#lgB").disabled=false; return; }
       location.reload(); return;
     }
     const {data,error}=await sbc.auth.signInWithPassword({email:em,password:pw});
-    if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false; return; }
+    if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false;
+      if(/Email not confirmed/i.test(error.message)) $("#lgM").insertAdjacentHTML("beforeend",` <a href="#" onclick="sbReenviar('${esc(em)}');return false">Reenviar o e-mail de confirmação</a>`);
+      return; }
     location.reload();
   };
 }
@@ -908,6 +910,11 @@ function traduzAuth(m){
   if(/Password should be/i.test(m)) return "A senha precisa ter pelo menos 6 caracteres.";
   if(/rate limit/i.test(m)) return "Muitas tentativas. Aguarde alguns minutos.";
   return m;
+}
+async function sbReenviar(em){
+  const {error}=await sbc.auth.resend({type:"signup",email:em,options:{emailRedirectTo:authVolta()}});
+  $("#lgM").style.color=error?"var(--bad)":"var(--in)";
+  $("#lgM").textContent=error?traduzAuth(error.message):"Enviamos de novo. Veja sua caixa de entrada e o spam (pode levar alguns minutos).";
 }
 async function sbEsqueci(){
   const em=val("lgE"); if(!em){ $("#lgM").textContent="Digite seu e-mail acima e clique de novo em “Esqueci a senha”."; return; }
@@ -995,7 +1002,7 @@ async function telaConvite(){
     e.preventDefault(); $("#lgB").disabled=true; $("#lgM").textContent="";
     const {data,error}=await sbc.auth.signUp({email:val("lgE"),password:val("lgP"),options:{emailRedirectTo:authVolta()+"?convite="+encodeURIComponent(cod)}});
     if(error){ $("#lgM").textContent=traduzAuth(error.message); $("#lgB").disabled=false; return; }
-    if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Conta criada! Abra o link que enviamos para o seu e-mail para confirmar. Depois volte e entre."; $("#lgB").disabled=false; return; }
+    if(!data.session){ $("#lgM").style.color="var(--in)"; $("#lgM").textContent="Conta criada! Abra o link que enviamos para o seu e-mail para confirmar (veja também o spam). Depois volte e entre."; $("#lgB").disabled=false; return; }
     location.reload();
   };
 }
@@ -3873,7 +3880,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="fab047de35";
+<script>(function(){var V="f7468e921f";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
