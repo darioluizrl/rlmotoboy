@@ -584,7 +584,7 @@ textarea{resize:vertical;min-height:60px}
 
   <!-- CONFIGURAÇÃO (só a RL) -->
   <section class="view" id="v-config">
-    <div class="row" style="margin-bottom:12px"><div><h2>⚙ Configuração</h2><p class="sub" style="margin:0">Só a RL vê esta tela. Aqui você adiciona, muda o perfil, bloqueia e remove qualquer usuário, e ajusta as regras do sistema.</p></div></div>
+    <div class="row" style="margin-bottom:12px"><div><h2>⚙ Configuração</h2><p class="sub" style="margin:0">Só o dono vê esta tela. Aqui você adiciona, muda o perfil, bloqueia e remove qualquer usuário, e ajusta as regras do sistema.</p></div></div>
     <div class="cfg-tabs"><button class="btn sec on" id="cfgTU" onclick="cfgAba('usu')">👥 Usuários</button><button class="btn sec" id="cfgTR" onclick="cfgAba('regras')">📏 Regras do sistema</button></div>
     <div id="cfgUsu">
       <div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap">
@@ -1835,7 +1835,7 @@ async function ctAbrir(id){
 }
 
 /* ================= CONFIGURAÇÃO (só a RL / perfil "dono") ================= */
-const CFG_PAPEL={dono:"RL (você)",admin:"Administrador",funcionario:"Funcionário",orcamento:"Orçamentos e operacional",contratante:"Empresa / pessoa (solta serviço)",prestador:"Motoboy / motorista"};
+const CFG_PAPEL={dono:"Dono (você)",admin:"Administrador",funcionario:"Funcionário",orcamento:"Orçamentos e operacional",contratante:"Empresa / pessoa (solta serviço)",prestador:"Motoboy / motorista"};
 const CFGU={lista:[],aba:"usu",regras:{}};
 function cfgAba(a){ CFGU.aba=a; $("#cfgUsu").style.display=a==="usu"?"":"none"; $("#cfgReg").style.display=a==="regras"?"":"none";
   $("#cfgTU").classList.toggle("on",a==="usu"); $("#cfgTR").classList.toggle("on",a==="regras"); if(a==="regras") cfgRegras(); }
@@ -1848,7 +1848,7 @@ function cfgGrupo(u){
 }
 function cfgSit(u){
   if(u.removido_em) return ["Removido em "+dataBR(u.removido_em),"bad"];
-  if(u.papel==="dono") return ["RL","ok"];
+  if(u.papel==="dono") return ["Dono","ok"];
   if(u.tipo){ const m={pendente:["Aguardando aprovação","warn"],aprovado:["Ativo","ok"],recusado:["Recusado","bad"],bloqueado:["Bloqueado","bad"]}; return m[u.cadastro]||[u.cadastro||"—",""]; }
   if(u.papel) return u.ativo?["Ativo","ok"]:["Bloqueado","bad"];
   return ["Só criou o acesso","warn"];
@@ -3872,7 +3872,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="d5440b3c84";
+<script>(function(){var V="fef4924394";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
