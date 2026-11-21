@@ -15,7 +15,7 @@ android {
         applicationId "rlentregas.com.br"   // nome registrado no Android Developer Console
         minSdk 24
         targetSdk 35
-        versionCode (System.getenv("RL_VERSION_CODE") ?: "1") as int
+        versionCode Integer.parseInt(System.getenv("RL_VERSION_CODE") ?: "1")
         versionName "1.0." + (System.getenv("RL_VERSION_CODE") ?: "1")
     }
 
@@ -33,7 +33,9 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig ksFile ? signingConfigs.release : null
+            if (ksFile) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
