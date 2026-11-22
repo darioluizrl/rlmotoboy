@@ -44,7 +44,12 @@ import re, os
 src=open('sistema-controle/index.html',encoding='utf-8').read()
 logo=re.search(r'const LOGO="(data:image/[^"]+)"',src).group(1)
 p=open('sistema-controle/web/rastreio-src.html',encoding='utf-8').read()
-p=p.replace('__LOGO__',logo).replace('__CFG__','{url:"https://uemtwxukdclxujffltfs.supabase.co",key:"sb_publishable_z2P88k5F3LQGcUWqzELxIw_JSlfYxYg"}')
+base=p
+p=base.replace('__LOGO__',logo).replace('__MARCA__','RL Motoboy e Entregas').replace('__CFG__','{url:"https://uemtwxukdclxujffltfs.supabase.co",key:"sb_publishable_z2P88k5F3LQGcUWqzELxIw_JSlfYxYg"}')
 os.makedirs('rastreio',exist_ok=True); open('rastreio/index.html','w',encoding='utf-8').write(p)
+# rastreio dos serviços MegaEntregas (banco próprio, marca própria)
+logo_me=re.search(r'LOGO_ME="(data:image/[^"]+)"',src).group(1)
+p=base.replace('__LOGO__',logo_me).replace('__MARCA__','MegaEntregas').replace('Rastreio — RL Motoboy','Rastreio — MegaEntregas').replace('__CFG__','{url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"}')
+os.makedirs('megaentregas/rastreio',exist_ok=True); open('megaentregas/rastreio/index.html','w',encoding='utf-8').write(p)
 PY
 echo "rastreio/index.html gerado"

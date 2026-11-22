@@ -162,7 +162,8 @@ async function atualizar(){
   $("#stBox").innerHTML = r.status==="finalizado" ? `<div class="st fim">✓ Corrida finalizada${r.finalizado_em?" às "+hora(r.finalizado_em):""}</div>`
     : r.status==="aguardando" ? `<div class="st ag">Aguardando o motoboy liberar o rastreio<small>Esta página atualiza sozinha.</small></div>`
     : `<div class="st ${antigo?"ag":"on"}">${antigo?"Sem sinal do motoboy há "+Math.round(seg/60)+" min":"● Motoboy a caminho"}<small>Última posição às ${hora(r.atualizado_em)}${seg!=null&&!antigo?" (há "+seg+" s)":""}</small></div>`;
-  $("#info").innerHTML=`<b>${esc(r.titulo||"Corrida")}</b>${r.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(r.agendado)}</div>`:""}<div style="margin-top:8px">${lista(r)}</div>`;
+  $("#info").innerHTML=`<b>${esc(r.titulo||"Corrida")}</b>${r.agendado?`<div class="sm" style="margin-top:4px">📅 ${esc(r.agendado)}</div>`:""}<div id="prev"></div><div style="margin-top:8px">${lista(r)}</div>`;
+  previsao();
   const b=[];
   if(!fixos){ fixos=true;
     if(r.origem&&r.origem.la!=null){ L.marker([r.origem.la,r.origem.lo],{icon:pin("#16181d","S")}).addTo(map).bindPopup("Saída: "+esc(r.origem.e)); }
@@ -178,6 +179,21 @@ async function atualizar(){
   if(r.status==="finalizado") soltarCanal(V); else vivoTxt();
 }
 
+/* previsão de retirada e entrega (serviços MegaEntregas) */
+let PREV=null, prevT=0;
+async function previsao(){
+  const el=$("#prev"); if(!el) return;
+  if(Date.now()-prevT>20000||!PREV){ prevT=Date.now(); try{ const {data,error}=await sb.rpc("servico_previsao_publica",{p_ver:V}); PREV=error?null:data; }catch(e){ PREV=null; } }
+  if(!PREV){ el.innerHTML=""; return; }
+  const h=t=>new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  const em=t=>{ const m=Math.round((new Date(t)-Date.now())/60000); return m<=1?"chegando":"em ~"+m+" min"; };
+  const lin=(ic,rot,x)=>`<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line)"><span>${ic}</span><div style="flex:1"><b>${rot}</b><div class="sm muted">${esc(String(x.e||"").split(",")[0])}</div></div>
+    <div style="text-align:right">${x.real?`<b style="color:#0f9d58">✓ ${h(x.real)}</b><div class="sm muted">feita</div>`:x.prev?`<b>${h(x.prev)}</b><div class="sm muted">${em(x.prev)}</div>`:`<span class="sm muted">—</span>`}</div></div>`;
+  el.innerHTML=`<div style="margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:#fff">
+    <div class="sm" style="font-weight:800;margin-bottom:2px">🕒 Previsões</div>
+    ${lin("🏁","Retirada",PREV.retirada||{})}${(PREV.entregas||[]).map((e,i)=>lin("📦",(PREV.entregas.length>1?"Entrega "+(i+1):"Entrega"),e)).join("")}
+    <div class="sm muted" style="margin-top:4px">${PREV.gps?"Calculada com a posição do motoboy agora.":"Estimativa pelo trajeto."} Pode mudar com o trânsito.</div></div>`;
+}
 /* ================= OPERAÇÃO (todos os rastreios) ================= */
 let OPS=[], FIL="ativos", mks={}, dmk=[], opsFit=false;
 function opsLista(){ try{ const h=location.hash.slice(1); const b=h.replace(/-/g,"+").replace(/_/g,"/"); const a=JSON.parse(decodeURIComponent(escape(atob(b)))); return Array.isArray(a)?a.filter(x=>/^[a-f0-9]{32}$/.test(x.v)).slice(0,150):[]; }catch(e){ return []; } }

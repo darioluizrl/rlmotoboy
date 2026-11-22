@@ -292,6 +292,9 @@ textarea{resize:vertical;min-height:60px}
 .pt-marca-in{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .pt-logo{width:84px;height:84px;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;cursor:pointer;overflow:hidden;background:#fff;flex:none}
 .pt-logo img{max-width:100%;max-height:100%;object-fit:contain}.pt-logo span{color:var(--muted);font-weight:700;font-size:13px}
+.prv{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;background:#fff}
+.prv-l{display:flex;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}.prv-l>span{font-size:18px}
+.prv-1{font-size:12.5px;font-weight:600;color:#3b3f46;margin-top:4px}
 .pt-pixh{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
 .pg-box{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .pg-chave{display:flex;gap:8px;align-items:center;background:#fff7f0;border:1px dashed #f1b48c;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:800;word-break:break-all}
@@ -1402,10 +1405,30 @@ async function ptMeus(){
       <div class="pt-meu-tags"><span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
       ${s.status==="concluido"?ptPagTag(s):""}
       ${s.status==="aberto"?`<span class="muted small">${ptFase(s)}</span><span class="small" style="font-weight:700;color:${nc[s.id]?"var(--brand)":"var(--muted,#8a8f98)"}">🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":""):"nenhum interessado ainda"}</span>`:""}</div>
+      ${["aceito","em_andamento"].includes(s.status)?`<div class="prv-1" data-prv="${s.id}">${PRV[s.id]?prvLinha(PRV[s.id]):"🕒 calculando previsão…"}</div>`:""}
       ${s.status==="em_andamento"?`<div style="padding-top:8px">${ptProgresso(s)}</div>`:""}</div>
       <span class="pt-meu-seta">›</span></div>`).join("")
     :`<span class="muted">Nenhum serviço ainda.</span>`;
+  prvCarregar(PTA.meus.filter(s=>["aceito","em_andamento"].includes(s.status)).map(s=>s.id));
 }
+/* ---------- previsões de retirada e entrega ---------- */
+const PRV={};
+const hhmm=t=>new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+function prvEm(t){ const m=Math.round((new Date(t)-Date.now())/60000); return m<=1?"chegando":m<60?`em ~${m} min`:`em ~${Math.floor(m/60)}h${String(m%60).padStart(2,"0")}`; }
+function prvLinha(x){ if(!x) return ""; const r=x.retirada||{}, E=x.entregas||[], ult=E[E.length-1]||{};
+  const a=r.real?`🏁 Retirada ✓ ${hhmm(r.real)}`:r.prev?`🏁 Retirada ~${hhmm(r.prev)}`:x.status==="aberto"?"🏁 Retirada: assim que alguém for escolhido":"";
+  const b=ult.real?`📦 Entregue ✓ ${hhmm(ult.real)}`:ult.prev?`📦 Entrega ~${hhmm(ult.prev)}`:x.status==="aberto"&&x.minutos_rota?`📦 ~${x.minutos_rota} min após a retirada`:"";
+  return [a,b].filter(Boolean).join(" · "); }
+function prvBloco(x){ if(!x) return "";
+  const lin=(ic,rot,p)=>`<div class="prv-l"><span>${ic}</span><div style="flex:1;min-width:0"><b>${rot}</b><div class="muted small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(String(p.e||"").split(",")[0])}</div></div>
+    <div style="text-align:right">${p.real?`<b style="color:var(--ok,#0f9d58)">✓ ${hhmm(p.real)}</b><div class="muted small">feita</div>`:p.prev?`<b>${hhmm(p.prev)}</b><div class="muted small">${prvEm(p.prev)}</div>`
+      :`<span class="muted small">${x.status==="aberto"?"após escolher":"—"}</span>`}</div></div>`;
+  const E=x.entregas||[];
+  return `<div class="prv"><b>🕒 Previsões</b>${lin("🏁","Retirada",x.retirada||{})}${E.map((e,i)=>lin("📦",E.length>1?"Entrega "+(i+1):"Entrega",e)).join("")}
+    <div class="muted small">${x.status==="aberto"?`Trajeto de ~${x.minutos_rota||"?"} min depois da retirada. A previsão aparece quando um ${"motoboy/motorista"} for escolhido.`:x.status==="concluido"?"Horários reais do serviço.":x.gps?"Calculada com a posição de quem está fazendo o serviço agora. Pode mudar com o trânsito.":"Estimativa pelo trajeto (sem a posição ao vivo agora)."}</div></div>`; }
+async function prvCarregar(ids){ ids=ids.filter(Boolean); if(!ids.length) return;
+  const r=await sbc.rpc("servicos_previsoes",{p_ids:ids}); if(r.error||!r.data) return; Object.assign(PRV,r.data);
+  document.querySelectorAll("[data-prv]").forEach(el=>{ const x=PRV[el.dataset.prv]; if(x){ const t=el.dataset.bloco?prvBloco(x):prvLinha(x); el.innerHTML=t; el.style.display=t?"":"none"; } }); }
 function ptPagTag(s){
   if(s.recebido_em) return `<span class="tag ok">✅ Pagamento confirmado</span>`;
   if(s.nao_recebi_em) return `<span class="tag bad">⚠️ Motoboy informou que não recebeu</span>`;
@@ -1464,6 +1487,7 @@ function ptMeuAbrir(id){
       ${s.valor_inicial?`<span class="muted small">começou em ${brl(s.valor_inicial)} · aumentado ${s.aumentos}x</span>`:""}<div class="spacer"></div>
       <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span></div>
     ${s.obs?`<div class="small">💬 ${esc(s.obs)}</div>`:""}
+    ${s.status!=="cancelado"?`<div data-prv="${s.id}" data-bloco="1">${PRV[s.id]?prvBloco(PRV[s.id]):""}</div>`:""}
     ${s.status==="concluido"?`<div id="pgBox"><p class="muted small">Carregando pagamento…</p></div>`:""}
     ${s.status==="aberto"?`<div class="muted small">${ptFase(s)} · 🙋 ${n?n+" interessado"+(n>1?"s":""):"nenhum interessado ainda"}</div>
       <div class="pt-up"><b>⬆ Aumentar o valor e reenviar</b>
@@ -1479,6 +1503,7 @@ function ptMeuAbrir(id){
       ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn" onclick="closeModal();ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}
       <button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
   if(s.status==="concluido") ptPagCarregar(s.id);
+  if(s.status!=="cancelado") prvCarregar([s.id]);
 }
 function ptUpSet(v){ const i=$("#upVal"); if(i){ i.value=Number(v).toFixed(2).replace(".",","); i.focus(); } }
 async function ptAumentar(id, atual){
@@ -1636,12 +1661,13 @@ async function ptTrabalhos(){
   const andamento=PTA.trab.find(t=>t.minha==="escolhida"&&t.status==="em_andamento");
   if(andamento) ptRastLigar(andamento.id); else ptRastDesligar();
   if(PTA.execId && $("#exBox")) ptExecDesenhar();
+  setTimeout(()=>prvCarregar(PTA.trab.filter(t=>t.minha==="escolhida"&&["aceito","em_andamento"].includes(t.status)).map(t=>t.id)),50);
   const atr=PTA.trab.filter(t=>t.minha==="escolhida"&&t.status==="concluido"&&!t.recebido_em&&!t.nao_recebi_em&&Date.now()-new Date(t.concluido_em)>48*3600e3);
   const ban=atr.length?`<div class="pg-alerta"><b>🔒 Você está sem receber serviços novos</b><div class="small" style="margin-top:4px">Tem ${atr.length} serviço${atr.length>1?"s":""} concluído${atr.length>1?"s":""} há mais de 48 horas sem baixa do pagamento. Toque em <b>"Recebi o pagamento"</b> ou <b>"Não recebi"</b> abaixo para liberar.</div></div>`:"";
   box.innerHTML=(L.length||ban)?ban+`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
     if(t.minha==="escolhida"&&t.status==="concluido") return ptTrabPag(t);
     return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>${t.status==="em_andamento"?"🚦 Em andamento":"✅ Você foi escolhido"} · #${t.numero} · ${brl(t.valor)}</b>
-        <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}${t.paradas.length>1?` <span class="muted">(+${t.paradas.length-1} entrega${t.paradas.length>2?"s":""})</span>`:""}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
+        <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}${t.paradas.length>1?` <span class="muted">(+${t.paradas.length-1} entrega${t.paradas.length>2?"s":""})</span>`:""}</div><div class="prv-1" data-prv="${t.id}">${PRV[t.id]?prvLinha(PRV[t.id]):""}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
         <div style="display:flex;flex-direction:column;gap:6px">${t.status==="aceito"?`<button class="btn pt-quero" onclick="ptIniciar('${t.id}')">▶ Iniciar serviço</button>`:`<button class="btn pt-quero" onclick="ptExec('${t.id}')">🚦 Continuar serviço</button>`}
         <button class="btn sec" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div></div>`
       : `<div class="pt-trab"><div style="flex:1"><b>#${t.numero} · ${brl(t.valor)}</b><div class="muted small">Outro motoboy foi escolhido para este serviço.</div></div></div>`; }).join("")}</div>`:"";
@@ -1666,7 +1692,8 @@ function ptExecDesenhar(){
   if(t.status==="concluido"){ box.innerHTML=`<div class="pt-ok">🏁<b>Serviço concluído!</b><span>Repasse: <b>${brl(Number(t.valor)+Number(t.espera_valor||0))}</b>${t.espera_valor>0?`<br>frete ${brl(t.valor)} + espera ${t.espera_min} min (${brl(t.espera_valor)})`:""}</span></div>`; return; }
   const pts=[{...t.retirada,_i:0,_tipo:"Retirada"},...t.paradas.map((p,i)=>({...p,_i:i+1,_tipo:t.paradas.length>1?"Entrega "+(i+1):"Entrega"}))];
   const atual=pts.find(p=>!p.feito_em);
-  box.innerHTML=`<div class="ex-pts">${pts.map(p=>{ const feito=!!p.feito_em, ag=p===atual;
+  if(!ptExecDesenhar._t||Date.now()-ptExecDesenhar._t>60000){ ptExecDesenhar._t=Date.now(); prvCarregar([t.id]); }
+  box.innerHTML=`<div data-prv="${t.id}" data-bloco="1">${PRV[t.id]?prvBloco(PRV[t.id]):""}</div><div class="ex-pts">${pts.map(p=>{ const feito=!!p.feito_em, ag=p===atual;
       return `<div class="ex-pt ${feito?"ok":ag?"on":""}"><div class="ex-ic">${feito?"✓":p._i===0?"🏁":"📦"}</div><div style="flex:1"><b>${p._tipo}</b><div class="small">${esc(p.e)}</div>
         ${feito?`<div class="small muted">${p._i===0?"Entregue por":"Recebido por"}: <b>${esc(p.nome||"")}</b>${p.rg?" · RG "+esc(p.rg):""} · ${new Date(p.feito_em).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}${p.espera_min>0?` · espera cobrada ${p.espera_min} min`:""}</div>`:""}
         ${ag?ptExecAcoes(t,p):""}</div>
@@ -1760,6 +1787,8 @@ function ptDesenharLista(){
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
     return `<div class="pt-serv">
       <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
+      <div class="prv-1">🕒 ${(()=>{ const v={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, a=Math.round(Number(s.distancia_km||0)*1.35/v*60+3), b=Number(s.minutos||Math.round(Number(s.km||0)*1.35/v*60));
+        return s.agendado_para?`retirada agendada ${new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})} · entrega ~${b+5} min depois`:`você chega na retirada em ~${a} min · entrega ~${a+5+b} min (${hhmm(Date.now()+(a+5+b)*60000)})`; })()}</div>
       <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
       <div class="pt-serv-info"><span>${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""}</span><span>${esc(CAD_VEIC[s.veiculo]||"")}</span><span>${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span><span>solto ${ptHa(s.criado_em)}</span></div>
       ${s.obs?`<div class="small" style="margin-top:6px">💬 ${esc(s.obs)}</div>`:""}
@@ -1863,6 +1892,7 @@ async function ctCarregar(){
   const r=await sbc.rpc("adm_servicos",{p_dias:Number($("#ctDias").value)||7}); render._ct=0;
   if(r.error){ $("#ctTab").innerHTML=`<p class="small" style="color:var(--bad);padding:14px 16px">${esc(r.error.message)}</p>`; return; }
   CT.lista=r.data||[]; ctDesenhar(); ctAlertas();
+  prvCarregar(CT.lista.filter(x=>["aceito","em_andamento"].includes(x.status)).map(x=>x.id));
   clearTimeout(CT.t); CT.t=setTimeout(()=>{ if($("#v-central").classList.contains("on")) ctCarregar(); },30000);
 }
 async function ctAlertas(){
@@ -1894,7 +1924,7 @@ function ctDesenhar(){
   $("#ctTab").innerHTML=V.length?`<table class="ac-tab"><tr><th>#</th><th>Quando</th><th>Retirada → entrega</th><th>Quem enviou</th><th>Quem pegou</th><th>Valor</th><th>Situação</th><th></th></tr>${V.map(x=>{ const ult=x.paradas[x.paradas.length-1]||{};
     return `<tr class="clic" onclick="ctAbrir('${x.id}')"><td><b>${x.numero}</b></td><td class="small">${new Date(x.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</td>
       <td class="small">${esc(String(x.retirada.e).split(",")[0])} → ${esc(String(ult.e||"").split(",")[0])}<div class="muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")}</div></td>
-      <td>${esc(x.quem_enviou||"—")}</td><td>${esc(x.quem_pegou||(x.status==="aberto"?x.candidatos+" interessado(s)":"—"))}</td><td>${brl(x.valor)}</td>
+      <td>${esc(x.quem_enviou||"—")}</td><td>${esc(x.quem_pegou||(x.status==="aberto"?x.candidatos+" interessado(s)":"—"))}${["aceito","em_andamento"].includes(x.status)?`<div class="prv-1" data-prv="${x.id}">${PRV[x.id]?prvLinha(PRV[x.id]):""}</div>`:""}</td><td>${brl(x.valor)}</td>
       <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span>${ctPagTag(x)}</td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
     :`<p class="muted small" style="padding:14px 16px">Nenhum serviço neste período.</p>`;
 }
@@ -1989,12 +2019,14 @@ async function ctAbrir(id){
     <div class="modal-b" style="grid-template-columns:1fr"><div class="small">🏁 ${esc(x.retirada.e)}${x.paradas.map(p=>`<br>📦 ${esc(p.e)}`).join("")}</div>
       <div class="small muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")} · ${brl(x.valor)} · ${x.agendado_para?"📅 "+new Date(x.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"} · solto ${ptHa(x.criado_em)}</div>
       <div class="small">Quem enviou: <b>${esc(x.quem_enviou||"—")}</b> · Quem pegou: <b>${esc(x.quem_pegou||"—")}</b></div>
+      ${x.status!=="cancelado"?`<div data-prv="${x.id}" data-bloco="1">${PRV[x.id]?prvBloco(PRV[x.id]):""}</div>`:""}
       ${["em_andamento","concluido"].includes(x.status)?ptProgresso(x):""}
       ${x.status==="em_andamento"&&x.rastreio_ver?`<a class="btn sm in" style="justify-self:start" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(x.rastreio_ver)}">📍 Acompanhar ao vivo</a>`:""}
       ${x.status==="concluido"?`<div class="pg-box"><b>💸 Pagamento</b><div class="small">${x.recebido_em?"✅ Baixa feita "+ptHa(x.recebido_em):x.nao_recebi_em?"⚠️ Motoboy/motorista informou que NÃO recebeu "+ptHa(x.nao_recebi_em)+(x.nao_recebi_obs?` — “${esc(x.nao_recebi_obs)}”`:""):x.pago_em?"⏳ Empresa informou pagamento "+ptHa(x.pago_em)+", sem baixa ainda":"💸 Empresa ainda não informou pagamento"}</div>
         <div class="row" style="gap:8px;flex-wrap:wrap">${x.pag_comprovante?`<button class="btn sm sec" onclick="pagVerComp('${esc(x.pag_comprovante)}')">🧾 Ver comprovante</button>`:""}${x.recebido_em?"":`<button class="btn sm" onclick="ctPagConfirmar('${x.id}',${x.numero})">✅ Confirmar pagamento (admin)</button>`}</div></div>`:""}
       <div><b>Interessados</b><div id="ctCands" class="small muted">Carregando…</div></div></div>
     <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button>${x.quem_pegou?`<button class="btn" onclick="ptChat('${x.id}','Serviço #${x.numero} — conversa')">💬 Ver conversa</button>`:""}</div>`);
+  if(x.status!=="cancelado") prvCarregar([x.id]);
   const r=await sbc.rpc("servico_candidatos",{p_id:id}); const b=$("#ctCands"); if(!b) return;
   b.innerHTML=r.error?esc(r.error.message):(r.data||[]).length?(r.data).map(c=>`${c.status==="escolhida"?"✅":"🙋"} <b>${esc(c.nome)}</b> · ${esc(CAD_VEIC[c.veiculo]||"")} ${esc(c.placa||"")} · a ${String(c.distancia_km??"?").replace(".",",")} km`).join("<br>"):"Ninguém se candidatou.";
 }
@@ -3062,7 +3094,7 @@ function orTotal(){
   return Math.max(0, sub-(Number($("#oDesc")?.value)||0)+(Number($("#oTaxa")?.value)||0));
 }
 /* ---------- rastreio por link (motoboy libera; RL e cliente acompanham) ---------- */
-const RAST_BASE="https://darioluizrl.github.io/rlmotoboy/rastreio/";
+const RAST_BASE=window.RL_CENTRAL?"https://darioluizrl.github.io/rlmotoboy/megaentregas/rastreio/":"https://darioluizrl.github.io/rlmotoboy/rastreio/";
 const hexTok=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
 const b64url=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const r5=n=>n==null||isNaN(n)?null:Math.round(n*1e5)/1e5;
@@ -4037,7 +4069,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="e46b6cdbac";
+<script>(function(){var V="11300c3587";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
