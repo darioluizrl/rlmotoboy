@@ -293,6 +293,10 @@ textarea{resize:vertical;min-height:60px}
 .pt-marca-in{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .pt-logo{width:84px;height:84px;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;cursor:pointer;overflow:hidden;background:#fff;flex:none}
 .pt-logo img{max-width:100%;max-height:100%;object-fit:contain}.pt-logo span{color:var(--muted);font-weight:700;font-size:13px}
+.pt-pixh{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.pg-box{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.pg-chave{display:flex;gap:8px;align-items:center;background:#fff7f0;border:1px dashed #f1b48c;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:800;word-break:break-all}
+.pg-chave span{flex:1}.pg-alerta{background:#fff1f1;border:1px solid #f3b3b3;color:#9f1d1d;border-radius:12px;padding:12px 14px}
 .pt-meu.clic{cursor:pointer;border-radius:10px;padding:12px 8px;margin:0 -8px}
 .pt-meu.clic:hover,.pt-meu.clic:active{background:var(--soft,#f6f7f9)}
 .pt-meu-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
@@ -579,6 +583,7 @@ textarea{resize:vertical;min-height:60px}
       <select id="ctSt" style="width:auto" onchange="ctDesenhar()"><option value="">Todas as situações</option><option value="aberto">Abertos</option><option value="aceito">Aceitos</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluídos</option><option value="cancelado">Cancelados</option></select>
       <select id="ctDias" style="width:auto" onchange="ctCarregar()"><option value="1">Hoje</option><option value="7" selected>7 dias</option><option value="30">30 dias</option></select>
       <button class="btn sec" onclick="ctCarregar()">Atualizar</button></div>
+    <div id="ctAlertas"></div>
     <div class="cards" id="ctKpis"></div>
     <div class="panel"><div class="tbl-wrap" id="ctTab"><p class="muted small" style="padding:14px 16px">Carregando…</p></div></div>
   </section>
@@ -646,6 +651,7 @@ textarea{resize:vertical;min-height:60px}
 </main>
 
 <!-- MODAL GENÉRICO -->
+<datalist id="bancosBR"></datalist>
 <div class="overlay" id="login" style="z-index:90;background:#16181d;align-items:flex-start"><div class="modal" style="max-width:400px;margin:auto 0" id="loginBox"></div></div>
 <script>if(window.RL_SUPABASE){document.getElementById("login").classList.add("show");document.getElementById("loginBox").innerHTML='<div style="padding:40px;text-align:center;color:#666">Carregando…</div>';}</script>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
@@ -804,6 +810,7 @@ async function sbCarregar(){
   }
   SBC.cache=cache; Object.keys(SBC.listeners).forEach(sbEmit);
 }
+function bancosFill(){ const d=document.getElementById("bancosBR"); if(d&&!d.children.length) d.innerHTML=BANCOS_BR.map(b=>`<option value="${b}">`).join(""); }
 function telaCarregando(erro){
   const nome=window.RL_CENTRAL?"MegaEntregas":"RL Motoboy", lg=window.RL_CENTRAL&&typeof LOGO_ME!=="undefined"?LOGO_ME:LOGO;
   $("#loginBox").innerHTML=`<div class="modal-b" style="grid-template-columns:1fr;text-align:center;padding:30px 24px">
@@ -1048,6 +1055,7 @@ function portalTela(){
         <div style="flex:1;min-width:180px"><b>${esc(l)}</b>${obr?"":' <span class="muted small">(opcional)</span>'}<div class="small ${ds.length?"":"muted"}">${ds.length?`✓ Enviado em ${dataBR(ds[ds.length-1].criado_em)}`:"Ainda não enviado"}</div></div>
         ${edit?`<label class="btn sm ${ds.length?"sec":""}" style="cursor:pointer">${ds.length?"Trocar":"Enviar"}<input type="file" accept="image/*,application/pdf" ${t==="selfie"?'capture="user"':""} style="display:none" onchange="portalUpload('${t}',this)"></label>`:""}</div>`; }).join("")}</div>
       <p class="small" id="ptMsg" style="margin:6px 0 0"></p></div>
+    ${ptPixCard(p)}
     ${ptEnvia(p)?ptMarcaCard(p):""}
     ${p.status==="recusado"?`<button class="btn" onclick="portalReenviar()">Enviar para análise de novo</button>`:""}
   </div>`;
@@ -1109,7 +1117,7 @@ async function portalUpload(tipo, inp){
   portalTela(); toast("Documento enviado");
 }
 async function portalReenviar(){
-  const p=PT.p; const r=await sbc.rpc("atualizar_cadastro",{p_dados:{envia:ptEnvia(p),recebe:ptRecebe(p),pessoa:p.pessoa,nome:p.nome,documento:p.documento,telefone:p.telefone,cidade:p.cidade,veiculo:p.veiculo,placa:p.placa,modelo:p.modelo,cnh_validade:p.cnh_validade}});
+  const p=PT.p; const r=await sbc.rpc("atualizar_cadastro",{p_dados:{envia:ptEnvia(p),recebe:ptRecebe(p),pessoa:p.pessoa,nome:p.nome,documento:p.documento,telefone:p.telefone,cidade:p.cidade,veiculo:p.veiculo,placa:p.placa,modelo:p.modelo,cnh_validade:p.cnh_validade,pix_tipo:p.pix_tipo,pix_chave:p.pix_chave,pix_nome:p.pix_nome,pix_banco:p.pix_banco}});
   if(r.error){ toast(r.error.message); return; } toast("Enviado para análise"); portal({user:{id:PT.uid,email:PT.email}});
 }
 async function portalForm(p){
@@ -1120,7 +1128,7 @@ async function portalForm(p){
     <div class="full"><b>${novo?"Complete seu cadastro":"Editar meus dados"}</b></div>
     ${novo?`<div class="full"><label>Código do convite *</label><input id="ptCod" required value="${esc(cod)}" style="text-transform:uppercase" onchange="lsSet('rl_convite',this.value.trim().toUpperCase());portalForm(null)"></div>`:""}
     ${!tipo?`<p class="full small" style="margin:0;color:var(--bad)">${novo&&cod?"Este convite não é válido (vencido ou já usado). Peça um novo link para a MegaEntregas.":"Digite o código do convite que você recebeu."}</p>`:`
-    <div class="full"><label>Como você vai usar a Central? * <span class="muted small">(pode marcar os dois)</span></label>
+    <div class="full"><label>Como você vai usar a MegaEntregas? * <span class="muted small">(pode marcar os dois)</span></label>
       <div class="pt-uso"><label class="pt-op"><input type="checkbox" id="ptEnv" ${(p?ptEnvia(p):tipo==="contratante")?"checked":""} onchange="ptUsoMudou()"><span><b>📦 Envio serviços</b><small>Solto entregas e fretes para motoboys e motoristas</small></span></label>
       <label class="pt-op"><input type="checkbox" id="ptRec" ${(p?ptRecebe(p):tipo==="prestador")?"checked":""} onchange="ptUsoMudou()"><span><b>🏍 Recebo serviços</b><small>Sou motoboy ou motorista e pego trabalhos</small></span></label></div></div>
     <div><label>Pessoa</label><select id="ptPes" onchange="$('#ptDocL').textContent=this.value==='pj'?'CNPJ *':'CPF *';$('#ptNomeL').textContent=this.value==='pj'?'Razão social *':'Nome completo *'"><option value="pf" ${v("pessoa","pf")==="pf"?"selected":""}>Pessoa física (CPF)</option><option value="pj" ${v("pessoa")==="pj"?"selected":""}>Empresa / MEI (CNPJ)</option></select></div>
@@ -1128,6 +1136,11 @@ async function portalForm(p){
     <div class="full"><label id="ptNomeL">${v("pessoa")==="pj"?"Razão social *":"Nome completo *"}</label><input id="ptNome" required value="${v("nome")}"></div>
     <div><label>WhatsApp com DDD *</label><input id="ptTel" required inputmode="tel" value="${esc(p?fmtTel(p.telefone):"")}"></div>
     <div><label>Cidade</label><input id="ptCid" value="${v("cidade")}" placeholder="Ex.: São Bernardo do Campo"></div>
+    <div class="full pt-pixh"><b>💳 Seus dados PIX *</b> <span class="muted small">— obrigatório. É para onde vão os pagamentos dos seus serviços.</span></div>
+    <div><label>Tipo da chave PIX *</label><select id="ptPixT" required><option value="">Selecione…</option>${PIX_TIPOS.map(([k,l])=>`<option value="${k}" ${v("pix_tipo")===k?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div><label>Chave PIX *</label><input id="ptPixK" required value="${v("pix_chave")}" autocomplete="off"></div>
+    <div class="full"><label>Nome completo do titular da conta *</label><input id="ptPixN" required value="${v("pix_nome")}" placeholder="Como aparece no banco"></div>
+    <div class="full"><label>Banco *</label><input id="ptPixB" required list="bancosBR" value="${v("pix_banco")}" placeholder="Ex.: Nubank, Itaú, Caixa"></div>
     <div class="full" id="ptVeiBox" style="display:contents">
     <div><label>Veículo *</label><select id="ptVei" required><option value="">Selecione…</option>${Object.entries(CAD_VEIC).map(([k,l])=>`<option value="${k}" ${v("veiculo")===k?"selected":""}>${l}</option>`).join("")}</select></div>
     <div><label>Placa *</label><input id="ptPla" required value="${esc(p?fmtPlaca(p.placa):"")}" style="text-transform:uppercase" placeholder="ABC-1D23"></div>
@@ -1139,7 +1152,7 @@ async function portalForm(p){
     <p class="full small muted" style="margin:0">Seus dados ficam guardados com segurança e só a administração da MegaEntregas vê os documentos.</p>`}
     <p class="full small" id="ptErr" style="margin:0;color:var(--bad)"></p>
   </div><div class="modal-f">${novo?"":`<button type="button" class="btn sec" onclick="portalTela()">Cancelar</button>`}<button class="btn" id="ptB" ${tipo?"":"disabled"}>${novo?"Salvar e continuar":"Salvar"}</button></div></form>`;
-  ptUsoMudou();
+  ptUsoMudou(); bancosFill();
   $("#ptF").onsubmit=async e=>{
     e.preventDefault(); const err=$("#ptErr"); err.textContent="";
     const env=$("#ptEnv").checked, rec=$("#ptRec").checked;
@@ -1148,7 +1161,8 @@ async function portalForm(p){
     if(pes==="pf" && !cpfOk(doc)){ err.textContent="CPF inválido. Confira os números."; return; }
     if(pes==="pj" && !cnpjOk(doc)){ err.textContent="CNPJ inválido. Confira os números."; return; }
     const tel=soNum(val("ptTel")); if(tel.length<10||tel.length>11){ err.textContent="WhatsApp com DDD inválido."; return; }
-    const d={envia:env, recebe:rec, pessoa:pes, nome:val("ptNome"), documento:doc, telefone:tel, cidade:val("ptCid")};
+    const px=ptPixLer(); if(px.erro){ err.textContent=px.erro; return; }
+    const d={envia:env, recebe:rec, pessoa:pes, nome:val("ptNome"), documento:doc, telefone:tel, cidade:val("ptCid"), ...px.d};
     if(rec){ if(!val("ptVei")){ err.textContent="Escolha o veículo."; return; } Object.assign(d,{veiculo:val("ptVei"), placa:val("ptPla").replace(/[^A-Za-z0-9]/g,""), modelo:val("ptMod"), cnh_validade:val("ptCnh")||null});
       if(d.placa.length!==7){ err.textContent="Placa inválida (7 letras e números)."; return; } }
     $("#ptB").disabled=true;
@@ -1160,6 +1174,46 @@ async function portalForm(p){
   };
 }
 
+const PIX_TIPOS=[["cpf","CPF"],["cnpj","CNPJ"],["telefone","Celular"],["email","E-mail"],["aleatoria","Chave aleatória"]];
+const BANCOS_BR=["Nubank","Itaú","Bradesco","Banco do Brasil","Caixa Econômica Federal","Santander","Inter","C6 Bank","PicPay","Mercado Pago","PagBank (PagSeguro)","Sicoob","Sicredi","Banco Original","Neon","Next","BTG Pactual","Banrisul","Safra","Will Bank","Agibank","Stone","InfinitePay","Cora","99Pay"];
+function ptPixLer(pre){ const g=id=>(($("#"+(pre||"pt")+id)||{}).value||"").trim();
+  const t=g("PixT"), k=g("PixK"), n=g("PixN"), b=g("PixB"), num=k.replace(/\D/g,"");
+  if(!t) return {erro:"Escolha o tipo da chave PIX."};
+  if(!k) return {erro:"Informe a chave PIX."};
+  if(t==="cpf"&&!cpfOk(num)) return {erro:"Chave PIX: CPF inválido."};
+  if(t==="cnpj"&&!cnpjOk(num)) return {erro:"Chave PIX: CNPJ inválido."};
+  if(t==="telefone"&&(num.length<10||num.length>13)) return {erro:"Chave PIX: celular com DDD inválido."};
+  if(t==="email"&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(k)) return {erro:"Chave PIX: e-mail inválido."};
+  if(t==="aleatoria"&&k.replace(/[^0-9A-Za-z]/g,"").length!==32) return {erro:"Chave PIX aleatória inválida (32 letras e números)."};
+  if(n.length<5||!n.includes(" ")) return {erro:"Informe o nome completo do titular do PIX."};
+  if(b.length<2) return {erro:"Informe o banco da chave PIX."};
+  return {d:{pix_tipo:t,pix_chave:k,pix_nome:n,pix_banco:b}};
+}
+function pixFmt(t,k){ if(!k) return ""; if(t==="cpf") return fmtDoc(k); if(t==="cnpj") return fmtDoc(k); if(t==="telefone") return fmtTel(k); return k; }
+function pixTipoTxt(t){ return (PIX_TIPOS.find(x=>x[0]===t)||["",t||""])[1]; }
+async function copiarTxt(t,msg){ try{ await navigator.clipboard.writeText(t); toast(msg||"Copiado"); }catch(e){ prompt("Copie:",t); } }
+function ptPixCard(p){
+  const ok=p.pix_chave;
+  return `<div class="pt-marca" ${ok?"":`style="border-color:var(--bad);background:#fff5f5"`}><b>💳 Meu PIX</b>
+    ${ok?`<div class="small" style="margin:6px 0 10px;line-height:1.6">${esc(pixTipoTxt(p.pix_tipo))}: <b>${esc(pixFmt(p.pix_tipo,p.pix_chave))}</b><br>Titular: <b>${esc(p.pix_nome||"")}</b> · ${esc(p.pix_banco||"")}</div>`
+        :`<p class="small" style="color:var(--bad);margin:6px 0 10px">Você ainda não cadastrou o seu PIX. Ele é obrigatório para receber pelos serviços.</p>`}
+    <button class="btn sm ${ok?"sec":""}" onclick="ptPixEditar()">${ok?"Trocar PIX":"Cadastrar PIX"}</button></div>`;
+}
+function ptPixEditar(){ bancosFill(); const p=PT.p||{}; const v=k=>esc(p[k]||"");
+  openModal(`<div class="modal-h">💳 Meu PIX</div><div class="modal-b">
+    <div><label>Tipo da chave *</label><select id="mpPixT"><option value="">Selecione…</option>${PIX_TIPOS.map(([k,l])=>`<option value="${k}" ${p.pix_tipo===k?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div><label>Chave PIX *</label><input id="mpPixK" value="${v("pix_chave")}" autocomplete="off"></div>
+    <div class="full"><label>Nome completo do titular *</label><input id="mpPixN" value="${v("pix_nome")}"></div>
+    <div class="full"><label>Banco *</label><input id="mpPixB" list="bancosBR" value="${v("pix_banco")}"></div>
+    <p class="full small" id="mpErr" style="margin:0;color:var(--bad)"></p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" id="mpBtn" onclick="ptPixSalvar()">Salvar PIX</button></div>`);
+}
+async function ptPixSalvar(){ const x=ptPixLer("mp"); if(x.erro){ $("#mpErr").textContent=x.erro; return; }
+  $("#mpBtn").disabled=true; const r=await sbc.rpc("meu_pix",{p_dados:x.d});
+  if(r.error){ $("#mpErr").textContent=r.error.message; $("#mpBtn").disabled=false; return; }
+  const {data}=await sbc.from("perfis").select("*").eq("user_id",PT.uid).maybeSingle(); if(data) PT.p=data;
+  closeModal(); toast("PIX salvo"); portalTela();
+}
 function ptUsoMudou(){ const mb=$("#ptMarcaBox"), en=$("#ptEnv"); if(mb&&en) mb.style.display=en.checked?"":"none";
   const r=$("#ptRec"), b=$("#ptVeiBox"); if(!r||!b) return; const on=r.checked;
   b.style.display=on?"contents":"none"; ["ptVei","ptPla"].forEach(id=>{ const el=$("#"+id); if(el) el.required=on; }); }
@@ -1347,10 +1401,59 @@ async function ptMeus(){
   box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu clic" onclick="ptMeuAbrir('${s.id}')"><div style="flex:1;min-width:0"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
       <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · <b style="color:var(--ink,#16181d)">${brl(s.valor)}</b>${s.valor_inicial?` <span class="pt-aum">⬆ aumentado</span>`:""} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div>
       <div class="pt-meu-tags"><span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
+      ${s.status==="concluido"?ptPagTag(s):""}
       ${s.status==="aberto"?`<span class="muted small">${ptFase(s)}</span><span class="small" style="font-weight:700;color:${nc[s.id]?"var(--brand)":"var(--muted,#8a8f98)"}">🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":""):"nenhum interessado ainda"}</span>`:""}</div>
       ${s.status==="em_andamento"?`<div style="padding-top:8px">${ptProgresso(s)}</div>`:""}</div>
       <span class="pt-meu-seta">›</span></div>`).join("")
     :`<span class="muted">Nenhum serviço ainda.</span>`;
+}
+function ptPagTag(s){
+  if(s.recebido_em) return `<span class="tag ok">✅ Pagamento confirmado</span>`;
+  if(s.nao_recebi_em) return `<span class="tag bad">⚠️ Motoboy informou que não recebeu</span>`;
+  if(s.pago_em) return `<span class="tag warn">⏳ Pago — aguardando confirmação</span>`;
+  return `<span class="tag bad">💸 Pagar ${s.veiculo==="moto"?"motoboy":"motorista"}</span>`;
+}
+async function ptPagCarregar(id){
+  const box=$("#pgBox"); if(!box) return;
+  const r=await sbc.rpc("servico_pix",{p_id:id}); if(!$("#pgBox")) return;
+  if(r.error){ box.innerHTML=`<p class="small" style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
+  const x=r.data||{}, quem=esc(x.quem||"");
+  box.innerHTML=`<div class="pg-box"><b>💸 Pagamento para ${quem}</b>
+    <div style="font-size:24px;font-weight:800">${brl(x.valor)}</div>${Number(x.espera)>0?`<div class="muted small">frete ${brl(x.frete)} + espera ${brl(x.espera)}</div>`:""}
+    ${x.pix_chave?`<div class="muted small">Chave PIX (${esc(pixTipoTxt(x.pix_tipo))})</div>
+      <div class="pg-chave"><span>${esc(pixFmt(x.pix_tipo,x.pix_chave))}</span><button class="btn sm" onclick="copiarTxt('${esc(String(x.pix_chave).replace(/['\\]/g,""))}','Chave PIX copiada')">Copiar</button></div>
+      <div class="small">Titular: <b>${esc(x.pix_nome||"")}</b> · Banco: <b>${esc(x.pix_banco||"")}</b></div>
+      <div class="muted small">Confira se o nome que aparece no seu banco é <b>${esc(x.pix_nome||"")}</b> antes de confirmar o PIX.</div>`
+     :`<p class="small" style="color:var(--bad)">Este ${quem} ainda não cadastrou o PIX. Fale com ele pelo chat ou com a MegaEntregas.</p>`}
+    ${x.recebido_em?`<div class="tag ok" style="justify-self:start">✅ ${quem} confirmou o recebimento em ${new Date(x.recebido_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div>`
+      :x.pago_em?`<div class="small">✔ Você informou o pagamento em ${new Date(x.pago_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}. Aguardando ${quem} confirmar.</div>
+          ${x.comprovante?"":`<label class="btn sm sec" style="justify-self:start">📎 Enviar comprovante<input type="file" accept="image/*,application/pdf" style="display:none" onchange="ptPagEnviar('${id}',this)"></label>`}`
+      :`<div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn">📎 Enviar comprovante<input type="file" accept="image/*,application/pdf" style="display:none" onchange="ptPagEnviar('${id}',this)"></label>
+          <button class="btn sec" onclick="ptPagSemComp('${id}')">Já paguei (sem comprovante)</button></div>`}
+    ${x.comprovante?`<button class="btn sm sec" style="justify-self:start" onclick="pagVerComp('${esc(x.comprovante)}')">🧾 Ver comprovante enviado</button>`:""}
+  </div>`;
+}
+async function ptPagEnviar(id, inp){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  if(f.size>8*1024*1024){ toast("Arquivo muito grande (máx. 8 MB)"); return; }
+  const ext=(f.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,5)||"jpg";
+  const caminho=`${id}/${Date.now()}.${ext}`; toast("Enviando comprovante…");
+  const up=await sbc.storage.from("pagamentos").upload(caminho, f, {contentType:f.type||"application/octet-stream", upsert:false});
+  if(up.error){ toast("Não foi possível enviar: "+up.error.message); return; }
+  const r=await sbc.rpc("servico_paguei",{p_id:id,p_comprovante:caminho}); if(r.error){ toast(r.error.message); return; }
+  toast("Comprovante enviado. O motoboy foi avisado."); ptMeus(); ptPagCarregar(id);
+}
+function ptPagSemComp(id){
+  openModal(`<div class="modal-h">Já paguei</div><div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0">Confirma que você já fez o PIX? O ${"motoboy/motorista"} vai receber o aviso para conferir e dar baixa.</p>
+    <p class="muted small" style="margin:0">Se puder, envie o comprovante — ajuda muito se houver dúvida.</p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal();ptMeuAbrir('${id}')">Voltar</button><button class="btn" onclick="ptPagSemComp2('${id}')">Sim, já paguei</button></div>`);
+}
+async function ptPagSemComp2(id){ const r=await sbc.rpc("servico_paguei",{p_id:id,p_comprovante:null}); if(r.error){ toast(r.error.message); return; }
+  closeModal(); toast("Pagamento informado. O motoboy foi avisado."); await ptMeus(); ptMeuAbrir(id); }
+async function pagVerComp(caminho){
+  const r=await sbc.storage.from("pagamentos").createSignedUrl(caminho, 600);
+  if(r.error||!r.data){ toast("Não foi possível abrir o comprovante"); return; }
+  window.open(r.data.signedUrl,"_blank","noopener");
 }
 function ptMeuAbrir(id){
   const s=(PTA.meus||[]).find(x=>x.id===id); if(!s) return; const n=(PTA.nc||{})[id]||0;
@@ -1362,6 +1465,7 @@ function ptMeuAbrir(id){
       ${s.valor_inicial?`<span class="muted small">começou em ${brl(s.valor_inicial)} · aumentado ${s.aumentos}x</span>`:""}<div class="spacer"></div>
       <span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span></div>
     ${s.obs?`<div class="small">💬 ${esc(s.obs)}</div>`:""}
+    ${s.status==="concluido"?`<div id="pgBox"><p class="muted small">Carregando pagamento…</p></div>`:""}
     ${s.status==="aberto"?`<div class="muted small">${ptFase(s)} · 🙋 ${n?n+" interessado"+(n>1?"s":""):"nenhum interessado ainda"}</div>
       <div class="pt-up"><b>⬆ Aumentar o valor e reenviar</b>
         <span class="muted small">O serviço volta para o topo da lista dos ${s.veiculo==="moto"?"motoboys":"motoristas"} com o aviso <b>valor aumentado</b>. Quem já se interessou continua na lista.</span>
@@ -1372,9 +1476,10 @@ function ptMeuAbrir(id){
     <div class="modal-f" style="flex-wrap:wrap;gap:8px">
       ${s.status==="aberto"?`<button class="btn sec" style="color:var(--bad)" onclick="closeModal();ptCancelar('${s.id}')">Cancelar serviço</button>${n?`<button class="btn in" onclick="closeModal();ptCandidatos('${s.id}',${s.numero})">🙋 Ver ${n} interessado${n>1?"s":""} e escolher</button>`:""}`:""}
       ${s.status==="em_andamento"&&s.rastreio_ver?`<a class="btn in" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(s.rastreio_ver)}">📍 Ao vivo</a>`:""}
-      ${s.status==="concluido"?`<button class="btn sec" onclick="closeModal();ptComprovante('${s.id}')">🧾 Comprovante</button>`:""}
+      ${s.status==="concluido"?`<button class="btn sec" onclick="closeModal();ptComprovante('${s.id}')">🧾 Comprovante de entrega</button>`:""}
       ${["aceito","em_andamento","concluido"].includes(s.status)?`<button class="btn" onclick="closeModal();ptChat('${s.id}','Serviço #${s.numero}')">💬 Conversar</button>`:""}
       <button class="btn sec" onclick="closeModal()">Fechar</button></div>`);
+  if(s.status==="concluido") ptPagCarregar(s.id);
 }
 function ptUpSet(v){ const i=$("#upVal"); if(i){ i.value=Number(v).toFixed(2).replace(".",","); i.focus(); } }
 async function ptAumentar(id, atual){
@@ -1455,7 +1560,7 @@ function ptReceberTela(){
 function ptDispTela(msg){
   const g=$("#prGps"); if(!g) return; const on=!!PT.p.disponivel;
   g.innerHTML=`<div class="pt-disp ${on?"on":""}">
-    <div style="flex:1"><b>${on?"🟢 Disponível":"⚫ Indisponível"}</b><span>${on?"Você está recebendo serviços. Sua localização está sendo usada.":"Ligue para receber serviços. A Central só usa sua localização enquanto estiver ligado."}</span>${msg?`<span class="pt-disp-err">${msg}</span>`:""}</div>
+    <div style="flex:1"><b>${on?"🟢 Disponível":"⚫ Indisponível"}</b><span>${on?"Você está recebendo serviços. Sua localização está sendo usada.":"Ligue para receber serviços. A MegaEntregas só usa sua localização enquanto estiver ligado."}</span>${msg?`<span class="pt-disp-err">${msg}</span>`:""}</div>
     <button class="pt-sw ${on?"on":""}" role="switch" aria-checked="${on}" aria-label="Disponível para receber serviços" onclick="ptDispTrocar()"><i></i></button></div>`;
   if(!on){ const l=$("#prLista"); if(l) l.innerHTML=`<div class="pt-vazio">Você não está recebendo serviços agora.<br><span class="small">Ligue o botão <b>Disponível</b> quando quiser trabalhar.</span></div>`; }
 }
@@ -1496,16 +1601,46 @@ async function ptBuscar(){
   if(r.error){ if(/Disponível/.test(r.error.message)){ PT.p.disponivel=false; ptPararGps(); ptDispTela(); return; } const l=$("#prLista"); if(l) l.innerHTML=`<div class="pt-gps err">${esc(r.error.message)}</div>`; return; }
   PTA.lista=r.data||[]; ptGpsTxt(); ptDesenharLista(); ptTrabalhos();
 }
+function ptTrabPag(t){
+  const tot=Number(t.valor)+Number(t.espera_valor||0), h=(Date.now()-new Date(t.concluido_em))/3600e3;
+  const sit=t.recebido_em?`<span class="tag ok">✅ Pagamento recebido</span>`
+    :t.nao_recebi_em?`<span class="tag bad">⚠️ Você informou que não recebeu — a MegaEntregas vai verificar</span>`
+    :t.pago_em?`<span class="tag warn">💸 A empresa informou o pagamento — confira na sua conta</span>`
+    :`<span class="tag">⏳ Aguardando pagamento da empresa</span>`;
+  const prazo=!t.recebido_em&&!t.nao_recebi_em?`<div class="small" style="color:${h>48?"var(--bad)":"var(--muted,#8a8f98)"}">${h>48?"🔒 Prazo de 48h vencido: dê a baixa para voltar a receber serviços.":"Dê a baixa em até "+Math.max(1,Math.ceil(48-h))+"h para continuar recebendo serviços."}</div>`:"";
+  return `<div class="pt-trab ok" style="flex-direction:column;align-items:stretch"><div><b>🏁 Serviço #${t.numero} concluído</b>
+    <div class="muted small">Valor a receber: <b>${brl(tot)}</b>${t.espera_valor>0?` (frete ${brl(t.valor)} + espera ${brl(t.espera_valor)})`:""} · ${esc(t.quem_enviou||"")}</div>
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${sit}</div>${prazo}</div>
+    ${t.recebido_em?"":`<div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${t.pag_comprovante?`<button class="btn sm sec" onclick="pagVerComp('${esc(t.pag_comprovante)}')">🧾 Ver comprovante</button>`:""}
+      <button class="btn pt-quero" onclick="ptRecebi('${t.id}',${tot})">✅ Recebi o pagamento</button>
+      ${t.nao_recebi_em?"":`<button class="btn sec" style="color:var(--bad)" onclick="ptNaoRecebi('${t.id}')">Não recebi</button>`}
+      <button class="btn sec" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div>`}</div>`;
+}
+function ptRecebi(id,tot){
+  openModal(`<div class="modal-h">Recebi o pagamento</div><div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0">Confirma que recebeu <b>${brl(tot)}</b> na sua conta?</p><p class="muted small" style="margin:0">Depois de confirmar, não dá para desfazer.</p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Voltar</button><button class="btn" onclick="ptRecebi2('${id}')">Sim, recebi</button></div>`);
+}
+async function ptRecebi2(id){ const r=await sbc.rpc("servico_recebi",{p_id:id}); if(r.error){ toast(r.error.message); return; } closeModal(); toast("Baixa feita. Obrigado!"); ptTrabalhos(); if(typeof ptBuscar==="function") ptBuscar(); }
+function ptNaoRecebi(id){
+  openModal(`<div class="modal-h">Não recebi o pagamento</div><div class="modal-b" style="grid-template-columns:1fr">
+    <p style="margin:0">A administração MegaEntregas vai receber um alerta para verificar com a empresa. Enquanto isso você continua recebendo serviços normalmente.</p>
+    <div><label>O que aconteceu? (opcional)</label><textarea id="nrObs" rows="3" maxlength="500" placeholder="Ex.: o comprovante não bate, o valor veio errado, ainda não caiu…"></textarea></div></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Voltar</button><button class="btn" style="background:var(--bad)" onclick="ptNaoRecebi2('${id}')">Avisar a administração</button></div>`);
+}
+async function ptNaoRecebi2(id){ const r=await sbc.rpc("servico_nao_recebi",{p_id:id,p_obs:val("nrObs")}); if(r.error){ toast(r.error.message); return; } closeModal(); toast("Aviso enviado para a administração"); ptTrabalhos(); if(typeof ptBuscar==="function") ptBuscar(); }
 async function ptTrabalhos(){
   const box=$("#prTrab"); if(!box) return;
   const r=await sbc.rpc("meus_trabalhos"); if(r.error){ box.innerHTML=""; return; }
-  const L=(r.data||[]).filter(t=>t.minha==="escolhida"&&(["aceito","em_andamento"].includes(t.status)||t.status==="concluido"&&Date.now()-new Date(t.concluido_em)<24*3600e3) || t.minha==="recusada"&&Date.now()-new Date(t.criado_em)<6*3600e3);
+  const L=(r.data||[]).filter(t=>t.minha==="escolhida"&&(["aceito","em_andamento"].includes(t.status)||t.status==="concluido"&&(!t.recebido_em||Date.now()-new Date(t.concluido_em)<24*3600e3)) || t.minha==="recusada"&&Date.now()-new Date(t.criado_em)<6*3600e3);
   PTA.trab=r.data||[];
   const andamento=PTA.trab.find(t=>t.minha==="escolhida"&&t.status==="em_andamento");
   if(andamento) ptRastLigar(andamento.id); else ptRastDesligar();
   if(PTA.execId && $("#exBox")) ptExecDesenhar();
-  box.innerHTML=L.length?`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
-    if(t.minha==="escolhida"&&t.status==="concluido") return `<div class="pt-trab ok"><div style="flex:1"><b>🏁 Serviço #${t.numero} concluído</b><div class="muted small">Repasse: <b>${brl(Number(t.valor)+Number(t.espera_valor||0))}</b>${t.espera_valor>0?` (frete ${brl(t.valor)} + espera ${brl(t.espera_valor)})`:""}</div></div></div>`;
+  const atr=PTA.trab.filter(t=>t.minha==="escolhida"&&t.status==="concluido"&&!t.recebido_em&&!t.nao_recebi_em&&Date.now()-new Date(t.concluido_em)>48*3600e3);
+  const ban=atr.length?`<div class="pg-alerta"><b>🔒 Você está sem receber serviços novos</b><div class="small" style="margin-top:4px">Tem ${atr.length} serviço${atr.length>1?"s":""} concluído${atr.length>1?"s":""} há mais de 48 horas sem baixa do pagamento. Toque em <b>"Recebi o pagamento"</b> ou <b>"Não recebi"</b> abaixo para liberar.</div></div>`:"";
+  box.innerHTML=(L.length||ban)?ban+`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
+    if(t.minha==="escolhida"&&t.status==="concluido") return ptTrabPag(t);
     return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>${t.status==="em_andamento"?"🚦 Em andamento":"✅ Você foi escolhido"} · #${t.numero} · ${brl(t.valor)}</b>
         <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}${t.paradas.length>1?` <span class="muted">(+${t.paradas.length-1} entrega${t.paradas.length>2?"s":""})</span>`:""}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
         <div style="display:flex;flex-direction:column;gap:6px">${t.status==="aceito"?`<button class="btn pt-quero" onclick="ptIniciar('${t.id}')">▶ Iniciar serviço</button>`:`<button class="btn pt-quero" onclick="ptExec('${t.id}')">🚦 Continuar serviço</button>`}
@@ -1728,9 +1863,30 @@ const CT={lista:[]};
 async function ctCarregar(){
   const r=await sbc.rpc("adm_servicos",{p_dias:Number($("#ctDias").value)||7}); render._ct=0;
   if(r.error){ $("#ctTab").innerHTML=`<p class="small" style="color:var(--bad);padding:14px 16px">${esc(r.error.message)}</p>`; return; }
-  CT.lista=r.data||[]; ctDesenhar();
+  CT.lista=r.data||[]; ctDesenhar(); ctAlertas();
   clearTimeout(CT.t); CT.t=setTimeout(()=>{ if($("#v-central").classList.contains("on")) ctCarregar(); },30000);
 }
+async function ctAlertas(){
+  const box=$("#ctAlertas"); if(!box) return;
+  const r=await sbc.rpc("adm_alertas_pagamento"); if(r.error){ box.innerHTML=""; return; }
+  const L=r.data||[]; CT.alertas=L;
+  box.innerHTML=L.length?`<div class="panel" style="border:1px solid #f3b3b3;background:#fff7f7;margin-bottom:12px"><div style="padding:12px 16px"><b style="color:#9f1d1d">⚠️ Pagamentos para verificar (${L.length})</b>
+    ${L.map(a=>`<div class="row" style="gap:10px;align-items:center;border-top:1px solid #f3d0d0;padding:10px 0;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px"><b>#${a.numero} · ${brl(a.valor)}</b> · ${a.tipo==="nao_recebi"?`<span class="tag bad">${esc(a.quem_pegou||"")} diz que NÃO recebeu</span>`:`<span class="tag warn">sem baixa há mais de 48h</span>`}
+        <div class="small">Empresa: <b>${esc(a.quem_enviou||"")}</b> ${a.tel_enviou?`<a href="https://wa.me/55${soNum(a.tel_enviou)}" target="_blank" rel="noopener">📱 ${esc(fmtTel(a.tel_enviou))}</a>`:""} · Motoboy/motorista: <b>${esc(a.quem_pegou||"")}</b> ${a.tel_pegou?`<a href="https://wa.me/55${soNum(a.tel_pegou)}" target="_blank" rel="noopener">📱 ${esc(fmtTel(a.tel_pegou))}</a>`:""}</div>
+        <div class="muted small">Concluído ${ptHa(a.concluido_em)} · ${a.pago_em?"empresa informou pagamento "+ptHa(a.pago_em):"empresa ainda não informou pagamento"}${a.nao_recebi_obs?` · “${esc(a.nao_recebi_obs)}”`:""}</div></div>
+      ${a.pag_comprovante?`<button class="btn sm sec" onclick="pagVerComp('${esc(a.pag_comprovante)}')">🧾 Comprovante</button>`:""}
+      <button class="btn sm sec" onclick="ptChat('${a.id}','Serviço #${a.numero} — conversa')">💬 Conversa</button>
+      <button class="btn sm" onclick="ctPagConfirmar('${a.id}',${a.numero})">✅ Confirmar pagamento</button></div>`).join("")}</div></div>`:"";
+}
+function ctPagConfirmar(id,num){
+  openModal(`<div class="modal-h">Confirmar pagamento #${num}</div><div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0">Você verificou e o pagamento foi feito? A baixa fica registrada em nome da administração e o motoboy/motorista é liberado.</p></div>
+    <div class="modal-f"><button class="btn sec" onclick="closeModal()">Voltar</button><button class="btn" onclick="ctPagConfirmar2('${id}')">Sim, confirmar</button></div>`);
+}
+async function ctPagConfirmar2(id){ const r=await sbc.rpc("servico_recebi",{p_id:id}); if(r.error){ toast(r.error.message); return; } closeModal(); toast("Pagamento confirmado pela administração"); ctCarregar(); }
+function ctPagTag(x){ if(x.status!=="concluido") return ""; if(x.recebido_em) return `<div><span class="tag ok" style="font-size:11px">✅ pago</span></div>`;
+  if(x.nao_recebi_em) return `<div><span class="tag bad" style="font-size:11px">⚠️ não recebeu</span></div>`; if(x.pago_em) return `<div><span class="tag warn" style="font-size:11px">⏳ pago, sem baixa</span></div>`;
+  return `<div><span class="tag" style="font-size:11px">💸 a pagar</span></div>`; }
 function ctDesenhar(){
   const L=CT.lista, f=$("#ctSt").value, n=k=>L.filter(x=>x.status===k).length;
   $("#ctKpis").innerHTML=[["Abertos",n("aberto")],["Aceitos",n("aceito")+n("em_andamento")],["Concluídos",n("concluido")],["Cancelados",n("cancelado")],["Valor em fretes",brl(L.filter(x=>x.status!=="cancelado").reduce((a,x)=>a+Number(x.valor||0),0))]]
@@ -1740,7 +1896,7 @@ function ctDesenhar(){
     return `<tr class="clic" onclick="ctAbrir('${x.id}')"><td><b>${x.numero}</b></td><td class="small">${new Date(x.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</td>
       <td class="small">${esc(String(x.retirada.e).split(",")[0])} → ${esc(String(ult.e||"").split(",")[0])}<div class="muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")}</div></td>
       <td>${esc(x.quem_enviou||"—")}</td><td>${esc(x.quem_pegou||(x.status==="aberto"?x.candidatos+" interessado(s)":"—"))}</td><td>${brl(x.valor)}</td>
-      <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span></td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
+      <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span>${ctPagTag(x)}</td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
     :`<p class="muted small" style="padding:14px 16px">Nenhum serviço neste período.</p>`;
 }
 /* ---------- mapa geral: motoboys ativos, livres ou em serviço ---------- */
@@ -1836,6 +1992,8 @@ async function ctAbrir(id){
       <div class="small">Quem enviou: <b>${esc(x.quem_enviou||"—")}</b> · Quem pegou: <b>${esc(x.quem_pegou||"—")}</b></div>
       ${["em_andamento","concluido"].includes(x.status)?ptProgresso(x):""}
       ${x.status==="em_andamento"&&x.rastreio_ver?`<a class="btn sm in" style="justify-self:start" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(x.rastreio_ver)}">📍 Acompanhar ao vivo</a>`:""}
+      ${x.status==="concluido"?`<div class="pg-box"><b>💸 Pagamento</b><div class="small">${x.recebido_em?"✅ Baixa feita "+ptHa(x.recebido_em):x.nao_recebi_em?"⚠️ Motoboy/motorista informou que NÃO recebeu "+ptHa(x.nao_recebi_em)+(x.nao_recebi_obs?` — “${esc(x.nao_recebi_obs)}”`:""):x.pago_em?"⏳ Empresa informou pagamento "+ptHa(x.pago_em)+", sem baixa ainda":"💸 Empresa ainda não informou pagamento"}</div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">${x.pag_comprovante?`<button class="btn sm sec" onclick="pagVerComp('${esc(x.pag_comprovante)}')">🧾 Ver comprovante</button>`:""}${x.recebido_em?"":`<button class="btn sm" onclick="ctPagConfirmar('${x.id}',${x.numero})">✅ Confirmar pagamento (admin)</button>`}</div></div>`:""}
       <div><b>Interessados</b><div id="ctCands" class="small muted">Carregando…</div></div></div>
     <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button>${x.quem_pegou?`<button class="btn" onclick="ptChat('${x.id}','Serviço #${x.numero} — conversa')">💬 Ver conversa</button>`:""}</div>`);
   const r=await sbc.rpc("servico_candidatos",{p_id:id}); const b=$("#ctCands"); if(!b) return;
@@ -3880,7 +4038,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="f7468e921f";
+<script>(function(){var V="f604c17d75";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
