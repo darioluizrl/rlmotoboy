@@ -1374,6 +1374,9 @@ function ptMostrarRes(){
     <div class="muted small">Sugestão pela distância: <b>${brl(sug)}</b>. Você pode mudar.</div>
     <div class="pt-taxa"><span>Taxa MegaEntregas</span><b>${cr.creditos_envia||0} créditos (${brl(taxa)})</b></div>
     <div class="pt-total" id="peTotal"></div>
+    <label style="margin-top:12px">Forma de pagamento</label>
+    <div class="chips" id="peFp"><button type="button" data-v="pix" class="${(PTA.fpag||"pix")==="pix"?"on":""}" onclick="ptFpSet('pix')">PIX</button><button type="button" data-v="dinheiro" class="${PTA.fpag==="dinheiro"?"on":""}" onclick="ptFpSet('dinheiro')">💵 Dinheiro</button></div>
+    <div class="muted small" id="peFpH">${PTA.fpag==="dinheiro"?"Você paga em dinheiro direto ao entregador.":"Você paga por PIX ao entregador quando o serviço terminar (a chave aparece aqui)."}</div>
     <button type="button" class="btn pt-big pt-go" id="peSoltar" onclick="ptSoltar()">✅ Soltar serviço</button>
     <p class="muted small" style="margin:6px 0 0;text-align:center">Os motoboys perto da retirada veem na hora.</p>`;
   ptTotal();
@@ -1385,7 +1388,7 @@ async function ptSoltar(){
   let ag=null; if(PTA.quando==="agendar"){ const v=$("#peAg").value; if(!v){ toast("Escolha a data e a hora do agendamento"); return; } ag=new Date(v).toISOString(); }
   const b=$("#peSoltar"); b.disabled=true; b.textContent="Soltando…";
   const pt=(i)=>({e:R.nomes[i], la:Math.round(R.pts[i].lat*1e5)/1e5, lo:Math.round(R.pts[i].lon*1e5)/1e5});
-  const r=await sbc.rpc("servico_soltar",{p:{retirada:pt(0), paradas:R.nomes.slice(1).map((_,i)=>({...pt(i+1),t:"entrega"})), km:R.km, minutos:R.min, veiculo:PTA.veic, valor:R.valor, agendado_para:ag, obs:val("peObs")}});
+  const r=await sbc.rpc("servico_soltar",{p:{retirada:pt(0), paradas:R.nomes.slice(1).map((_,i)=>({...pt(i+1),t:"entrega"})), km:R.km, minutos:R.min, veiculo:PTA.veic, valor:R.valor, agendado_para:ag, obs:val("peObs"), forma_pag:PTA.fpag==="dinheiro"?"dinheiro":"pix"}});
   if(r.error){ b.disabled=false; b.textContent="✅ Soltar serviço"; toast(r.error.message); return; }
   toast("Serviço solto! Os motoboys perto já estão vendo.");
   $("#peRes").innerHTML=`<div class="pt-ok">✅<b>Serviço solto!</b><span>Os ${PTA.veic==="moto"?"motoboys":"motoristas"} perto da retirada já estão vendo.</span><button class="btn sec" onclick="ptEnviarTela()">Soltar outro serviço</button></div>`;
@@ -1401,7 +1404,7 @@ async function ptMeus(){
   if(ab.length){ const c=await sbc.from("candidaturas").select("servico_id,status").in("servico_id",ab); (c.data||[]).forEach(x=>{ if(x.status==="ativa") nc[x.servico_id]=(nc[x.servico_id]||0)+1; }); }
   PTA.nc=nc; clearTimeout(PTA.tMeus); PTA.tMeus=setTimeout(()=>{ if(PTA.aba==="enviar"&&$("#peMeus")) ptMeus(); },20000);
   box.innerHTML=PTA.meus.length?PTA.meus.map(s=>`<div class="pt-meu clic" onclick="ptMeuAbrir('${s.id}')"><div style="flex:1;min-width:0"><b>#${s.numero} · ${esc(String(s.retirada.e).split(",")[0])} → ${esc(String((s.paradas[s.paradas.length-1]||{}).e||"").split(",")[0])}</b>
-      <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · <b style="color:var(--ink,#16181d)">${brl(s.valor)}</b>${s.valor_inicial?` <span class="pt-aum">⬆ aumentado</span>`:""} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div>
+      <div class="muted small">${fmtKm(s.km)} · ${esc(CAD_VEIC[s.veiculo]||"")} · <b style="color:var(--ink,#16181d)">${brl(s.valor)}</b> ${fpTag(s)}${s.valor_inicial?` <span class="pt-aum">⬆ aumentado</span>`:""} · ${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"solto "+ptHa(s.criado_em)}</div>
       <div class="pt-meu-tags"><span class="tag ${(PT_ST[s.status]||["",""])[1]}">${(PT_ST[s.status]||[s.status])[0]}</span>
       ${s.status==="concluido"?ptPagTag(s):""}
       ${s.status==="aberto"?`<span class="muted small">${ptFase(s)}</span><span class="small" style="font-weight:700;color:${nc[s.id]?"var(--brand)":"var(--muted,#8a8f98)"}">🙋 ${nc[s.id]?nc[s.id]+" interessado"+(nc[s.id]>1?"s":""):"nenhum interessado ainda"}</span>`:""}</div>
@@ -1429,6 +1432,9 @@ function prvBloco(x){ if(!x) return "";
 async function prvCarregar(ids){ ids=ids.filter(Boolean); if(!ids.length) return;
   const r=await sbc.rpc("servicos_previsoes",{p_ids:ids}); if(r.error||!r.data) return; Object.assign(PRV,r.data);
   document.querySelectorAll("[data-prv]").forEach(el=>{ const x=PRV[el.dataset.prv]; if(x){ const t=el.dataset.bloco?prvBloco(x):prvLinha(x); el.innerHTML=t; el.style.display=t?"":"none"; } }); }
+/* forma de pagamento do serviço: por enquanto só PIX ou dinheiro */
+function fpTag(x){ return x&&x.forma_pag==="dinheiro"?`<span class="tag" style="background:#e8f6ec;color:#137a3a">💵 Dinheiro</span>`:`<span class="tag" style="background:#e9f0ff;color:#2457c5">PIX</span>`; }
+function ptFpSet(v){ PTA.fpag=v; document.querySelectorAll("#peFp button").forEach(b=>b.classList.toggle("on",b.dataset.v===v)); const h=$("#peFpH"); if(h) h.textContent=v==="dinheiro"?"Você paga em dinheiro direto ao entregador.":"Você paga por PIX ao entregador quando o serviço terminar (a chave aparece aqui)."; }
 function ptPagTag(s){
   if(s.recebido_em) return `<span class="tag ok">✅ Pagamento confirmado</span>`;
   if(s.nao_recebi_em) return `<span class="tag bad">⚠️ Motoboy informou que não recebeu</span>`;
@@ -1440,6 +1446,12 @@ async function ptPagCarregar(id){
   const r=await sbc.rpc("servico_pix",{p_id:id}); if(!$("#pgBox")) return;
   if(r.error){ box.innerHTML=`<p class="small" style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
   const x=r.data||{}, quem=esc(x.quem||"");
+  if(x.forma_pag==="dinheiro"){ box.innerHTML=`<div class="pg-box"><b>💵 Pagamento em dinheiro para ${quem}</b>
+    <div style="font-size:24px;font-weight:800">${brl(x.valor)}</div>${Number(x.espera)>0?`<div class="muted small">frete ${brl(x.frete)} + espera ${brl(x.espera)}</div>`:""}
+    ${x.recebido_em?`<div class="tag ok" style="justify-self:start">✅ ${quem} confirmou o recebimento em ${new Date(x.recebido_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div>`
+      :x.pago_em?`<div class="small">✔ Você informou o pagamento em dinheiro em ${new Date(x.pago_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}. Aguardando ${quem} confirmar.</div>`
+      :`<div class="muted small">Pague em dinheiro direto ao ${quem} e toque no botão abaixo.</div><button class="btn" style="justify-self:start" onclick="ptPagSemComp('${id}','dinheiro')">💵 Já paguei em dinheiro</button>`}
+  </div>`; return; }
   box.innerHTML=`<div class="pg-box"><b>💸 Pagamento para ${quem}</b>
     <div style="font-size:24px;font-weight:800">${brl(x.valor)}</div>${Number(x.espera)>0?`<div class="muted small">frete ${brl(x.frete)} + espera ${brl(x.espera)}</div>`:""}
     ${x.pix_chave?`<div class="muted small">Chave PIX (${esc(pixTipoTxt(x.pix_tipo))})</div>
@@ -1465,8 +1477,8 @@ async function ptPagEnviar(id, inp){
   const r=await sbc.rpc("servico_paguei",{p_id:id,p_comprovante:caminho}); if(r.error){ toast(r.error.message); return; }
   toast("Comprovante enviado. O motoboy foi avisado."); ptMeus(); ptPagCarregar(id);
 }
-function ptPagSemComp(id){
-  openModal(`<div class="modal-h">Já paguei</div><div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0">Confirma que você já fez o PIX? O ${"motoboy/motorista"} vai receber o aviso para conferir e dar baixa.</p>
+function ptPagSemComp(id,din){
+  openModal(`<div class="modal-h">Já paguei</div><div class="modal-b" style="grid-template-columns:1fr"><p style="margin:0">Confirma que você já ${din?"pagou em dinheiro":"fez o PIX"}? O ${"motoboy/motorista"} vai receber o aviso para conferir e dar baixa.</p>
     <p class="muted small" style="margin:0">Se puder, envie o comprovante — ajuda muito se houver dúvida.</p></div>
     <div class="modal-f"><button class="btn sec" onclick="closeModal();ptMeuAbrir('${id}')">Voltar</button><button class="btn" onclick="ptPagSemComp2('${id}')">Sim, já paguei</button></div>`);
 }
@@ -1629,12 +1641,12 @@ function ptTrabPag(t){
   const tot=Number(t.valor)+Number(t.espera_valor||0), h=(Date.now()-new Date(t.concluido_em))/3600e3;
   const sit=t.recebido_em?`<span class="tag ok">✅ Pagamento recebido</span>`
     :t.nao_recebi_em?`<span class="tag bad">⚠️ Você informou que não recebeu — a MegaEntregas vai verificar</span>`
-    :t.pago_em?`<span class="tag warn">💸 A empresa informou o pagamento — confira na sua conta</span>`
+    :t.pago_em?`<span class="tag warn">${t.forma_pag==="dinheiro"?"💵 A empresa informou que pagou em dinheiro — confira":"💸 A empresa informou o pagamento — confira na sua conta"}</span>`
     :`<span class="tag">⏳ Aguardando pagamento da empresa</span>`;
   const prazo=!t.recebido_em&&!t.nao_recebi_em?`<div class="small" style="color:${h>48?"var(--bad)":"var(--muted,#8a8f98)"}">${h>48?"🔒 Prazo de 48h vencido: dê a baixa para voltar a receber serviços.":"Dê a baixa em até "+Math.max(1,Math.ceil(48-h))+"h para continuar recebendo serviços."}</div>`:"";
   return `<div class="pt-trab ok" style="flex-direction:column;align-items:stretch"><div><b>🏁 Serviço #${t.numero} concluído</b>
     <div class="muted small">Valor a receber: <b>${brl(tot)}</b>${t.espera_valor>0?` (frete ${brl(t.valor)} + espera ${brl(t.espera_valor)})`:""} · ${esc(t.quem_enviou||"")}</div>
-    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${sit}</div>${prazo}</div>
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${fpTag(t)}${sit}</div>${prazo}</div>
     ${t.recebido_em?"":`<div style="display:flex;flex-wrap:wrap;gap:6px">
       ${t.pag_comprovante?`<button class="btn sm sec" onclick="pagVerComp('${esc(t.pag_comprovante)}')">🧾 Ver comprovante</button>`:""}
       <button class="btn pt-quero" onclick="ptRecebi('${t.id}',${tot})">✅ Recebi o pagamento</button>
@@ -1666,7 +1678,7 @@ async function ptTrabalhos(){
   const ban=atr.length?`<div class="pg-alerta"><b>🔒 Você está sem receber serviços novos</b><div class="small" style="margin-top:4px">Tem ${atr.length} serviço${atr.length>1?"s":""} concluído${atr.length>1?"s":""} há mais de 48 horas sem baixa do pagamento. Toque em <b>"Recebi o pagamento"</b> ou <b>"Não recebi"</b> abaixo para liberar.</div></div>`:"";
   box.innerHTML=(L.length||ban)?ban+`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
     if(t.minha==="escolhida"&&t.status==="concluido") return ptTrabPag(t);
-    return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>${t.status==="em_andamento"?"🚦 Em andamento":"✅ Você foi escolhido"} · #${t.numero} · ${brl(t.valor)}</b>
+    return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>${t.status==="em_andamento"?"🚦 Em andamento":"✅ Você foi escolhido"} · #${t.numero} · ${brl(t.valor)}</b> ${fpTag(t)}
         <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}${t.paradas.length>1?` <span class="muted">(+${t.paradas.length-1} entrega${t.paradas.length>2?"s":""})</span>`:""}</div><div class="prv-1" data-prv="${t.id}">${PRV[t.id]?prvLinha(PRV[t.id]):""}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
         <div style="display:flex;flex-direction:column;gap:6px">${t.status==="aceito"?`<button class="btn pt-quero" onclick="ptIniciar('${t.id}')">▶ Iniciar serviço</button>`:`<button class="btn pt-quero" onclick="ptExec('${t.id}')">🚦 Continuar serviço</button>`}
         <button class="btn sec" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div></div>`
@@ -1786,7 +1798,7 @@ function ptDesenharLista(){
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
     return `<div class="pt-serv">
-      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
+      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)} ${fpTag(s)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
       <div class="prv-1">🕒 ${(()=>{ const v={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, a=Math.round(Number(s.distancia_km||0)*1.35/v*60+3), b=Number(s.minutos||Math.round(Number(s.km||0)*1.35/v*60));
         return s.agendado_para?`retirada agendada ${new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})} · entrega ~${b+5} min depois`:`você chega na retirada em ~${a} min · entrega ~${a+5+b} min (${hhmm(Date.now()+(a+5+b)*60000)})`; })()}</div>
       <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
@@ -1925,7 +1937,7 @@ function ctDesenhar(){
     return `<tr class="clic" onclick="ctAbrir('${x.id}')"><td><b>${x.numero}</b></td><td class="small">${new Date(x.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</td>
       <td class="small">${esc(String(x.retirada.e).split(",")[0])} → ${esc(String(ult.e||"").split(",")[0])}<div class="muted">${fmtKm(x.km)} · ${esc(CAD_VEIC[x.veiculo]||"")}</div></td>
       <td>${esc(x.quem_enviou||"—")}</td><td>${esc(x.quem_pegou||(x.status==="aberto"?x.candidatos+" interessado(s)":"—"))}${["aceito","em_andamento"].includes(x.status)?`<div class="prv-1" data-prv="${x.id}">${PRV[x.id]?prvLinha(PRV[x.id]):""}</div>`:""}</td><td>${brl(x.valor)}</td>
-      <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span>${ctPagTag(x)}</td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
+      <td><span class="tag ${(PT_ST[x.status]||["",""])[1]}">${(PT_ST[x.status]||[x.status])[0]}</span>${ctPagTag(x)}<div>${fpTag(x)}</div></td><td class="small">${x.mensagens?"💬 "+x.mensagens:""}</td></tr>`; }).join("")}</table>`
     :`<p class="muted small" style="padding:14px 16px">Nenhum serviço neste período.</p>`;
 }
 /* ---------- mapa geral: motoboys ativos, livres ou em serviço ---------- */
@@ -4079,7 +4091,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="29f4dbc517";
+<script>(function(){var V="0823fc7078";
 function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
