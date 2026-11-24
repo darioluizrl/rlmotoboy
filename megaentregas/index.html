@@ -4093,9 +4093,9 @@ show(location.hash.slice(1)||"painel");
 initDB();
 </script>
 <script>(function(){var V="7e588dc1a2";
-function novo(n){ if(n===V) return; try{ if(sessionStorage.getItem("rlv")===n) return; }catch(e){}
+function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
-  function ir(){ try{ sessionStorage.setItem("rlv",n); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
+  function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
   if(!ocupado){ ir(); return; }
   if(document.getElementById("rlNova")) return; var b=document.createElement("button"); b.id="rlNova"; b.textContent="⬆ Nova versão do sistema — toque para atualizar";
   b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:10000;background:#e85d0c;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:700 14px system-ui;box-shadow:0 4px 14px rgba(0,0,0,.25)"; b.onclick=ir; document.body.appendChild(b); }
