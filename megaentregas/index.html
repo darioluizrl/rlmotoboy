@@ -853,6 +853,7 @@ async function sbIniciarSessao(session){
     telaLogin("aguardando", session.user.email); return null;
   }
   S.papel=me.papel; S.uid=session.user.id;
+  if(window.RL_CENTRAL && ["dono","admin"].includes(me.papel)) $("#userBar").insertAdjacentHTML("afterbegin",`<button class="btn sm in" style="padding:4px 9px" title="Abre o app como os motoboys e as empresas veem" onclick="verComoMotoboy()">🏍 Ver como motoboy</button>`);
   if(S.papel==="dono") document.body.classList.add("perfil-dono");
   if(window.RL_CENTRAL && ["dono","admin"].includes(S.papel)) document.body.classList.add("perfil-central");
   if(S.papel==="orcamento"){ document.body.classList.add("perfil-orc"); show("orcamentos"); }
@@ -1019,6 +1020,11 @@ async function telaConvite(){
 
 /* ---------- portal do prestador / contratante ---------- */
 const PT={};
+/* dono/admin: abre o app de motoboy/empresa com o próprio login (cadastro de teste já aprovado) */
+async function verComoMotoboy(){
+  const {data}=await sbc.auth.getSession(); if(!data||!data.session){ toast("Entre de novo"); return; }
+  PT.adm=true; await portal(data.session);
+}
 async function portal(session){
   PT.uid=session.user.id; PT.email=session.user.email; document.body.classList.add("so-portal");
   $("#login").classList.add("show"); const box=$("#loginBox"); box.style.maxWidth="680px";
@@ -1034,7 +1040,7 @@ async function portal(session){
 }
 function portalTopo(){
   return `<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)"><img src="${LOGO_ME}" style="width:46px;height:46px;border-radius:12px">
-    <div style="flex:1"><b>MegaEntregas</b><div class="muted small">${esc(PT.email||"")}</div></div><button class="btn sm sec" onclick="sbSair()">Sair</button></div>`;
+    <div style="flex:1"><b>MegaEntregas</b><div class="muted small">${esc(PT.email||"")}${PT.adm?" · vendo como motoboy/empresa":""}</div></div>${PT.adm?`<button class="btn sm" onclick="location.reload()">⬅ Painel</button>`:""}<button class="btn sm sec" onclick="sbSair()">Sair</button></div>`;
 }
 function portalTela(){
   const p=PT.p, box=$("#loginBox"), edit=(p.status==="pendente"||p.status==="recusado");
@@ -4114,7 +4120,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="8baec1f588";
+<script>(function(){var V="3030f949c5";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
