@@ -1058,9 +1058,22 @@ function portalTela(){
         ${edit?`<label class="btn sm ${ds.length?"sec":""}" style="cursor:pointer">${ds.length?"Trocar":"Enviar"}<input type="file" accept="image/*,application/pdf" ${t==="selfie"?'capture="user"':""} style="display:none" onchange="portalUpload('${t}',this)"></label>`:""}</div>`; }).join("")}</div>
       <p class="small" id="ptMsg" style="margin:6px 0 0"></p></div>
     ${ptPixCard(p)}
+    ${p.status==="aprovado"&&ptRecebe(p)?ptUsoCard(p):""}
     ${ptEnvia(p)?ptMarcaCard(p):""}
     ${p.status==="recusado"?`<button class="btn" onclick="portalReenviar()">Enviar para análise de novo</button>`:""}
   </div>`;
+}
+/* ---------- motoboy/motorista que também solta serviço: o mesmo cadastro faz os dois ---------- */
+function ptUsoCard(p){
+  return ptEnvia(p)
+    ? `<div style="border:1px solid var(--line);border-radius:10px;padding:12px"><b>📦 Você também envia serviços</b><div class="muted small">Seu cadastro recebe e envia. A aba “Enviar serviço” fica no alto da tela.</div>
+        <button class="btn sm sec" style="margin-top:8px" onclick="ptUsoEnvia(false)">Parar de enviar serviços</button></div>`
+    : `<div style="border:1px solid var(--line);border-radius:10px;padding:12px"><b>📦 Também quer enviar serviços?</b><div class="muted small">Use o mesmo cadastro para soltar entregas e fretes para outros motoboys e motoristas.</div>
+        <button class="btn sm" style="margin-top:8px" onclick="ptUsoEnvia(true)">Quero enviar serviços também</button></div>`;
+}
+async function ptUsoEnvia(ligar){
+  const r=await sbc.rpc("meu_uso_envia",{p_ligar:ligar}); if(r.error){ toast(r.error.message); return; }
+  toast(ligar?"Pronto! Agora você também envia serviços":"Envio de serviços desligado"); portal({user:{id:PT.uid,email:PT.email}});
 }
 /* ---------- marca de quem envia: nome e logo nos comprovantes ---------- */
 function ptMarcaCard(p){
@@ -1880,6 +1893,10 @@ async function cadAbrir(uid){
     <div class="modal-b"><div class="full"><table class="ptab">${linhas.map(([k,v])=>`<tr><td class="muted" style="width:35%">${esc(k)}</td><td><b>${esc(v||"—")}</b></td></tr>`).join("")}</table>
       ${p.motivo?`<p class="small" style="color:var(--bad);margin:6px 0 0">Motivo da recusa: ${esc(p.motivo)}</p>`:""}</div>
       ${(docs||[]).length?(docs||[]).map(d=>`<div><label>${esc(nomeDoc(d.tipo))}</label>${docOk(d)}<div class="muted small">Enviado em ${dataBR(d.criado_em)}</div></div>`).join(""):`<p class="full muted">Nenhum documento enviado ainda.</p>`}
+      <div class="full" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px"><b>Como usa a MegaEntregas</b> <span class="muted small">(o mesmo cadastro pode fazer os dois)</span>
+        <div class="row" style="gap:18px;margin-top:6px;flex-wrap:wrap"><label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="cadUsoE" style="width:auto" ${ptEnvia(p)?"checked":""}> 📦 Envia serviços</label>
+        <label style="display:inline-flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="cadUsoR" style="width:auto" ${ptRecebe(p)?"checked":""}> 🏍 Recebe serviços (motoboy / motorista)</label>
+        <button class="btn sm" onclick="cadUso('${uid}')">Salvar</button></div></div>
       ${p.status!=="aprovado"&&p.status!=="bloqueado"?`<div class="full"><label>Motivo (se for recusar)</label><input id="cadMot" placeholder="Ex.: foto da CNH ilegível"></div>`:""}
     </div><div class="modal-f" style="flex-wrap:wrap"><a class="btn sec" target="_blank" rel="noopener" href="https://wa.me/55${soNum(p.telefone)}">WhatsApp</a><div class="spacer"></div>
       <button class="btn sec" onclick="closeModal()">Fechar</button>
@@ -1887,6 +1904,11 @@ async function cadAbrir(uid){
       ${S.papel==="dono"&&p.status==="aprovado"?`<button class="btn sec" style="color:var(--bad)" onclick="cadBloq('${uid}',true)">Bloquear</button>`:""}
       ${S.papel==="dono"&&p.status==="bloqueado"?`<button class="btn in" onclick="cadBloq('${uid}',false)">Desbloquear</button>`:""}
       ${S.papel!=="dono"&&p.status==="bloqueado"?`<span class="muted small">Bloqueado pela RL — só a RL libera.</span>`:""}</div>`;
+}
+async function cadUso(uid){
+  const e=$("#cadUsoE").checked, r=$("#cadUsoR").checked; if(!e&&!r){ toast("Marque pelo menos uma opção"); return; }
+  const x=await sbc.rpc("adm_uso",{p_user:uid,p_envia:e,p_recebe:r}); if(x.error){ toast(x.error.message); return; }
+  toast(e&&r?"Agora envia e recebe serviços":e?"Agora só envia serviços":"Agora só recebe serviços"); closeModal(); renderCadastros();
 }
 async function cadDecidir(uid, ok){
   const mot=ok?null:val("cadMot"); if(!ok && mot.length<3){ toast("Escreva o motivo da recusa"); $("#cadMot").focus(); return; }
@@ -4091,7 +4113,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="0823fc7078";
+<script>(function(){var V="752b605be6";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
