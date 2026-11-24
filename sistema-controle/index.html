@@ -3261,9 +3261,18 @@ function osMontar(origem, paradas, retorno, km, url, repasse, agenda){
   else ent.forEach((e,i)=>L.push(misto?`${i+1}. *${PT_TIPO[e.tipo].toUpperCase()}* — ${e.end}`:`${i+1}. ${e.end}`));
   if(retorno) L.push("(com retorno para a retirada)");
   const vMoto=Number(repasse)||precoMotoboy(km);
-  L.push("","*KM "+kmCobrado(km)+"*","🔴 *VALOR "+brl(vMoto)+"*","","LINK DA ROTA",url||"");
+  const o=osOpc(); L.push("");
+  if(o.km) L.push("*KM "+kmCobrado(km)+"*");
+  if(o.valor) L.push("🔴 *VALOR "+brl(vMoto)+"*");
+  if(o.link && url) L.push("","LINK DA ROTA",url);
+  while(L.length && L[L.length-1]==="") L.pop();
   return L.join("\n");
 }
+/* o que entra na O.S. (fica lembrado neste aparelho) */
+function osOpc(){ let o={}; try{ o=JSON.parse(localStorage.getItem("rl_os_opc")||"{}"); }catch(e){} return {km:o.km!==false, valor:o.valor!==false, link:o.link!==false}; }
+function osOpcSet(k,v){ const o=osOpc(); o[k]=v; try{ localStorage.setItem("rl_os_opc",JSON.stringify(o)); }catch(e){} const ta=$("#osTxt"); if(ta) ta.value=osTexto(); }
+function osOpcHTML(){ const o=osOpc(); const c=(k,t)=>`<label style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;cursor:pointer"><input type="checkbox" ${o[k]?"checked":""} onchange="osOpcSet('${k}',this.checked)" style="width:auto"> ${t}</label>`;
+  return `<div class="small" style="margin-bottom:6px"><b>Mostrar na O.S.:</b><br>${c("km","KM")}${c("valor","Valor do motoboy")}${c("link","Link da rota (mapa)")}</div>`; }
 function osTexto(){ const r=OR.res; return osMontar(OR.origem, r.paradas.map(p=>({end:p.end, tipo: OR.paradas.length>=2 ? orTipo(p.end) : "entrega"})), OR.retorno, r.km, r.url, OR.repasse, osAgenda($("#oAgData")?.value||OR.agData, $("#oAgHora")?.value||OR.agHora)); }
 /* O.S. a partir de um orçamento salvo (botão "Copiar O.S." na tela do orçamento) */
 function osDeOrc(o){
@@ -3281,6 +3290,7 @@ async function copyOS(id){
 function gerarOS(){
   if(!OR||!OR.res){ toast("Calcule a rota primeiro"); return; }
   openModal2(`<div class="modal-h">Ordem de serviço (O.S.)</div><div class="modal-b" style="grid-template-columns:1fr">
+    ${osOpcHTML()}
     <textarea id="osTxt" readonly rows="16" style="font-family:inherit;line-height:1.45;resize:vertical">${esc(osTexto())}</textarea>
     <div id="rastBox">${OR.rast?rastHTML(rastLinks(OR.rast, rastDadosOR())):`<button type="button" class="btn sec" onclick="rastGerarOR()">📍 Gerar links de rastreio</button>`}</div></div>
     <div class="modal-f"><button type="button" class="btn sec" onclick="closeModal2()">Fechar</button><button type="button" class="btn" onclick="copiarOS()">📋 Copiar O.S.</button></div>`);
