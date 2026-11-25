@@ -1,0 +1,41 @@
+name: Vídeo da simulação
+on:
+  push:
+    paths: ["demo/gravacao/pedido.txt"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  gravar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Playwright
+        working-directory: demo/gravacao
+        run: |
+          npm init -y >/dev/null
+          npm i playwright@1 >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Aguarda o site publicar
+        run: sleep 60
+      - name: Grava
+        working-directory: demo/gravacao
+        run: node gravar.js
+      - name: Converte para MP4
+        working-directory: demo/gravacao
+        run: |
+          sudo apt-get install -y ffmpeg >/dev/null
+          f=$(ls saida/*.webm | head -1)
+          ffmpeg -y -ss 8 -i "$f" -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart megaentregas-simulacao.mp4
+          ls -la megaentregas-simulacao.mp4
+      - name: Publica no ramo "videos"
+        working-directory: demo/gravacao
+        run: |
+          mkdir -p /tmp/v && cp megaentregas-simulacao.mp4 /tmp/v/
+          cd /tmp/v && git init -q && git checkout -q -b videos
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add . && git commit -qm "Vídeo da simulação"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" videos

@@ -120,6 +120,7 @@ async function historia(){
   await sleep(6000); if(vivo()) historia();
 }
 $("#ctrl").onclick=()=>historia();
+if(/gravar=1/.test(location.search)) $("#ctrl").style.display="none";
 historia();
 </script>
 </body>
