@@ -352,6 +352,38 @@ textarea{resize:vertical;min-height:60px}
 .pt-sw{width:68px;height:38px;border-radius:999px;border:0;background:#cbd0d6;position:relative;cursor:pointer;flex:none;transition:background .2s}
 .pt-sw i{position:absolute;top:4px;left:4px;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s}
 .pt-sw.on{background:#0f9d58}.pt-sw.on i{left:34px}.pt-sw:disabled{opacity:.6}
+/* ---- visual novo do app (motoboy / empresa): cartões compactos, menu embaixo no celular ---- */
+.pt-ic{display:inline-flex;vertical-align:-3px}.pt-aba .lb-s{display:none}
+.pt-aba{display:inline-flex;align-items:center;gap:6px}
+.pt-disp{background:#111318!important;border:0!important;border-radius:16px;color:#fff;padding:12px 14px}
+.pt-disp b{font-size:15px;color:#fff}.pt-disp span{color:#a7adb8!important;font-size:12.5px}
+.pt-disp.on{background:#16261c!important}.pt-disp.on span{color:#a9c7b4!important}.pt-disp .pt-disp-err{color:#ffb4b4!important}
+.pt-sw{width:56px;height:32px}.pt-sw i{width:24px;height:24px}.pt-sw.on{background:#3ddc84}.pt-sw.on i{left:28px}
+.pt-ajus{display:flex;align-items:center;gap:8px;margin-top:8px}
+.ps{background:#fff;border-radius:18px;padding:13px 14px;margin-top:10px;box-shadow:0 1px 3px rgba(16,24,40,.08),0 0 0 1px #eceef1;display:flex;flex-direction:column;gap:9px}
+.ps-l1{display:flex;align-items:center;gap:8px}.ps-val{font-size:22px;font-weight:800;letter-spacing:-.4px}
+.ps-dist{margin-left:auto;font-size:12px;font-weight:600;color:#4b5260;white-space:nowrap}
+.ps-x{width:32px;height:32px;border-radius:50%;border:1px solid #f1a9a9;background:#fff5f5;color:#c92a2a;font-weight:700;font-size:14px;line-height:1;padding:0;cursor:pointer;flex:none}
+.ps-rota{display:flex;flex-direction:column;gap:5px;font-size:13.5px}.ps-rota div{display:flex;align-items:center;gap:8px;min-width:0}
+.ps-rota div span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none}.ps-sq{width:8px;height:8px;border-radius:2px;background:#111318;flex:none}
+.ps-meta{font-size:12px;color:#4b5260;line-height:1.45}.ps:hover{box-shadow:0 2px 8px rgba(16,24,40,.12),0 0 0 1px #e1e4e9}
+.ps-acoes{display:flex;align-items:center;gap:8px}
+.ps-nao{background:#fff5f5;color:#c92a2a;border:1px solid #f1a9a9;border-radius:12px;font-weight:700;font-size:13px;padding:0 12px;min-height:44px;cursor:pointer}
+.ps-quero{background:var(--brand);color:#fff;border:0;border-radius:12px;font-weight:700;font-size:14px;padding:0 18px;min-height:44px;cursor:pointer}
+.ps-rotab{font-size:12.5px;font-weight:600;color:#4b5260;text-decoration:none;border:1px solid #e1e4e9;border-radius:12px;padding:0 10px;min-height:44px;display:inline-flex;align-items:center}
+@media(max-width:600px){
+  body.so-portal #login{padding:0!important;background:#f2f3f5!important}
+  body.so-portal #loginBox{max-width:none!important;width:100%;min-height:100vh;border-radius:0;margin:0!important;background:#f2f3f5;box-shadow:none;padding-bottom:96px}
+  body.so-portal .pt-fixo{position:sticky;top:0;background:#111318;border-radius:0 0 22px 22px;box-shadow:none}
+  body.so-portal .pt-fixo>div:first-child{border-bottom:0!important}body.so-portal .pt-fixo>div:first-child b{color:#fff}
+  body.so-portal .pt-fixo .btn.sec{background:#22252d;color:#e9ebef;border-color:#3a3f4a}
+  body.so-portal .pt-abas{position:fixed;left:12px;right:12px;bottom:12px;z-index:92;background:#111318;border-radius:20px;padding:6px!important;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;border:0;box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:visible}
+  body.so-portal .pt-aba{flex-direction:column;justify-content:center;gap:3px;color:#a7adb8;border:0;border-radius:14px;padding:7px 2px;font-size:11.5px;min-height:48px}
+  body.so-portal .pt-aba.on{background:var(--brand);color:#fff}
+  body.so-portal .pt-aba .lb-l{display:none}body.so-portal .pt-aba .lb-s{display:block}
+  body.so-portal .toast{bottom:92px;max-width:86vw;text-align:center}
+}
 </style>
 </head>
 <body>
@@ -1252,12 +1284,15 @@ function ptUsoMudou(){ const mb=$("#ptMarcaBox"), en=$("#ptEnv"); if(mb&&en) mb.
 /* ================= APP DA CENTRAL (cadastro aprovado) ================= */
 const PTA={aba:null, rota:null, veic:"moto", quando:"agora", watch:null, pos:null, ultBusca:0, timer:null, lista:[], meus:[], cred:{valor_credito:0.5,creditos_envia:2,creditos_pega:1}};
 const PT_FATOR={moto:1, carro:1.8, utilitario:2.5, caminhao:4};
+const PT_SVG=d=>`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const PT_ICO={enviar:PT_SVG('<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/>'),gestao:PT_SVG('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  receber:PT_SVG('<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),cadastro:PT_SVG('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>')};
 async function ptApp(){
   const box=$("#loginBox"); box.style.maxWidth="980px";
   try{ const r=await sbc.from("config_sistema").select("chave,valor"); (r.data||[]).forEach(x=>{ if(x.chave==="mapa"&&x.valor&&x.valor.token) window.RL_MAPBOX_TOKEN=x.valor.token; if(x.chave==="creditos") PTA.cred={...PTA.cred,...x.valor}; if(x.chave==="espera") PTA.esp=x.valor; if(x.chave==="distribuicao") PTA.dist=x.valor; }); }catch(e){}
-  const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","📦 Enviar serviço"]); if(ptEnvia(p)&&p.gestao) abas.push(["gestao","📊 Gestão"]); if(ptRecebe(p)) abas.push(["receber","🏍 Serviços perto de mim"]); abas.push(["cadastro","👤 Meu cadastro"]);
+  const p=PT.p, abas=[]; if(ptEnvia(p)) abas.push(["enviar","Enviar serviço","Enviar"]); if(ptEnvia(p)&&p.gestao) abas.push(["gestao","Gestão","Gestão"]); if(ptRecebe(p)) abas.push(["receber","Serviços perto de mim","Serviços"]); abas.push(["cadastro","Meu cadastro","Cadastro"]);
   if(!PTA.aba || !abas.some(a=>a[0]===PTA.aba)) PTA.aba=abas[0][0];
-  box.innerHTML=`<div class="pt-fixo">`+portalTopo()+`<div class="pt-abas">${abas.map(([k,l])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')">${l}</button>`).join("")}</div></div><div id="ptConteudo"></div>`;
+  box.innerHTML=`<div class="pt-fixo">`+portalTopo()+`<div class="pt-abas">${abas.map(([k,l,c])=>`<button class="pt-aba${PTA.aba===k?" on":""}" data-a="${k}" onclick="ptAba('${k}')"><span class="pt-ic">${PT_ICO[k]}</span><span class="lb-l">${l}</span><span class="lb-s">${c}</span></button>`).join("")}</div></div><div id="ptConteudo"></div>`;
   $("#login").scrollTop=0;
   ptAba(PTA.aba);
 }
@@ -1627,7 +1662,7 @@ function ptDispTela(msg){
   g.innerHTML=`<div class="pt-disp ${on?"on":""}">
     <div style="flex:1"><b>${on?"🟢 Disponível":"⚫ Indisponível"}</b><span>${on?"Você está recebendo serviços. Sua localização está sendo usada.":"Ligue para receber serviços. A MegaEntregas só usa sua localização enquanto estiver ligado."}</span>${msg?`<span class="pt-disp-err">${msg}</span>`:""}</div>
     <button class="pt-sw ${on?"on":""}" role="switch" aria-checked="${on}" aria-label="Disponível para receber serviços" onclick="ptDispTrocar()"><i></i></button></div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span class="muted small" style="flex:1">Recebendo: <b>${ptQuerTxt()}</b></span><button class="btn sm sec" onclick="ptAjustes()">⚙️ Ajustes</button></div>`;
+    <div class="pt-ajus"><span class="muted small" style="flex:1">Recebendo: <b>${ptQuerTxt()}</b></span><button class="btn sm sec" onclick="ptAjustes()">⚙️ Ajustes</button></div>`;
   if(!on){ const l=$("#prLista"); if(l) l.innerHTML=`<div class="pt-vazio">Você não está recebendo serviços agora.<br><span class="small">Ligue o botão <b>Disponível</b> quando quiser trabalhar.</span></div>`; }
 }
 function ptQuerLista(){ const c=VEIC_COMPAT[PT.p.veiculo]||["moto"]; const q=(PT.p.quer_veiculos&&PT.p.quer_veiculos.length)?PT.p.quer_veiculos:c; return c.filter(k=>q.includes(k)&&veicOk(k)); }
@@ -1845,6 +1880,34 @@ function ptNaoQuero(id){ const o=ptOcultos(); o[id]=Date.now(); ptOcultosSet(o);
   toastAcao("Serviço escondido.","Desfazer",()=>ptDesfazerOculto(id)); }
 function ptDesfazerOculto(id){ const o=ptOcultos(); delete o[id]; ptOcultosSet(o); ptDesenharLista(); }
 function ptMostrarOcultos(){ ptOcultosSet({}); ptDesenharLista(); toast("Serviços escondidos voltaram para a lista"); }
+/* toque no cartão: todas as informações do serviço */
+function ptServDetalhe(id){
+  const s=PTA.lista.find(x=>x.id===id); if(!s) return; const ult=s.paradas[s.paradas.length-1]||{};
+  const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
+  const vv={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, che=Math.round(Number(s.distancia_km||0)*1.35/vv*60+3), dur=Number(s.minutos||Math.round(Number(s.km||0)*1.35/vv*60));
+  const lin=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #eef0f3"><span class="muted">${k}</span><b style="text-align:right">${v}</b></div>`;
+  openModal(`<div class="modal-h" style="display:flex;align-items:center;gap:10px">Serviço #${s.numero} <span style="margin-left:auto;font-size:24px;font-weight:800">${brl(s.valor)}</span></div>
+    <div class="modal-b" style="grid-template-columns:1fr;gap:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${fpTag(s)}<span class="tag">${VEIC_ICO[s.veiculo]||""} ${esc(CAD_VEIC[s.veiculo]||"")}</span><span class="tag">${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span>
+        ${s.valor_inicial&&s.aumentado_em?`<span class="pt-aum">⬆ aumentado · era ${brl(s.valor_inicial)}</span>`:""}</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:10px"><span class="ps-dot" style="margin-top:6px"></span><div><div class="muted small" style="font-weight:700">RETIRADA</div>${esc(s.retirada.e)}</div></div>
+        ${s.paradas.map((p,i)=>`<div style="display:flex;gap:10px"><span class="ps-sq" style="margin-top:6px"></span><div><div class="muted small" style="font-weight:700">ENTREGA${s.paradas.length>1?" "+(i+1):""}</div>${esc(p.e)}</div></div>`).join("")}
+      </div>
+      <div style="font-size:14px">
+        ${lin("Distância até a retirada",String(s.distancia_km).replace(".",",")+" km de você")}
+        ${lin("Percurso",fmtKm(s.km)+(s.minutos?" · ~"+s.minutos+" min":""))}
+        ${s.agendado_para?lin("Retirada agendada",new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})):lin("Você chega na retirada","~"+che+" min ("+hhmm(Date.now()+che*60000)+")")+lin("Entrega prevista","~"+hhmm(Date.now()+(che+5+dur)*60000))}
+        ${lin("Pagamento",(s.forma_pag==="dinheiro"?"💵 Dinheiro":"PIX")+" · direto de quem enviou")}
+        ${lin("Interessados",s.candidatos+" de "+(s.max_candidatos||3)+" · quem enviou escolhe")}
+        ${lin("Solto",ptHa(s.criado_em))}
+      </div>
+      ${s.obs?`<div style="background:#f7f7f9;border-radius:10px;padding:10px 12px">💬 ${esc(s.obs)}</div>`:""}
+      ${s.eu_candidato?`<div class="pt-cand-ok">✓ Você está na lista · aguardando quem enviou escolher</div>`:""}
+    </div>
+    <div class="modal-f" style="flex-wrap:wrap"><a class="btn sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><div class="spacer"></div>
+      ${s.eu_candidato?`<button class="btn sec" onclick="closeModal();ptDesistir('${s.id}')">Desistir</button>`:`<button class="ps-nao" onclick="closeModal();ptNaoQuero('${s.id}')">Não quero</button><button class="ps-quero" onclick="closeModal();ptCandidatar('${s.id}')">Quero este serviço</button>`}</div>`);
+}
 function ptDesenharLista(){
   const l=$("#prLista"); if(!l) return; if(!PT.p.disponivel){ ptDispTela(); return; }
   if(!PTA.pos){ l.innerHTML=""; return; }
@@ -1855,18 +1918,18 @@ function ptDesenharLista(){
   l.innerHTML=`<div class="muted small">${lista.length} serviço(s) perto de você · cada serviço aceita até ${lista[0].max_candidatos||3} interessados e quem enviou escolhe um</div>`+lista.map(s=>{
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
-    return `<div class="pt-serv" style="position:relative">
-      ${s.eu_candidato?"":`<button aria-label="Não quero este serviço" title="Não quero" onclick="ptNaoQuero('${s.id}')" style="position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:1px solid #f1a9a9;background:#fff5f5;color:#c92a2a;font-size:16px;font-weight:700;line-height:1;padding:0;cursor:pointer">✕</button>`}
-      <div class="pt-serv-top" style="padding-right:${s.eu_candidato?0:36}px"><div class="pt-serv-val">${brl(s.valor)} ${fpTag(s)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
-      <div class="prv-1">🕒 ${(()=>{ const v={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, a=Math.round(Number(s.distancia_km||0)*1.35/v*60+3), b=Number(s.minutos||Math.round(Number(s.km||0)*1.35/v*60));
-        return s.agendado_para?`retirada agendada ${new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})} · entrega ~${b+5} min depois`:`você chega na retirada em ~${a} min · entrega ~${a+5+b} min (${hhmm(Date.now()+(a+5+b)*60000)})`; })()}</div>
-      <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
-      <div class="pt-serv-info"><span>${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""}</span><span>${esc(CAD_VEIC[s.veiculo]||"")}</span><span>${s.agendado_para?"📅 "+new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</span><span>solto ${ptHa(s.criado_em)}</span></div>
-      ${s.obs?`<div class="small" style="margin-top:6px">💬 ${esc(s.obs)}</div>`:""}
-      <div class="pt-vagas">${Array.from({length:s.max_candidatos||3},(_,i)=>`<i class="${i<s.candidatos?"on":""}"></i>`).join("")}<span>${s.candidatos} de ${s.max_candidatos||3} interessados</span></div>
+    const vv={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, che=Math.round(Number(s.distancia_km||0)*1.35/vv*60+3), dur=Number(s.minutos||Math.round(Number(s.km||0)*1.35/vv*60));
+    const prev=s.agendado_para?`📅 retirada ${new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`:`chega na retirada ~${che} min · entrega ~${hhmm(Date.now()+(che+5+dur)*60000)}`;
+    const ret=(e)=>esc(String(e||"").replace(/, Brasil$/,"").split(" - ").slice(0,2).join(" · "));
+    return `<div class="ps pt-serv" role="button" tabindex="0" aria-label="Ver detalhes do serviço de ${brl(s.valor)}" onclick="if(!event.target.closest('button,a'))ptServDetalhe('${s.id}')" onkeydown="if(event.key==='Enter'&&event.target===this)ptServDetalhe('${s.id}')" style="cursor:pointer">
+      <div class="ps-l1"><span class="ps-val">${brl(s.valor)}</span>${fpTag(s)}<span class="ps-dist">${String(s.distancia_km).replace(".",",")} km de você</span>${s.eu_candidato?"":`<button class="ps-x" aria-label="Não quero este serviço" title="Não quero" onclick="ptNaoQuero('${s.id}')">✕</button>`}</div>
+      ${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px;margin-top:-4px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}
+      <div class="ps-rota"><div><span class="ps-dot"></span><span>${ret(s.retirada.e)}</span></div>${s.paradas.map(p=>`<div><span class="ps-sq"></span><span>${ret(p.e)}</span></div>`).join("")}</div>
+      <div class="ps-meta">${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${prev}<br>${s.candidatos} de ${s.max_candidatos||3} interessados · solto ${ptHa(s.criado_em)}</div>
+      ${s.obs?`<div class="small" style="background:#f7f7f9;border-radius:10px;padding:7px 10px">💬 ${esc(s.obs)}</div>`:""}
       ${s.eu_candidato?`<div class="pt-cand-ok">✓ Você está na lista · aguardando quem enviou escolher</div>`:""}
-      <div class="row" style="margin-top:10px;gap:8px"><a class="btn sm sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><div class="spacer"></div>
-        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="btn sm" style="background:#fff5f5;color:#c92a2a;border:1px solid #f1a9a9" onclick="ptNaoQuero('${s.id}')">✕ Não quero</button><button class="btn pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">🙋 Quero este serviço</button>`}</div>
+      <div class="ps-acoes"><a class="ps-rotab" target="_blank" rel="noopener" href="${esc(url)}">Rota ↗</a><div class="spacer"></div>
+        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="ps-nao" onclick="ptNaoQuero('${s.id}')">Não quero</button><button class="ps-quero pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">Quero</button>`}</div>
     </div>`; }).join("")+rodOc;
 }
 
