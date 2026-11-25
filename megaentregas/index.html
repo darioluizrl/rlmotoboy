@@ -532,6 +532,8 @@ body.modo-demo-embed::before{display:none}
       <div style="padding:14px 16px">
         <div><label>Endereço da base RL Motoboy (ponto de partida padrão)</label><input id="cfgBase" class="ac" autocomplete="off" placeholder="Rua, número, bairro, cidade"></div>
         <div class="geo" id="cfgInfo" style="padding:6px 0 12px"></div>
+        <div class="small muted" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 12px">🗺 <span id="mbcInfo">Buscas de endereço e rota guardadas neste aparelho.</span>
+          <button type="button" class="btn sm sec" onclick="mbcLimpar();mbcMostrar();toast('Buscas guardadas apagadas')">Limpar</button></div>
         <div style="font-weight:700;margin:4px 0 8px">Dados da empresa para os recibos</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px">
           <div><label>Nome da empresa</label><input id="cfgEmp" placeholder="RL Motoboy"></div>
@@ -2736,13 +2738,34 @@ const MOTO_ARGS={alternatives:true, max_width:1, max_height:1.5};
 const menorRota = routes => (routes||[]).filter(r=>r&&r.distance!=null).sort((x,y)=>x.distance-y.distance)[0] || null;
 async function routeREST(a,b){
   const u=`https://api.mapbox.com/directions/v5/mapbox/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false&${MOTO_Q}&access_token=${mbToken()}`;
-  let r; try{ r=await fetch(u); }catch(e){ throw {code:"server_unavailable"}; }
-  if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
-  const j=await r.json(); const rt=menorRota(j.routes);
+  const j=await mbFetch(u,"rota"); const rt=menorRota(j.routes);
   if(!rt) throw {code:"not_found",message:"Não encontrei uma rota entre esses endereços."};
   return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60)};
 }
 const GEO_CACHE=new Map();
+/* ---- cache das buscas do Mapbox (endereços, rotas, matriz): guardado neste aparelho, vence sozinho.
+   Mesma busca de novo = resposta na hora, sem gastar uma chamada do Mapbox. ---- */
+const MBC={key:"me_mapbox_cache_v1", max:800, mem:null, dias:{geo:30, rota:14, matriz:14}};
+function mbcLoad(){ if(MBC.mem) return MBC.mem; try{ MBC.mem=JSON.parse(localStorage.getItem(MBC.key)||"null"); }catch(e){} if(!MBC.mem||!MBC.mem.e) MBC.mem={e:{},hit:0,miss:0}; return MBC.mem; }
+function mbcSave(){ const c=MBC.mem; if(!c) return; const ks=Object.keys(c.e);
+  if(ks.length>MBC.max) ks.sort((a,b)=>c.e[a].u-c.e[b].u).slice(0,ks.length-MBC.max).forEach(k=>delete c.e[k]);
+  try{ localStorage.setItem(MBC.key,JSON.stringify(c)); }catch(e){ c.e={}; try{ localStorage.setItem(MBC.key,JSON.stringify(c)); }catch(e2){} } }
+const mbcChave = url => { const u=new URL(url); u.searchParams.delete("access_token"); return u.toString().replace("https://api.mapbox.com/",""); };
+/* fetch do Mapbox com cache: devolve o JSON (ou lança o mesmo erro que antes) */
+async function mbFetch(url, tipo){
+  const c=mbcLoad(), k=mbcChave(url), agora=Date.now(), x=c.e[k];
+  if(x && agora-x.t < MBC.dias[tipo]*864e5){ x.u=agora; c.hit++; clearTimeout(MBC.ts); MBC.ts=setTimeout(mbcSave,800); return x.j; }
+  let r; try{ r=await fetch(url); }catch(e){ throw {code:"server_unavailable"}; }
+  if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
+  const j=await r.json(); c.miss++;
+  const vazio = (j.features&&!j.features.length) || (j.routes&&!j.routes.length);
+  if(!vazio){ c.e[k]={t:agora,u:agora,j}; clearTimeout(MBC.ts); mbcSave(); }
+  return j;
+}
+function mbcInfo(){ const c=mbcLoad(); return {itens:Object.keys(c.e).length, hit:c.hit, miss:c.miss}; }
+function mbcMostrar(){ const el=document.getElementById("mbcInfo"); if(!el) return; const i=mbcInfo(), tot=i.hit+i.miss;
+  el.innerHTML=`<b>${i.itens}</b> buscas guardadas neste aparelho · <b>${i.hit}</b> reaproveitadas sem gastar Mapbox${tot?` (${Math.round(i.hit*100/tot)}% das buscas)`:""}`; }
+function mbcLimpar(){ MBC.mem={e:{},hit:0,miss:0}; mbcSave(); }
 /* busca de endereços: só no estado de SP — primeiro a cidade de São Paulo e o ABC paulista, depois o resto do estado */
 const REGIAO={minLon:-46.83, minLat:-24.01, maxLon:-46.30, maxLat:-23.35};
 const ESTADO={minLon:-53.12, minLat:-25.32, maxLon:-44.15, maxLat:-19.77};
@@ -2759,9 +2782,7 @@ async function buscaMapbox(q, limit, auto, regional){
     u.searchParams.set("limit",String(limit)); u.searchParams.set("autocomplete",auto?"true":"false");
     u.searchParams.set("proximity",px.lon+","+px.lat); u.searchParams.set("access_token",mbToken());
     const bx=regional?REGIAO:ESTADO; u.searchParams.set("bbox",[bx.minLon,bx.minLat,bx.maxLon,bx.maxLat].join(","));
-    let r; try{ r=await fetch(u); }catch(e){ throw {code:"server_unavailable"}; }
-    if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
-    const j=await r.json();
+    const j=await mbFetch(u.toString(),"geo");
     return (j.features||[]).map(f=>{ const p=f.properties||{}, c=f.geometry.coordinates;
       return {lon:+c[0], lat:+c[1], nome:p.full_address||[p.name,p.place_formatted].filter(Boolean).join(", "), titulo:p.name||"", sub:p.place_formatted||""}; });
   }
@@ -2773,7 +2794,11 @@ async function buscaMapbox(q, limit, auto, regional){
   return parseGeo(r).map(g=>{ const [t,...rest]=(g.nome||"").split(","); return {...g, titulo:t, sub:rest.join(",").trim()}; });
 }
 async function buscarEnd(q, limit, auto){
-  const [reg, ger]=await Promise.all([buscaMapbox(q,limit,auto,true).catch(e=>({erro:e})), buscaMapbox(q,limit,auto,false).catch(e=>({erro:e}))]);
+  q=q.replace(/\s+/g," ").trim();
+  /* primeiro só na região (SP + ABC); o resto do estado só se a região não trouxer o suficiente: metade das chamadas */
+  const reg=await buscaMapbox(q,limit,auto,true).catch(e=>({erro:e}));
+  const nReg=Array.isArray(reg)?reg.filter(naRegiao).length:0;
+  const ger= (nReg>=Math.min(limit,3) || (!auto && nReg>=1)) ? [] : await buscaMapbox(q,limit,auto,false).catch(e=>({erro:e}));
   const R=Array.isArray(reg)?reg:[], G=Array.isArray(ger)?ger:[];
   if(!R.length && !G.length && (reg.erro||ger.erro)) throw (reg.erro||ger.erro);
   const out=[], vistos=new Set();
@@ -2786,7 +2811,7 @@ async function geocode(q){
   if(GEO_CACHE.has(q)) return GEO_CACHE.get(q);
   const r=await buscarEnd(q, 3, false);
   if(!r.length) throw {code:"not_found",message:`Endereço não encontrado no estado de SP: “${q}”. Inclua número, bairro e cidade.`};
-  return r[0];
+  GEO_CACHE.set(q,r[0]); return r[0];
 }
 async function route(a,b){
   if(REST_MAPS) return routeREST(a,b);
@@ -2837,7 +2862,7 @@ function tabExemplos(){
 }
 let cfgFilled=false;
 function renderCfg(){
-  const b=$("#cfgBase"); if(!b) return;
+  const b=$("#cfgBase"); if(!b) return; mbcMostrar();
   $("#bkInfo").innerHTML = OFFLINE
     ? (window.rlStore ? `Os dados ficam salvos neste computador em <b>${esc(window.rlStore.pasta())}</b>, com uma cópia automática por dia. Exporte um backup de vez em quando e guarde num pendrive ou no Google Drive.` : "Os dados ficam salvos neste navegador. Exporte um backup com frequência.")
     : "Baixe uma cópia de todos os dados (clientes, equipe, lançamentos, orçamentos e configurações). Esse arquivo também serve para levar os dados para a versão offline do computador.";
@@ -2894,7 +2919,7 @@ document.addEventListener("input",e=>{
   const q=el.value.trim(); if(q.length<4){ acFechar(); return; }
   ACP.t=setTimeout(async()=>{ const meu=++ACP.seq; acDesenhar('<div class="msg">Buscando endereços…</div>');
     try{ const r=await sugerirEnd(q); if(meu!==ACP.seq||ACP.el!==el||document.activeElement!==el) return; ACP.itens=r; ACP.sel=-1; acRender(); }
-    catch(err){ if(meu===ACP.seq) acDesenhar(`<div class="msg">${esc(mapboxErr(err))}</div>`); } }, 350);
+    catch(err){ if(meu===ACP.seq) acDesenhar(`<div class="msg">${esc(mapboxErr(err))}</div>`); } }, 550);
 });
 document.addEventListener("keydown",e=>{
   if(!ACP.el||e.target!==ACP.el||$("#acBox").style.display!=="block"||!ACP.itens.length) return;
@@ -2920,9 +2945,7 @@ async function matriz(pts){
   if(REST_MAPS){
     if(!mbToken()) throw {code:"tool_error",message:"Chave do Mapbox não configurada."};
     const c=pts.map(p=>`${p.lon},${p.lat}`).join(";");
-    let r; try{ r=await fetch(`https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${c}?annotations=distance,duration&access_token=${mbToken()}`); }catch(e){ throw {code:"server_unavailable"}; }
-    if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
-    const j=await r.json(); return {dist:j.distances, dur:j.durations};
+    const j=await mbFetch(`https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${c}?annotations=distance,duration&access_token=${mbToken()}`,"matriz"); return {dist:j.distances, dur:j.durations};
   }
   const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
   const r=await mcp.callTool("Mapbox","matrix_tool",{coordinates:pts.map(p=>({longitude:p.lon,latitude:p.lat})),profile:"mapbox/driving",annotations:"distance,duration"},{cache:{staleTime:864e5,gcTime:864e5}});
@@ -2932,9 +2955,7 @@ async function matriz(pts){
 async function rotaMulti(pts){
   if(REST_MAPS){
     const c=pts.map(p=>`${p.lon},${p.lat}`).join(";");
-    let r; try{ r=await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${c}?overview=false&${MOTO_Q}&access_token=${mbToken()}`); }catch(e){ throw {code:"server_unavailable"}; }
-    if(!r.ok) throw {code:"tool_error",message:"Mapbox respondeu "+r.status};
-    const j=await r.json(); const rt=menorRota(j.routes); if(!rt) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
+    const j=await mbFetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${c}?overview=false&${MOTO_Q}&access_token=${mbToken()}`,"rota"); const rt=menorRota(j.routes); if(!rt) throw {code:"not_found",message:"Não encontrei uma rota por esses endereços."};
     return {km:Math.round(rt.distance/100)/10, min:Math.round((rt.duration||0)/60), legs:(rt.legs||[]).map(l=>l.distance)};
   }
   const mcp=await getMcp(); if(!mcp) throw {code:"no_mcp"};
@@ -4254,7 +4275,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="2956525701";
+<script>(function(){var V="97e94fd38e";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
