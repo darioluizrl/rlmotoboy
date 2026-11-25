@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de celular · MegaEntregas</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#1d2027;color:#e9ebef;display:flex;flex-direction:column;align-items:center}
+  header{width:100%;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;padding:14px 16px;background:#16181d;border-bottom:1px solid #2c3039}
+  header b{font-size:15px;margin-right:6px}
+  .grp{display:flex;gap:6px;flex-wrap:wrap}
+  button{font:inherit;font-size:13px;border:1px solid #3a3f4a;background:#23262e;color:#e9ebef;padding:7px 12px;border-radius:999px;cursor:pointer}
+  button.on{background:#f26a1b;border-color:#f26a1b;color:#fff;font-weight:600}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 12px}
+  .phone{position:relative;background:#0b0c0f;border-radius:46px;padding:14px;box-shadow:0 0 0 2px #3a3f4a,0 30px 60px rgba(0,0,0,.5)}
+  .phone::before{content:"";position:absolute;top:22px;left:50%;transform:translateX(-50%);width:90px;height:22px;background:#0b0c0f;border-radius:0 0 14px 14px;z-index:2}
+  .screen{border-radius:34px;overflow:hidden;background:#fff;display:block}
+  iframe{border:0;display:block;width:100%;height:100%}
+  .dica{font-size:12px;color:#9aa0ab;text-align:center;padding:0 16px 18px;max-width:640px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <b>📱 Simulador de celular</b>
+  <div class="grp" id="apps">
+    <button data-u="../megaentregas/" class="on">MegaEntregas</button>
+    <button data-u="../megaentregas/rastreio/">Rastreio</button>
+    <button data-u="../baixar/">Página de download</button>
+  </div>
+  <div class="grp" id="tam">
+    <button data-w="360" data-h="760">Android pequeno</button>
+    <button data-w="390" data-h="844" class="on">iPhone / Android médio</button>
+    <button data-w="430" data-h="932">Celular grande</button>
+  </div>
+  <button id="rec" title="Recarregar a tela do celular">↻ Recarregar</button>
+</header>
+<main><div class="phone"><div class="screen" id="tela"><iframe id="ifr" allow="geolocation; clipboard-write" src="../megaentregas/"></iframe></div></div></main>
+<p class="dica">É o mesmo sistema do app, do tamanho de um celular. O login aqui é o mesmo deste navegador: se você já está logado no painel, entra direto (use “🏍 Ver como motoboy”).
+Para ver como outra pessoa ao mesmo tempo, abra esta página numa janela anônima (Ctrl+Shift+N) e entre com outra conta.</p>
+<script>
+  const ifr=document.getElementById("ifr"), tela=document.getElementById("tela");
+  function tam(w,h){ const esc=Math.min(1,(innerHeight-150)/h); tela.style.width=w+"px"; tela.style.height=h+"px"; document.querySelector(".phone").style.transform="scale("+esc+")"; document.querySelector(".phone").style.transformOrigin="top center"; document.querySelector("main").style.height=(h*esc+60)+"px"; }
+  function liga(grp,fn){ document.querySelectorAll("#"+grp+" button").forEach(b=>b.onclick=()=>{ document.querySelectorAll("#"+grp+" button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); fn(b); }); }
+  liga("apps",b=>{ ifr.src=b.dataset.u; });
+  liga("tam",b=>tam(+b.dataset.w,+b.dataset.h));
+  document.getElementById("rec").onclick=()=>{ try{ ifr.contentWindow.location.reload(); }catch(e){ ifr.src=ifr.src; } };
+  let atual=[390,844]; document.querySelectorAll("#tam button").forEach(b=>b.addEventListener("click",()=>atual=[+b.dataset.w,+b.dataset.h]));
+  addEventListener("resize",()=>tam(...atual)); tam(390,844);
+</script>
+</body>
+</html>
