@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MegaEntregas · Simulação da operação em tempo real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0d0f13;color:#e9ebef;font-family:Inter,system-ui,sans-serif;overflow:hidden}
+  #palco{position:absolute;left:50%;top:50%;width:1600px;height:900px;transform-origin:center center;display:flex;flex-direction:column;padding:22px 28px 18px;gap:16px}
+  header{display:flex;align-items:center;gap:14px}
+  header img{width:44px;height:44px;border-radius:12px}
+  header h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px}
+  header p{margin:2px 0 0;color:#9aa0ab;font-size:14px}
+  .vivo{margin-left:auto;display:flex;align-items:center;gap:8px;background:#1a1d24;border:1px solid #2c3039;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:700}
+  .vivo i{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 0 rgba(239,68,68,.6);animation:pulso 1.6s infinite}
+  @keyframes pulso{70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+  .demo{background:#7c3aed;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;letter-spacing:.4px}
+  main{flex:1;display:flex;gap:22px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:10px;min-height:0}
+  .rot{font-size:13px;font-weight:700;color:#c3c8d1;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .rot b{color:#fff;background:#e8590c;border-radius:6px;padding:2px 7px;font-size:12px}
+  .fone{width:340px;height:704px;background:#000;border-radius:44px;padding:11px;box-shadow:0 0 0 2px #2c3039,0 24px 50px rgba(0,0,0,.5);position:relative;flex:none}
+  .fone::before{content:"";position:absolute;top:11px;left:50%;transform:translateX(-50%);width:96px;height:24px;background:#000;border-radius:0 0 14px 14px;z-index:3}
+  .tela{width:318px;height:682px;border-radius:34px;overflow:hidden;background:#f2f3f5;position:relative}
+  .tela iframe{width:390px;height:837px;border:0;transform:scale(.8154);transform-origin:0 0;position:absolute;left:0;top:0}
+  .painel{flex:1;min-width:0;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px #2c3039,0 24px 50px rgba(0,0,0,.45);position:relative}
+  .painel iframe{border:0;position:absolute;left:0;top:0;transform-origin:0 0}
+  footer{display:flex;align-items:center;gap:16px;background:#151820;border:1px solid #262a33;border-radius:16px;padding:12px 18px;min-height:64px}
+  #passoN{width:34px;height:34px;border-radius:50%;background:#e8590c;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+  #passoT{font-size:18px;font-weight:700;flex:1}
+  #passoT span{display:block;font-size:13.5px;font-weight:500;color:#9aa0ab;margin-top:2px}
+  .pontos{display:flex;gap:6px}.pontos i{width:26px;height:5px;border-radius:3px;background:#2c3039}.pontos i.on{background:#e8590c}
+  #ctrl{background:#22252d;color:#e9ebef;border:1px solid #3a3f4a;border-radius:10px;padding:8px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="palco">
+  <header>
+    <img src="../marca/megaentregas-192.png" alt="">
+    <div><h1>MegaEntregas · operação em tempo real</h1><p>Empresa solta o serviço, o motoboy mais perto pega e a central acompanha tudo no mapa</p></div>
+    <span class="vivo"><i></i>AO VIVO</span><span class="demo">SIMULAÇÃO · DADOS FICTÍCIOS</span>
+  </header>
+  <main>
+    <div class="col"><div class="rot"><b>1</b> Quem envia · Padaria Bom Pão</div><div class="fone"><div class="tela"><iframe id="fA" title="App de quem envia"></iframe></div></div></div>
+    <div class="col"><div class="rot"><b>2</b> Motoboy · Carlos</div><div class="fone"><div class="tela"><iframe id="fB" title="App do motoboy"></iframe></div></div></div>
+    <div class="col" style="flex:1;min-width:0"><div class="rot"><b>3</b> Painel operacional · todos os motoboys</div><div class="painel" id="pC"><iframe id="fC" title="Painel operacional"></iframe></div></div>
+  </main>
+  <footer>
+    <div id="passoN">1</div><div id="passoT">Preparando a simulação…<span></span></div>
+    <div class="pontos" id="pontos"></div><button id="ctrl" type="button">⟲ Recomeçar</button>
+  </footer>
+</div>
+<script src="./seed.js"></script>
+<script>
+const $=s=>document.querySelector(s), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const PASSOS=[
+  ["Motoboys disponíveis veem os serviços perto deles","Cada um recebe só o que está no raio dele, com valor, distância e forma de pagamento"],
+  ["A empresa solta um serviço novo","Retirada, entrega e valor. Em segundos ele aparece para os motoboys mais próximos"],
+  ["O motoboy abre o serviço e toca em “Quero”","Ele vê endereços, previsão de chegada e quanto vai receber"],
+  ["A empresa escolhe o motoboy","Até 3 interessados por serviço. Quem envia escolhe e já pode conversar pelo chat"],
+  ["Corrida em andamento, acompanhada no mapa","O painel operacional mostra a posição de toda a frota atualizando a cada segundo"],
+  ["Entrega concluída e pagamento","A empresa recebe a chave PIX do motoboy, paga e ele confirma o recebimento"]
+];
+$("#pontos").innerHTML=PASSOS.map(()=>"<i></i>").join("");
+function passo(i){ $("#passoN").textContent=i+1; $("#passoT").innerHTML=PASSOS[i][0]+"<span>"+PASSOS[i][1]+"</span>"; document.querySelectorAll("#pontos i").forEach((x,j)=>x.classList.toggle("on",j<=i)); }
+function escala(){ const k=Math.min(innerWidth/1600,innerHeight/900); $("#palco").style.transform=`translate(-50%,-50%) scale(${k})`; }
+addEventListener("resize",escala); escala();
+function ajustaPainel(){ const p=$("#pC"), f=$("#fC"), W=1180, k=p.clientWidth/W; f.style.width=W+"px"; f.style.height=(p.clientHeight/k)+"px"; f.style.transform=`scale(${k})`; }
+addEventListener("resize",ajustaPainel);
+const W=id=>$(id).contentWindow;
+async function pronto(id,teste,max=20000){ const t0=Date.now(); while(Date.now()-t0<max){ try{ const w=W(id); if(w&&w.DEMO_SBC&&teste(w)) return w; }catch(e){} await sleep(250); } return W(id); }
+const gps=(lat,lon)=>localStorage.setItem("__demogps",JSON.stringify({lat,lon}));
+async function anda(de,ate,seg){ const n=seg*4; for(let i=1;i<=n;i++){ const t=i/n; gps(de[0]+(ate[0]-de[0])*t+Math.sin(t*9)*0.0004, de[1]+(ate[1]-de[1])*t); await sleep(250); } }
+let rodada=0;
+async function historia(){
+  const minha=++rodada;
+  DEMO_SEED(true); gps(-23.6904,-46.5684);
+  const v="?t="+Date.now();
+  $("#fA").src="../megaentregas/"+v+"&demo_u=loja"; $("#fB").src="../megaentregas/"+v+"&demo_u=moto1"; $("#fC").src="../megaentregas/"+v+"&demo_u=dono&demo_v=operacional";
+  ajustaPainel();
+  const [A,B,C]=await Promise.all([pronto("#fA",w=>w.document.querySelector("#peMeus")),pronto("#fB",w=>w.document.querySelector(".pt-serv")),pronto("#fC",w=>w.DEMO_MM&&w.DEMO_MM.map,25000)]);
+  const meus=()=>{ try{ meus(); setTimeout(()=>{ const e=A.document.querySelector("#peMeus"); if(e) e.scrollIntoView({behavior:"smooth",block:"start"}); },400); }catch(e){} };
+  meus();
+  const vivo=()=>minha===rodada;
+  try{ const mp=C.document.querySelector(".mm-panel"); if(mp) mp.scrollIntoView({block:"start"}); C.DEMO_MM.map.invalidateSize(); C.DEMO_MM.map.setView([-23.66,-46.575],12); }catch(e){}
+  passo(0); await sleep(6000); if(!vivo()) return;
+  /* 2: empresa solta */
+  passo(1);
+  const R=["Av. Kennedy, 1200 - Jardim do Mar, São Bernardo do Campo",-23.6948,-46.5590], E=["Rua Américo Brasiliense, 400 - Centro, São Bernardo do Campo",-23.7038,-46.5488];
+  const r=await A.DEMO_SBC.rpc("servico_soltar",{p:{retirada:{e:R[0],la:R[1],lo:R[2]},paradas:[{e:E[0],la:E[1],lo:E[2],t:"entrega"}],km:2.4,minutos:8,veiculo:"moto",valor:24,agendado_para:null,obs:"Bolo de aniversário · cuidado no transporte",forma_pag:"pix"}});
+  const id=r.data; meus();
+  await sleep(1500); try{ B.ptBuscar(); }catch(e){}
+  await sleep(4500); if(!vivo()) return;
+  /* 3: motoboy abre e quer */
+  passo(2); try{ B.ptServDetalhe(id); }catch(e){}
+  await sleep(4500); try{ B.closeModal(); await B.ptCandidatar(id); }catch(e){}
+  await sleep(2500); try{ meus(); }catch(e){}
+  await sleep(1500); if(!vivo()) return;
+  /* 4: empresa escolhe */
+  passo(3); try{ A.ptMeuAbrir(id); }catch(e){}
+  await sleep(3500); try{ A.closeModal(); }catch(e){}
+  await A.DEMO_SBC.rpc("servico_escolher",{p_id:id,p_prestador:"moto1"}); try{ meus(); B.ptTrabalhos(); }catch(e){}
+  await sleep(4000); if(!vivo()) return;
+  /* 5: corrida */
+  passo(4);
+  await B.DEMO_SBC.rpc("servico_iniciar",{p_id:id}); try{ B.ptTrabalhos(); }catch(e){}
+  try{ C.DEMO_MM.map.flyTo([-23.698,-46.556],14,{duration:2}); }catch(e){}
+  await anda([-23.6904,-46.5684],[R[1],R[2]],6); if(!vivo()) return;
+  await B.DEMO_SBC.rpc("servico_chegou",{p_id:id,p_ponto:0}).catch(()=>{}); await B.DEMO_SBC.rpc("servico_retirada",{p_id:id,p_nome:"Ana (balcão)"}); try{ B.ptTrabalhos(); meus(); }catch(e){}
+  await anda([R[1],R[2]],[E[1],E[2]],8); if(!vivo()) return;
+  await B.DEMO_SBC.rpc("servico_chegou",{p_id:id,p_ponto:1}).catch(()=>{});
+  await B.DEMO_SBC.rpc("servico_entrega",{p_id:id,p_ponto:1,p_nome:"Marina Costa",p_rg:"123456789"}); try{ B.ptTrabalhos(); meus(); }catch(e){}
+  /* 6: pagamento */
+  passo(5); try{ C.DEMO_MM.map.flyTo([-23.66,-46.575],12,{duration:2}); A.ptMeuAbrir(id); }catch(e){}
+  await sleep(4500); await A.DEMO_SBC.rpc("servico_paguei",{p_id:id,p_comprovante:null}); try{ A.closeModal(); meus(); B.ptTrabalhos(); }catch(e){}
+  await sleep(3500); await B.DEMO_SBC.rpc("servico_recebi",{p_id:id}); try{ B.ptTrabalhos(); meus(); }catch(e){}
+  await sleep(6000); if(vivo()) historia();
+}
+$("#ctrl").onclick=()=>historia();
+historia();
+</script>
+</body>
+</html>

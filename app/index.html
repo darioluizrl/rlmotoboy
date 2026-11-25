@@ -355,6 +355,9 @@ textarea{resize:vertical;min-height:60px}
 .pt-sw{width:68px;height:38px;border-radius:999px;border:0;background:#cbd0d6;position:relative;cursor:pointer;flex:none;transition:background .2s}
 .pt-sw i{position:absolute;top:4px;left:4px;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s}
 .pt-sw.on{background:#0f9d58}.pt-sw.on i{left:34px}.pt-sw:disabled{opacity:.6}
+body.modo-demo::before{content:"DEMONSTRAÇÃO · dados fictícios";position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:400;background:#7c3aed;color:#fff;font:700 10.5px/1 Inter,system-ui,sans-serif;letter-spacing:.5px;padding:4px 10px;border-radius:0 0 8px 8px;pointer-events:none}
+body.modo-demo .leaflet-marker-icon{transition:transform 1s linear}
+body.modo-demo-embed::before{display:none}
 /* ---- visual novo do app (motoboy / empresa): cartões compactos, menu embaixo no celular ---- */
 .pt-ic{display:inline-flex;vertical-align:-3px}.pt-aba .lb-s{display:none}
 .pt-aba{display:inline-flex;align-items:center;gap:6px}
@@ -861,12 +864,20 @@ function telaCarregando(erro){
 function loadScriptT(src,ms){ return Promise.race([loadScript(src), new Promise((_,f)=>setTimeout(()=>f(new Error("tempo")),ms))]); }
 async function initSupabase(){
   telaCarregando(false);
+  /* modo DEMONSTRAÇÃO (?demo_u=...): banco simulado no navegador, nada vai para o banco real */
+  const _qs=new URLSearchParams(location.search), _du=_qs.get("demo_u");
+  if(_du && window.RL_CENTRAL){
+    window.RL_DEMO=true; window.DEMO_U=_du; MM_SEG=1; document.body.classList.add("modo-demo"); if(window.top!==window) document.body.classList.add("modo-demo-embed");
+    try{ await loadScriptT("../demo/seed.js?v="+Date.now(),10000); await loadScriptT("../demo/sbmock.js?v="+Date.now(),10000); }catch(e){}
+    const dv=_qs.get("demo_v"); if(dv) setTimeout(()=>{ try{ show(dv); }catch(e){} },1500);
+  }
   if(!window.supabase){
     try{ await loadScriptT("../lib/supabase.js?v=2.119.2",12000); }
     catch(e){ try{ await loadScriptT("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",15000); }catch(e2){} }
   }
   if(!window.supabase||!window.supabase.createClient){ telaCarregando(true); return null; }
   sbc=window.supabase.createClient(SB.url, SB.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+  if(window.RL_DEMO){ window.DEMO_SBC=sbc; window.DEMO_MM=MM; }
   sbc.auth.onAuthStateChange((ev)=>{ if(ev==="PASSWORD_RECOVERY") telaLogin("nova"); });
   const {data:{session}}=await sbc.auth.getSession();
   const cvUrl=new URLSearchParams(location.search).get("convite");
@@ -2093,7 +2104,7 @@ async function mmIniciar(){
   setTimeout(()=>MM.map&&MM.map.invalidateSize(),200);
   mmAtualizar();
 }
-const MM_SEG=5; /* a cada quantos segundos o mapa do Operacional se atualiza */
+let MM_SEG=5; /* a cada quantos segundos o mapa do Operacional se atualiza */
 function mmAgendar(){ clearTimeout(MM.t); MM.t=setTimeout(()=>{ if($("#v-operacional").classList.contains("on") && document.visibilityState!=="hidden") mmAtualizar(); else mmAgendar(); },MM_SEG*1000); }
 async function mmAtualizar(){
   clearTimeout(MM.t);
@@ -4234,7 +4245,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="1c2ad840e9";
+<script>(function(){var V="5909931e93";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
