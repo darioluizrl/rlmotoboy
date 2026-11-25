@@ -1856,7 +1856,7 @@ function ptDesenharLista(){
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
     return `<div class="pt-serv" style="position:relative">
-      ${s.eu_candidato?"":`<button aria-label="Não quero este serviço" title="Não quero" onclick="ptNaoQuero('${s.id}')" style="position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#5c6370;font-size:16px;line-height:1;padding:0;cursor:pointer">✕</button>`}
+      ${s.eu_candidato?"":`<button aria-label="Não quero este serviço" title="Não quero" onclick="ptNaoQuero('${s.id}')" style="position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:1px solid #f1a9a9;background:#fff5f5;color:#c92a2a;font-size:16px;font-weight:700;line-height:1;padding:0;cursor:pointer">✕</button>`}
       <div class="pt-serv-top" style="padding-right:${s.eu_candidato?0:36}px"><div class="pt-serv-val">${brl(s.valor)} ${fpTag(s)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
       <div class="prv-1">🕒 ${(()=>{ const v={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, a=Math.round(Number(s.distancia_km||0)*1.35/v*60+3), b=Number(s.minutos||Math.round(Number(s.km||0)*1.35/v*60));
         return s.agendado_para?`retirada agendada ${new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})} · entrega ~${b+5} min depois`:`você chega na retirada em ~${a} min · entrega ~${a+5+b} min (${hhmm(Date.now()+(a+5+b)*60000)})`; })()}</div>
@@ -1866,7 +1866,7 @@ function ptDesenharLista(){
       <div class="pt-vagas">${Array.from({length:s.max_candidatos||3},(_,i)=>`<i class="${i<s.candidatos?"on":""}"></i>`).join("")}<span>${s.candidatos} de ${s.max_candidatos||3} interessados</span></div>
       ${s.eu_candidato?`<div class="pt-cand-ok">✓ Você está na lista · aguardando quem enviou escolher</div>`:""}
       <div class="row" style="margin-top:10px;gap:8px"><a class="btn sm sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><div class="spacer"></div>
-        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="btn sm sec" onclick="ptNaoQuero('${s.id}')">Não quero</button><button class="btn pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">🙋 Quero este serviço</button>`}</div>
+        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="btn sm" style="background:#fff5f5;color:#c92a2a;border:1px solid #f1a9a9" onclick="ptNaoQuero('${s.id}')">✕ Não quero</button><button class="btn pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">🙋 Quero este serviço</button>`}</div>
     </div>`; }).join("")+rodOc;
 }
 
