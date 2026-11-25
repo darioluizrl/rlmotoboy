@@ -1610,8 +1610,11 @@ async function ptCandidatos(id, numero){
   const r=await sbc.rpc("servico_candidatos",{p_id:id}); const box=$("#pcBox");
   if(r.error){ box.innerHTML=`<p style="color:var(--bad)">${esc(r.error.message)}</p>`; return; }
   const L=r.data||[]; if(!L.length){ box.innerHTML=`<p class="muted">Ninguém se candidatou ainda.</p>`; return; }
+  /* foto (selfie do cadastro) de quem se candidatou */
+  const fotos={}; const caminhos=L.map(c=>c.foto).filter(Boolean);
+  if(caminhos.length){ try{ const u=await sbc.storage.from("documentos").createSignedUrls(caminhos,600); (u.data||[]).forEach((x,i)=>{ if(x&&x.signedUrl) fotos[caminhos[i]]=x.signedUrl; }); }catch(e){} }
   box.innerHTML=`<p class="muted small" style="margin:0">Escolha quem vai fazer o serviço. Todos têm cadastro verificado pela MegaEntregas.</p>`+L.map(c=>`<div class="pt-cand">
-      <div class="pt-cand-av">${esc((c.nome||"?").trim()[0]||"?")}</div>
+      ${c.foto&&fotos[c.foto]?`<img class="pt-cand-av" src="${esc(fotos[c.foto])}" alt="Foto de ${esc(c.nome)}" style="object-fit:cover;padding:0">`:`<div class="pt-cand-av">${esc((c.nome||"?").trim()[0]||"?")}</div>`}
       <div style="flex:1"><b>${esc(c.nome)}</b> <span class="tag s-Concluída">✓ Verificado</span>
         <div class="small">${esc(CAD_VEIC[c.veiculo]||"")}${c.modelo?" · "+esc(c.modelo):""} · placa ${esc(c.placa||"")}</div>
         <div class="muted small">📍 a ${String(c.distancia_km??"?").replace(".",",")} km da retirada · ${c.servicos_feitos} serviço(s) feito(s) no MegaEntregas · interessado ${ptHa(c.criado_em)}</div></div>
@@ -1776,6 +1779,7 @@ async function ptTrabalhos(){
   box.innerHTML=(L.length||ban)?ban+`<div class="pt-card"><b>📋 Meus trabalhos</b>${L.map(t=>{ const ult=t.paradas[t.paradas.length-1]||{};
     if(t.minha==="escolhida"&&t.status==="concluido") return ptTrabPag(t);
     return t.minha==="escolhida" ? `<div class="pt-trab ok"><div style="flex:1"><b>${t.status==="em_andamento"?"🚦 Em andamento":"✅ Você foi escolhido"} · #${t.numero} · ${brl(t.valor)}</b> ${fpTag(t)}
+        ${t.quem_enviou?`<div class="small" style="font-weight:600">🏪 ${esc(t.quem_enviou)}</div>`:""}
         <div class="small">🏁 ${esc(t.retirada.e)}<br>📦 ${esc(ult.e||"")}${t.paradas.length>1?` <span class="muted">(+${t.paradas.length-1} entrega${t.paradas.length>2?"s":""})</span>`:""}</div><div class="prv-1" data-prv="${t.id}">${PRV[t.id]?prvLinha(PRV[t.id]):""}</div><div class="muted small">Quem enviou: <b>${esc(t.quem_enviou||"")}</b> · ${t.agendado_para?"📅 "+new Date(t.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"⚡ Agora"}</div></div>
         <div style="display:flex;flex-direction:column;gap:6px">${t.status==="aceito"?`<button class="btn pt-quero" onclick="ptIniciar('${t.id}')">▶ Iniciar serviço</button>`:`<button class="btn pt-quero" onclick="ptExec('${t.id}')">🚦 Continuar serviço</button>`}
         <button class="btn sec" onclick="ptChat('${t.id}','Serviço #${t.numero}')">💬 Conversar</button></div></div>`
@@ -1909,6 +1913,7 @@ function ptServDetalhe(id){
         ${s.paradas.map((p,i)=>`<div style="display:flex;gap:10px"><span class="ps-sq" style="margin-top:6px"></span><div><div class="muted small" style="font-weight:700">ENTREGA${s.paradas.length>1?" "+(i+1):""}</div>${esc(p.e)}</div></div>`).join("")}
       </div>
       <div style="font-size:14px">
+        ${s.quem_envia?lin("Quem envia","🏪 "+esc(s.quem_envia)):""}
         ${lin("Distância até a retirada",String(s.distancia_km).replace(".",",")+" km de você")}
         ${lin("Percurso",fmtKm(s.km)+(s.minutos?" · ~"+s.minutos+" min":""))}
         ${s.agendado_para?lin("Retirada agendada",new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})):lin("Você chega na retirada","~"+che+" min ("+hhmm(Date.now()+che*60000)+")")+lin("Entrega prevista","~"+hhmm(Date.now()+(che+5+dur)*60000))}
@@ -1939,6 +1944,7 @@ function ptDesenharLista(){
       <div class="ps-l1"><span class="ps-val">${brl(s.valor)}</span>${fpTag(s)}<span class="ps-dist">${String(s.distancia_km).replace(".",",")} km de você</span>${s.eu_candidato?"":`<button class="ps-x" aria-label="Não quero este serviço" title="Não quero" onclick="ptNaoQuero('${s.id}')">✕</button>`}</div>
       ${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px;margin-top:-4px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}
       <div class="ps-rota"><div><span class="ps-dot"></span><span>${ret(s.retirada.e)}</span></div>${s.paradas.map(p=>`<div><span class="ps-sq"></span><span>${ret(p.e)}</span></div>`).join("")}</div>
+      ${s.quem_envia?`<div style="font-size:13px;font-weight:600">🏪 ${esc(s.quem_envia)}</div>`:""}
       <div class="ps-meta">${fmtKm(s.km)}${s.minutos?" · ~"+s.minutos+" min":""} · ${esc(CAD_VEIC[s.veiculo]||"")} · ${prev}<br>${s.candidatos} de ${s.max_candidatos||3} interessados · solto ${ptHa(s.criado_em)}</div>
       ${s.obs?`<div class="small" style="background:#f7f7f9;border-radius:10px;padding:7px 10px">💬 ${esc(s.obs)}</div>`:""}
       ${s.eu_candidato?`<div class="pt-cand-ok">✓ Você está na lista · aguardando quem enviou escolher</div>`:""}
@@ -2185,7 +2191,9 @@ async function ctAbrir(id){
     <div class="modal-f"><button class="btn sec" onclick="closeModal()">Fechar</button>${x.quem_pegou?`<button class="btn" onclick="ptChat('${x.id}','Serviço #${x.numero} — conversa')">💬 Ver conversa</button>`:""}</div>`);
   if(x.status!=="cancelado") prvCarregar([x.id]);
   const r=await sbc.rpc("servico_candidatos",{p_id:id}); const b=$("#ctCands"); if(!b) return;
-  b.innerHTML=r.error?esc(r.error.message):(r.data||[]).length?(r.data).map(c=>`${c.status==="escolhida"?"✅":"🙋"} <b>${esc(c.nome)}</b> · ${esc(CAD_VEIC[c.veiculo]||"")} ${esc(c.placa||"")} · a ${String(c.distancia_km??"?").replace(".",",")} km`).join("<br>"):"Ninguém se candidatou.";
+  const fotos={}; const cam=(r.data||[]).map(c=>c.foto).filter(Boolean);
+  if(cam.length){ try{ const u=await sbc.storage.from("documentos").createSignedUrls(cam,600); (u.data||[]).forEach((x,i)=>{ if(x&&x.signedUrl) fotos[cam[i]]=x.signedUrl; }); }catch(e){} }
+  b.innerHTML=r.error?esc(r.error.message):(r.data||[]).length?(r.data).map(c=>`${c.foto&&fotos[c.foto]?`<img src="${esc(fotos[c.foto])}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px">`:""}${c.status==="escolhida"?"✅":"🙋"} <b>${esc(c.nome)}</b> · ${esc(CAD_VEIC[c.veiculo]||"")} ${esc(c.placa||"")} · a ${String(c.distancia_km??"?").replace(".",",")} km`).join("<br>"):"Ninguém se candidatou.";
 }
 
 /* ================= CONFIGURAÇÃO (só a RL / perfil "dono") ================= */
@@ -4245,7 +4253,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="5909931e93";
+<script>(function(){var V="1ec58c7c25";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
