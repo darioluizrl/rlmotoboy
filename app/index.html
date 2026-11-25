@@ -219,7 +219,7 @@ textarea{resize:vertical;min-height:60px}
 .seg button.on.saida{background:var(--out);color:#fff}
 .seg button.on.motoboy{background:var(--brand);color:#fff}
 .seg button.on.motorista{background:#6d28d9;color:#fff}
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#16181d;color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;z-index:60}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#16181d;color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;z-index:300}
 .toast.show{opacity:1}
 .bar{height:8px;background:#f1f2f4;border-radius:99px;overflow:hidden;min-width:80px}
 .bar i{display:block;height:100%;background:var(--brand)}
@@ -698,6 +698,11 @@ const firstOfMonth = () => today().slice(0,8)+"01";
 let localSeq = 0;
 
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),2200); }
+/* aviso com um botão (ex.: Desfazer) */
+function toastAcao(msg, rotulo, fn){ const t=$("#toast"); t.innerHTML=""; t.append(document.createTextNode(msg+" "));
+  const b=document.createElement("button"); b.textContent=rotulo; b.style.cssText="margin-left:8px;background:#fff;color:#16181d;border:0;border-radius:8px;padding:6px 10px;font:inherit;font-weight:700;cursor:pointer";
+  b.onclick=()=>{ t.classList.remove("show"); fn(); }; t.append(b); t.style.pointerEvents="auto"; t.classList.add("show"); clearTimeout(toast._t);
+  toast._t=setTimeout(()=>{ t.classList.remove("show"); t.style.pointerEvents=""; },5000); }
 function notice(msg){ const n=$("#notice"); n.textContent=msg||""; n.classList.toggle("show",!!msg); }
 
 /* ---------- navegação ---------- */
@@ -959,6 +964,13 @@ const ptRecebe = p => p && (p.recebe!=null ? !!p.recebe : p.tipo==="prestador");
 const ptEnvia  = p => p && (p.envia!=null ? !!p.envia : p.tipo==="contratante");
 const tipoTxt  = p => ptEnvia(p)&&ptRecebe(p) ? "Envia e recebe serviços" : ptRecebe(p) ? "Recebe serviços (motoboy / motorista)" : "Envia serviços (empresa / pessoa)";
 const CAD_VEIC={moto:"Moto", carro:"Carro", utilitario:"Utilitário", caminhao:"Caminhão"};
+const VEIC_ICO={moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"};
+/* que tipos de serviço cada veículo atende (igual ao banco) */
+const VEIC_COMPAT={moto:["moto"],carro:["carro"],utilitario:["carro","utilitario"],caminhao:["utilitario","caminhao"]};
+/* veículos liberados pelo dono (começa só com moto) */
+let VEICL=null;
+async function veicLib(forcar){ if(VEICL&&!forcar) return VEICL; try{ const r=await sbc.rpc("veiculos_liberados"); VEICL=r.data||{moto:true}; }catch(e){ VEICL=VEICL||{moto:true}; } return VEICL; }
+const veicOk=k=>!VEICL||!!VEICL[k];
 const CAD_ST={pendente:["Em análise","s-Pendente"], aprovado:["Aprovado ✓ Verificado","s-Concluída"], recusado:["Recusado — corrigir","s-Cancelada"], bloqueado:["Bloqueado","s-Cancelada"]};
 const lsGet=k=>{ try{ return localStorage.getItem(k)||""; }catch(e){ return ""; } };
 const lsSet=(k,v)=>{ try{ v?localStorage.setItem(k,v):localStorage.removeItem(k); }catch(e){} };
@@ -1025,6 +1037,7 @@ async function verComoMotoboy(){
   PT.adm=true; await portal(data.session);
 }
 async function portal(session){
+  veicLib();
   PT.uid=session.user.id; PT.email=session.user.email; document.body.classList.add("so-portal");
   $("#login").classList.add("show"); const box=$("#loginBox"); box.style.maxWidth="680px";
   box.innerHTML=`<div style="padding:40px;text-align:center" class="muted">Carregando seu cadastro…</div>`;
@@ -1163,7 +1176,7 @@ async function portalForm(p){
     <div class="full"><label>Nome completo do titular da conta *</label><input id="ptPixN" required value="${v("pix_nome")}" placeholder="Como aparece no banco"></div>
     <div class="full"><label>Banco *</label><input id="ptPixB" required list="bancosBR" value="${v("pix_banco")}" placeholder="Ex.: Nubank, Itaú, Caixa"></div>
     <div class="full" id="ptVeiBox" style="display:contents">
-    <div><label>Veículo *</label><select id="ptVei" required><option value="">Selecione…</option>${Object.entries(CAD_VEIC).map(([k,l])=>`<option value="${k}" ${v("veiculo")===k?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div><label>Veículo *</label><select id="ptVei" required><option value="">Selecione…</option>${Object.entries(CAD_VEIC).map(([k,l])=>`<option value="${k}" ${v("veiculo")===k?"selected":""} ${veicOk(k)||v("veiculo")===k?"":"disabled"}>${l}${veicOk(k)?"":" (em breve)"}</option>`).join("")}</select></div>
     <div><label>Placa *</label><input id="ptPla" required value="${esc(p?fmtPlaca(p.placa):"")}" style="text-transform:uppercase" placeholder="ABC-1D23"></div>
     <div><label>Modelo</label><input id="ptMod" value="${v("modelo")}" placeholder="Ex.: CG 160, Fiorino"></div>
     <div><label>Validade da CNH</label><input type="date" id="ptCnh" value="${v("cnh_validade")}"></div></div>
@@ -1342,7 +1355,7 @@ function ptEnviarTela(){
       <div id="peParadas"></div>
       <button type="button" class="btn sec sm" onclick="ptAddParada()">+ Adicionar outra entrega</button>
       <div class="pt-passo"><span>3</span> Qual veículo?</div>
-      <div class="pt-seg" id="peVei">${Object.entries(CAD_VEIC).map(([k,l])=>`<button type="button" data-v="${k}" class="${PTA.veic===k?"on":""}" onclick="ptVeic('${k}')">${{moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"}[k]} ${l}</button>`).join("")}</div>
+      <div class="pt-seg" id="peVei">${(veicOk(PTA.veic)?0:(PTA.veic=Object.keys(CAD_VEIC).find(veicOk)||"moto")),Object.entries(CAD_VEIC).filter(([k])=>veicOk(k)).map(([k,l])=>`<button type="button" data-v="${k}" class="${PTA.veic===k?"on":""}" onclick="ptVeic('${k}')">${{moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"}[k]} ${l}</button>`).join("")}</div>
       <div class="pt-passo"><span>4</span> Quando?</div>
       <div class="pt-seg" id="peQuando"><button type="button" data-q="agora" class="${PTA.quando==="agora"?"on":""}" onclick="ptQuando('agora')">⚡ Agora</button><button type="button" data-q="agendar" class="${PTA.quando==="agendar"?"on":""}" onclick="ptQuando('agendar')">📅 Agendar</button></div>
       <input type="datetime-local" class="pt-in" id="peAg" style="display:${PTA.quando==="agendar"?"":"none"};margin-top:8px">
@@ -1616,8 +1629,27 @@ function ptDispTela(msg){
   const g=$("#prGps"); if(!g) return; const on=!!PT.p.disponivel;
   g.innerHTML=`<div class="pt-disp ${on?"on":""}">
     <div style="flex:1"><b>${on?"🟢 Disponível":"⚫ Indisponível"}</b><span>${on?"Você está recebendo serviços. Sua localização está sendo usada.":"Ligue para receber serviços. A MegaEntregas só usa sua localização enquanto estiver ligado."}</span>${msg?`<span class="pt-disp-err">${msg}</span>`:""}</div>
-    <button class="pt-sw ${on?"on":""}" role="switch" aria-checked="${on}" aria-label="Disponível para receber serviços" onclick="ptDispTrocar()"><i></i></button></div>`;
+    <button class="pt-sw ${on?"on":""}" role="switch" aria-checked="${on}" aria-label="Disponível para receber serviços" onclick="ptDispTrocar()"><i></i></button></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span class="muted small" style="flex:1">Recebendo: <b>${ptQuerTxt()}</b></span><button class="btn sm sec" onclick="ptAjustes()">⚙️ Ajustes</button></div>`;
   if(!on){ const l=$("#prLista"); if(l) l.innerHTML=`<div class="pt-vazio">Você não está recebendo serviços agora.<br><span class="small">Ligue o botão <b>Disponível</b> quando quiser trabalhar.</span></div>`; }
+}
+function ptQuerLista(){ const c=VEIC_COMPAT[PT.p.veiculo]||["moto"]; const q=(PT.p.quer_veiculos&&PT.p.quer_veiculos.length)?PT.p.quer_veiculos:c; return c.filter(k=>q.includes(k)&&veicOk(k)); }
+function ptQuerTxt(){ const l=ptQuerLista(); return l.length?l.map(k=>VEIC_ICO[k]+" "+CAD_VEIC[k]).join(", "):"nenhum tipo liberado ainda"; }
+/* ajustes do motoboy/motorista: quais serviços quer receber */
+async function ptAjustes(){
+  await veicLib(true); const c=VEIC_COMPAT[PT.p.veiculo]||["moto"], q=ptQuerLista();
+  openModal(`<div class="modal-h">⚙️ Ajustes</div><div class="modal-b" style="grid-template-columns:1fr">
+    <p class="muted small" style="margin:0">Escolha que tipos de serviço você quer receber. Seu veículo: <b>${VEIC_ICO[PT.p.veiculo]||""} ${esc(CAD_VEIC[PT.p.veiculo]||"")}</b>.</p>
+    ${Object.keys(CAD_VEIC).map(k=>{ const pode=c.includes(k), lib=veicOk(k), dis=!pode||!lib;
+      return `<label style="display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px;margin:0;${dis?"opacity:.55":"cursor:pointer"}">
+        <input type="checkbox" class="ajV" value="${k}" style="width:22px;height:22px" ${q.includes(k)?"checked":""} ${dis?"disabled":""}>
+        <span style="font-size:22px">${VEIC_ICO[k]}</span><span style="flex:1"><b>Serviços de ${CAD_VEIC[k].toLowerCase()}</b><br><span class="muted small">${!lib?"Ainda não liberado na MegaEntregas":!pode?"Seu veículo não atende esse tipo":"Disponível para você"}</span></span></label>`; }).join("")}
+  </div><div class="modal-f"><button class="btn sec" onclick="closeModal()">Cancelar</button><button class="btn" onclick="ptAjustesSalvar()">Salvar</button></div>`);
+}
+async function ptAjustesSalvar(){
+  const l=[...document.querySelectorAll(".ajV:checked")].map(x=>x.value); if(!l.length){ toast("Marque pelo menos um tipo de serviço"); return; }
+  const r=await sbc.rpc("meus_ajustes",{p_quer:l}); if(r.error){ toast(r.error.message); return; }
+  PT.p.quer_veiculos=l; closeModal(); toast("Ajustes salvos"); ptDispTela(); if(PT.p.disponivel) ptBuscar();
 }
 async function ptDispTrocar(){
   const ligar=!PT.p.disponivel, sw=document.querySelector(".pt-sw"); if(sw) sw.disabled=true;
@@ -1809,15 +1841,26 @@ async function ptCandidatar(id){
   ptBuscar();
 }
 async function ptDesistir(id){ const r=await sbc.rpc("servico_desistir",{p_id:id}); if(r.error) toast(r.error.message); else toast("Você saiu da lista deste serviço"); ptBuscar(); }
+/* "não quero": o motoboy esconde um serviço da lista dele (fica guardado neste aparelho por 24 h) */
+function ptOcultos(){ let o={}; try{ o=JSON.parse(localStorage.getItem("me_ocultos")||"{}"); }catch(e){} const lim=Date.now()-864e5; Object.keys(o).forEach(k=>{ if(o[k]<lim) delete o[k]; }); return o; }
+function ptOcultosSet(o){ try{ localStorage.setItem("me_ocultos",JSON.stringify(o)); }catch(e){} }
+function ptNaoQuero(id){ const o=ptOcultos(); o[id]=Date.now(); ptOcultosSet(o); ptDesenharLista();
+  toastAcao("Serviço escondido.","Desfazer",()=>ptDesfazerOculto(id)); }
+function ptDesfazerOculto(id){ const o=ptOcultos(); delete o[id]; ptOcultosSet(o); ptDesenharLista(); }
+function ptMostrarOcultos(){ ptOcultosSet({}); ptDesenharLista(); toast("Serviços escondidos voltaram para a lista"); }
 function ptDesenharLista(){
   const l=$("#prLista"); if(!l) return; if(!PT.p.disponivel){ ptDispTela(); return; }
   if(!PTA.pos){ l.innerHTML=""; return; }
+  const oc=ptOcultos(), todos=PTA.lista, lista=todos.filter(s=>s.eu_candidato||!oc[s.id]), nOc=todos.length-lista.length;
+  const rodOc=nOc?`<div style="text-align:center;margin-top:6px"><button class="btn sm sec" onclick="ptMostrarOcultos()">👁 Mostrar ${nOc} serviço(s) escondido(s)</button></div>`:"";
+  if(!lista.length && nOc){ l.innerHTML=`<div class="pt-vazio">Você escondeu os serviços que apareceram.<br><span class="small">Quando surgir outro, ele aparece aqui.</span></div>`+rodOc; return; }
   if(!PTA.lista.length){ l.innerHTML=`<div class="pt-vazio">Nenhum serviço aberto perto de você agora.<br><span class="small">Deixe esta tela aberta: quando surgir um, ele aparece aqui.</span></div>`; return; }
-  l.innerHTML=`<div class="muted small">${PTA.lista.length} serviço(s) perto de você · cada serviço aceita até ${PTA.lista[0].max_candidatos||3} interessados e quem enviou escolhe um</div>`+PTA.lista.map(s=>{
+  l.innerHTML=`<div class="muted small">${lista.length} serviço(s) perto de você · cada serviço aceita até ${lista[0].max_candidatos||3} interessados e quem enviou escolhe um</div>`+lista.map(s=>{
     const ult=s.paradas[s.paradas.length-1]||{};
     const url=`https://www.google.com/maps/dir/?api=1&origin=${s.retirada.la},${s.retirada.lo}&destination=${ult.la},${ult.lo}${s.paradas.length>1?"&waypoints="+s.paradas.slice(0,-1).map(p=>p.la+","+p.lo).join("|"):""}&travelmode=two-wheeler`;
-    return `<div class="pt-serv">
-      <div class="pt-serv-top"><div class="pt-serv-val">${brl(s.valor)} ${fpTag(s)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
+    return `<div class="pt-serv" style="position:relative">
+      ${s.eu_candidato?"":`<button aria-label="Não quero este serviço" title="Não quero" onclick="ptNaoQuero('${s.id}')" style="position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#5c6370;font-size:16px;line-height:1;padding:0;cursor:pointer">✕</button>`}
+      <div class="pt-serv-top" style="padding-right:${s.eu_candidato?0:36}px"><div class="pt-serv-val">${brl(s.valor)} ${fpTag(s)}${s.valor_inicial&&s.aumentado_em?`<div class="pt-aum" style="font-size:12px">⬆ valor aumentado · era ${brl(s.valor_inicial)}</div>`:""}</div><div class="pt-serv-dist">📍 a ${String(s.distancia_km).replace(".",",")} km de você${s.distancia_km>Number((PTA.dist||{}).raio_maximo_km??10)?`<div class="small" style="color:var(--brand)">📢 aberto para todos</div>`:""}</div></div>
       <div class="prv-1">🕒 ${(()=>{ const v={moto:28,carro:22,utilitario:20,caminhao:18}[s.veiculo]||22, a=Math.round(Number(s.distancia_km||0)*1.35/v*60+3), b=Number(s.minutos||Math.round(Number(s.km||0)*1.35/v*60));
         return s.agendado_para?`retirada agendada ${new Date(s.agendado_para).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})} · entrega ~${b+5} min depois`:`você chega na retirada em ~${a} min · entrega ~${a+5+b} min (${hhmm(Date.now()+(a+5+b)*60000)})`; })()}</div>
       <div class="pt-serv-rota"><div><span>🏁</span>${esc(s.retirada.e)}</div>${s.paradas.map(p=>`<div><span>📦</span>${esc(p.e)}</div>`).join("")}</div>
@@ -1826,8 +1869,8 @@ function ptDesenharLista(){
       <div class="pt-vagas">${Array.from({length:s.max_candidatos||3},(_,i)=>`<i class="${i<s.candidatos?"on":""}"></i>`).join("")}<span>${s.candidatos} de ${s.max_candidatos||3} interessados</span></div>
       ${s.eu_candidato?`<div class="pt-cand-ok">✓ Você está na lista · aguardando quem enviou escolher</div>`:""}
       <div class="row" style="margin-top:10px;gap:8px"><a class="btn sm sec" target="_blank" rel="noopener" href="${esc(url)}">Ver rota ↗</a><div class="spacer"></div>
-        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="btn pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">🙋 Quero este serviço</button>`}</div>
-    </div>`; }).join("");
+        ${s.eu_candidato?`<button class="btn sm sec" onclick="ptDesistir('${s.id}')">Desistir</button>`:`<button class="btn sm sec" onclick="ptNaoQuero('${s.id}')">Não quero</button><button class="btn pt-quero" data-cand="${s.id}" onclick="ptCandidatar('${s.id}')">🙋 Quero este serviço</button>`}</div>
+    </div>`; }).join("")+rodOc;
 }
 
 /* ---------- painel do administrador: convites e cadastros ---------- */
@@ -2184,7 +2227,16 @@ async function cfgRegras(){
   (r.data||[]).forEach(x=>CFGU.regras[x.chave]=x);
   $("#cfgRegBox").innerHTML=CFG_REGRAS.map(([k,t,d,campos])=>{ const x=CFGU.regras[k]||{valor:{}};
     return `<div class="cfg-card"><h3>${t}</h3><div class="muted small">${d}</div><div class="row2">${campos.map(([c,l,st])=>`<div><label>${l}</label><input type="number" step="${st}" min="0" id="cfg_${k}_${c}" value="${x.valor[c]??""}"></div>`).join("")}</div>
-      <div class="row" style="margin-top:10px"><span class="muted small">${x.atualizado_em?"Alterado em "+dataBR(x.atualizado_em):""}</span><div class="spacer"></div><button class="btn sm" onclick="cfgSalvarRegra('${k}')">Salvar</button></div></div>`; }).join("");
+      <div class="row" style="margin-top:10px"><span class="muted small">${x.atualizado_em?"Alterado em "+dataBR(x.atualizado_em):""}</span><div class="spacer"></div><button class="btn sm" onclick="cfgSalvarRegra('${k}')">Salvar</button></div></div>`; }).join("")+cfgVeicCard();
+}
+function cfgVeicCard(){ const x=CFGU.regras.veiculos||{valor:{moto:true}};
+  return `<div class="cfg-card"><h3>🚦 Veículos liberados</h3><div class="muted small">Só os tipos marcados aparecem no cadastro, para soltar serviço e na lista dos motoboys e motoristas. Para começar só com motoboy, deixe só Moto.</div>
+    <div class="row" style="gap:18px;flex-wrap:wrap;margin-top:10px">${Object.keys(CAD_VEIC).map(k=>`<label style="display:inline-flex;align-items:center;gap:8px;margin:0;font-size:15px"><input type="checkbox" id="cfgV_${k}" style="width:20px;height:20px" ${x.valor[k]?"checked":""}> ${VEIC_ICO[k]} ${CAD_VEIC[k]}</label>`).join("")}</div>
+    <div class="row" style="margin-top:10px"><span class="muted small">${x.atualizado_em?"Alterado em "+dataBR(x.atualizado_em):""}</span><div class="spacer"></div><button class="btn sm" onclick="cfgSalvarVeic()">Salvar</button></div></div>`; }
+async function cfgSalvarVeic(){
+  const v={}; Object.keys(CAD_VEIC).forEach(k=>v[k]=$("#cfgV_"+k).checked); if(!Object.values(v).some(Boolean)){ toast("Libere pelo menos um tipo de veículo"); return; }
+  const r=await sbc.rpc("cfg_salvar",{p_chave:"veiculos",p_valor:v}); if(r.error){ toast(r.error.message); return; }
+  VEICL=v; toast("Veículos liberados salvos"); cfgRegras();
 }
 async function cfgSalvarRegra(k){
   const campos=CFG_REGRAS.find(x=>x[0]===k)[3], v={};
@@ -4119,7 +4171,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="ad508940f9";
+<script>(function(){var V="160762db66";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
