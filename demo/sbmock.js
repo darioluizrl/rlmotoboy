@@ -1,4 +1,4 @@
-/* MegaEntregas · modo DEMONSTRAÇÃO: banco simulado no navegador (nada vai para o banco real) */
+/* Soltou, Pegou · modo DEMONSTRAÇÃO: banco simulado no navegador (nada vai para o banco real) */
 /* Supabase simulado para teste de interface (estado salvo no localStorage do navegador de teste) */
 (function(){
   const K="__demodb"; const DU=window.DEMO_U||null;
@@ -74,7 +74,7 @@
         return {user_id:u.id,email:u.email,nome:p.nome||null,papel:m.papel||null,tipo:p.tipo||null,ativo:!!m.ativo,cadastro:p.status||null,removido_em:m.removido_em||null,criado_em:"2026-11-01T00:00:00Z",ultimo_acesso:u.ult||null,envia:!!p.envia,gestao:!!p.gestao}; }); },
     cfg_gestao(db,a){ if(!isDono(db)) throw "Apenas a RL (dono do sistema) pode fazer isso"; const p=db.perfis.find(x=>x.user_id===a.p_user&&x.envia); if(!p) throw "O painel de gestão é para quem envia serviços"; p.gestao=a.p_ligar; return "ok"; },
     minha_marca(db,a){ const p=db.perfis.find(x=>x.user_id===me(db).id); if(!p) throw "Complete seu cadastro primeiro"; if(!p.envia) throw "A marca nos recibos é para quem envia serviços"; p.marca_nome=(a.p_nome||"").trim()||null; if(a.p_logo!==null&&a.p_logo!==undefined) p.marca_logo=a.p_logo||null; return "ok"; },
-    gestao_servicos(db,a){ const p=db.perfis.find(x=>x.user_id===me(db).id); if(!p||!p.gestao) throw "O painel de gestão não está liberado para sua conta. Fale com a MegaEntregas.";
+    gestao_servicos(db,a){ const p=db.perfis.find(x=>x.user_id===me(db).id); if(!p||!p.gestao) throw "O painel de gestão não está liberado para sua conta. Fale com o suporte do Soltou, Pegou.";
       return (db.servicos||[]).filter(s=>s.criado_por===p.user_id).map(s=>{ const q=db.perfis.find(x=>x.user_id===s.pego_por)||{}; return {...s,espera_min:s.espera_min||0,espera_valor:s.espera_valor||0,quem_pegou:q.nome||null,placa:q.placa||null}; }); },
     cfg_definir_papel(db,a){ if(!isDono(db)) throw "Apenas a RL (dono do sistema) pode fazer isso"; const u=db.users.find(x=>x.email===a.p_email.toLowerCase()); if(!u) throw "O e-mail "+a.p_email+" ainda não criou o acesso no sistema";
       if(u.id===me(db).id) throw "Você não pode mudar o seu próprio perfil"; if(db.perfis.some(p=>p.user_id===u.id)) throw "Este e-mail é de uma empresa/motoboy.";

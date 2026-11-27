@@ -1,4 +1,4 @@
-/* MegaEntregas · modo DEMONSTRAÇÃO: dados fictícios, frota em movimento e GPS simulado.
+/* Soltou, Pegou · modo DEMONSTRAÇÃO: dados fictícios, frota em movimento e GPS simulado.
    Tudo roda só neste navegador. Nenhum dado vai para o banco real. */
 (function(){
   const K="__demodb", VER=3;

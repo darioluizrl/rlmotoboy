@@ -28,12 +28,12 @@ open('app/index.html','w',encoding='utf-8').write(carimbo(s,VER)); open('app/ver
 
 # MegaEntregas OFICIAL (banco próprio, separado do sistema da RL) — publicado em /megaentregas/
 t=s.replace(cfg,'<script>window.RL_SUPABASE={url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"};window.RL_CENTRAL=true;</script>\n',1)
-t=t.replace('<title>RL Motoboy — Controle Logístico</title>','<title>MegaEntregas — Entregas rápidas</title>\n<link rel="icon" href="../marca/megaentregas-192.png"><link rel="apple-touch-icon" href="../marca/megaentregas-192.png"><meta name="apple-mobile-web-app-title" content="MegaEntregas"><meta name="theme-color" content="#e0480a">',1)
+t=t.replace('<title>RL Motoboy — Controle Logístico</title>','<title>Soltou, Pegou — Entrega rápida, perto de você</title>\n<link rel="icon" href="../marca/soltoupegou-192.png"><link rel="apple-touch-icon" href="../marca/soltoupegou-192.png"><meta name="apple-mobile-web-app-title" content="Soltou, Pegou"><meta name="theme-color" content="#E8590C">',1)
 import os; os.makedirs('megaentregas',exist_ok=True); os.makedirs('teste',exist_ok=True)
 VT=hashlib.sha1(t.encode()).hexdigest()[:10]
 open('megaentregas/index.html','w',encoding='utf-8').write(carimbo(t,VT)); open('megaentregas/versao.txt','w').write(VT+"\n")
 # endereço antigo de teste: só leva para o novo (mantém login, mesmo site)
-open('teste/index.html','w',encoding='utf-8').write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>MegaEntregas</title><script>location.replace("../megaentregas/"+location.search+location.hash);</script></head><body>Abrindo o MegaEntregas…</body></html>')
+open('teste/index.html','w',encoding='utf-8').write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Soltou, Pegou</title><script>location.replace("../megaentregas/"+location.search+location.hash);</script></head><body>Abrindo o Soltou, Pegou…</body></html>')
 open('teste/versao.txt','w').write("mudou-"+VT+"\n")
 PY
 echo "app/ e megaentregas/ gerados"
@@ -49,7 +49,7 @@ p=base.replace('__LOGO__',logo).replace('__MARCA__','RL Motoboy e Entregas').rep
 os.makedirs('rastreio',exist_ok=True); open('rastreio/index.html','w',encoding='utf-8').write(p)
 # rastreio dos serviços MegaEntregas (banco próprio, marca própria)
 logo_me=re.search(r'LOGO_ME="(data:image/[^"]+)"',src).group(1)
-p=base.replace('__LOGO__',logo_me).replace('__MARCA__','MegaEntregas').replace('Rastreio — RL Motoboy','Rastreio — MegaEntregas').replace('__CFG__','{url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"}')
+p=base.replace('__LOGO__',logo_me).replace('__MARCA__','Soltou, Pegou').replace('Rastreio — RL Motoboy','Rastreio — Soltou, Pegou').replace('__CFG__','{url:"https://glkltcsulanqsbzpwcdf.supabase.co",key:"sb_publishable_8h9FIs5NBKLtTajVgs4FxA_MIMPOmJ1"}')
 os.makedirs('megaentregas/rastreio',exist_ok=True); open('megaentregas/rastreio/index.html','w',encoding='utf-8').write(p)
 PY
 echo "rastreio/index.html gerado"

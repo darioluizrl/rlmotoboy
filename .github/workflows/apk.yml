@@ -1,4 +1,4 @@
-name: APK MegaEntregas
+name: APK Soltou, Pegou
 
 on:
   workflow_dispatch:
@@ -62,5 +62,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add download/megaentregas.apk download/versao.json
-          git commit -m "APK MegaEntregas 1.0.${{ github.run_number }} [skip ci]" || exit 0
+          git commit -m "APK Soltou, Pegou 1.0.${{ github.run_number }} [skip ci]" || exit 0
           git pull --rebase origin main && git push
