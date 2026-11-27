@@ -1723,14 +1723,22 @@ function ptGpsLigar(){
   PTA.watch=navigator.geolocation.watchPosition(pos=>{
     const n={lat:pos.coords.latitude, lon:pos.coords.longitude, prec:pos.coords.accuracy, t:Date.now()};
     const mudou=!PTA.pos || Math.abs(n.lat-PTA.pos.lat)+Math.abs(n.lon-PTA.pos.lon)>0.003;
-    PTA.pos=n; ptGpsTxt(); if(mudou || Date.now()-PTA.ultBusca>30000) ptBuscar();
+    PTA.pos=n; PTA.gpsFalha=0; ptGpsTxt(); if(mudou || Date.now()-PTA.ultBusca>30000) ptBuscar();
+    else { const passo=PTA.posEnv?Math.abs(n.lat-PTA.posEnv.lat)+Math.abs(n.lon-PTA.posEnv.lon):1;
+      if(passo>0.00012 && Date.now()-(PTA.ultPos||0)>6000){ PTA.ultPos=Date.now(); PTA.posEnv=n; sbc.rpc("minha_posicao",{p_lat:n.lat,p_lon:n.lon}).then(()=>{},()=>{}); } }
   }, e=>{
-    ptPararGps(); ptDispTela(e.code===1?"A localização foi bloqueada. Permita a localização e toque no botão de novo.":"Sem sinal de GPS. Confira se a localização do celular está ligada.");
-  }, {enableHighAccuracy:true, maximumAge:15000, timeout:30000});
+    if(e.code===1){ ptPararGps(); ptDispTela("A localização foi bloqueada. Permita a localização e toque no botão de novo."); return; }
+    /* falha passageira (túnel, prédio, sinal fraco): o GPS continua ligado e volta sozinho */
+    PTA.gpsFalha=Date.now(); const g=$("#prGps"); if(g && !g.querySelector(".pt-gps-fraco")) g.insertAdjacentHTML("beforeend",'<div class="small pt-gps-fraco" style="color:#b45309;margin-top:6px">📡 Sinal de GPS fraco agora. Continua tentando sozinho.</div>');
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
   clearInterval(PTA.timer); PTA.timer=setInterval(()=>{ if(PTA.pos) ptBuscar(); },30000);
+  ptTelaAcesa(true);
   ptGpsTxt();
 }
-function ptPararGps(){ if(PTA.watch!==null){ try{ navigator.geolocation.clearWatch(PTA.watch); }catch(e){} } PTA.watch=null; clearInterval(PTA.timer); }
+function ptPararGps(){ if(PTA.watch!==null){ try{ navigator.geolocation.clearWatch(PTA.watch); }catch(e){} } PTA.watch=null; clearInterval(PTA.timer); ptTelaAcesa(false); }
+/* mantém a tela acesa enquanto o motoboy está Disponível: com a tela apagada o celular para de mandar o GPS */
+async function ptTelaAcesa(on){ try{ if(on){ if(!PTA.wake && navigator.wakeLock && document.visibilityState==="visible") PTA.wake=await navigator.wakeLock.request("screen"); } else if(PTA.wake){ await PTA.wake.release(); PTA.wake=null; } }catch(e){ PTA.wake=null; } }
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && PTA.watch!==null){ PTA.wake=null; ptTelaAcesa(true); } });
 function ptGpsTxt(){ if(!$("#prGps")) return; ptDispTela();
   const sp=document.querySelector(".pt-disp.on span"); if(sp) sp.textContent=PTA.pos?`Você está recebendo serviços${PTA.ultBusca?" · lista atualizada às "+new Date(PTA.ultBusca).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):""}. Sua localização está sendo usada.`:"Buscando sua localização…"; }
 async function ptBuscar(){
@@ -2140,7 +2148,8 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 function mmFil(f){ MM.fil=f; document.querySelectorAll(".mm-fil button").forEach(b=>b.classList.toggle("on",b.dataset.f===f)); mmDesenhar(); }
 function mmHa(t){ const s=Math.max(0,Math.round((MM.agora-new Date(t))/1000)); return s<60?`há ${s} s`:`há ${Math.round(s/60)} min`; }
 function mmItens(){
-  const it=MM.lista.map(m=>({id:"c-"+m.user_id, tipo:"c", nome:m.nome, sit:m.situacao, lat:m.lat, lon:m.lon, quando:m.atualizado_em, m}));
+  const it=MM.lista.map(m=>({id:"c-"+m.user_id, tipo:"c", nome:m.nome, sit:m.situacao, lat:m.lat, lon:m.lon, quando:m.atualizado_em, m,
+    velho:!!m.atualizado_em && (MM.agora-new Date(m.atualizado_em))/1000>90}));
   (MM.os||[]).forEach(({o,r})=>{ const seg=r&&r.atualizado_em?(MM.agora-new Date(r.atualizado_em))/1000:null;
     const sit=!r||r.status==="aguardando"?"os_aguardando":seg!=null&&seg>120?"os_sem_sinal":"em_servico";
     it.push({id:"o-"+o.id, tipo:"o", nome:"O.S. "+orcNum(o), cli:orcCli(o)!=="—"?orcCli(o):(o.contatoNome||""), sit, lat:r&&r.lat, lon:r&&r.lon, quando:r&&r.atualizado_em, v:o.rastreio.v}); });
@@ -2150,14 +2159,14 @@ function mmItens(){
 const MM_SIT={livre:["Livre","#0f9d58"], escolhido:["Escolhido — indo iniciar","#2563eb"], em_servico:["Em serviço","#e8590c"],
   os_sem_sinal:["Em serviço · sem sinal","#b45309"], os_aguardando:["Aguardando liberar o rastreio","#9ca3af"]};
 function mmIconeIt(x){ const [,cor]=MM_SIT[x.sit]||MM_SIT.livre; const em=x.tipo==="o"?"🏍":({moto:"🏍",carro:"🚗",utilitario:"🚐",caminhao:"🚚"}[x.m.veiculo]||"🏍");
-  return L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<div class="mm-pin" style="border-color:${cor}">${em}<i style="background:${cor}"></i>${x.tipo==="o"?`<em>O.S.</em>`:""}</div>`}); }
+  return L.divIcon({className:"",iconSize:[38,38],iconAnchor:[19,19],html:`<div class="mm-pin" style="border-color:${cor}${x.velho?';opacity:.45;filter:grayscale(1)':''}">${em}<i style="background:${cor}"></i>${x.tipo==="o"?`<em>O.S.</em>`:""}</div>`}); }
 function mmDesenhar(){
   const T=mmItens(), n=f=>T.filter(f).length;
   const livres=n(x=>x.sit==="livre"), serv=n(x=>x.sit==="em_servico"||x.sit==="os_sem_sinal"), indo=n(x=>x.sit==="escolhido"), agu=n(x=>x.sit==="os_aguardando");
   $("#mmCnt").innerHTML=`<span style="color:#0f9d58">● ${livres} livre${livres===1?"":"s"}</span><span style="color:#e8590c">● ${serv} em serviço</span>${indo?`<span style="color:#2563eb">● ${indo} indo iniciar</span>`:""}${agu?`<span style="color:#6b7280">● ${agu} O.S. aguardando</span>`:""}`;
   const vis=T.filter(x=>!MM.fil||(MM.fil==="livre"?x.sit==="livre":x.sit!=="livre"));
   $("#mmLista").innerHTML=vis.length?vis.map(x=>{ const [st,cor]=MM_SIT[x.sit]||MM_SIT.livre;
-    const det=x.tipo==="c"?`${esc(CAD_VEIC[x.m.veiculo]||"")} · ${esc(fmtPlaca(x.m.placa||""))}${x.quando?" · "+mmHa(x.quando):""}`:`${esc(x.cli||"Corrida da RL")}${x.quando?" · "+mmHa(x.quando):""}`;
+    const det=x.tipo==="c"?`${esc(CAD_VEIC[x.m.veiculo]||"")} · ${esc(fmtPlaca(x.m.placa||""))}${x.quando?" · "+mmHa(x.quando):""}${x.velho?' · <b style="color:#b45309">sem sinal: app fechado ou tela apagada</b>':''}`:`${esc(x.cli||"Corrida da RL")}${x.quando?" · "+mmHa(x.quando):""}`;
     const extra=x.tipo==="c"?(x.m.servico_numero?" · serviço #"+x.m.servico_numero:""):"";
     const bt=x.tipo==="c"&&x.m.telefone?`<a class="btn sm sec" onclick="event.stopPropagation()" target="_blank" rel="noopener" href="https://wa.me/55${String(x.m.telefone).replace(/\D/g,"")}">WhatsApp</a>`
       :x.tipo==="o"?`<a class="btn sm sec" onclick="event.stopPropagation()" target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(x.v)}">Ver ↗</a>`:"";
@@ -2171,11 +2180,15 @@ function mmDesenhar(){
   comPos.forEach(x=>{ const ll=[x.lat,x.lon]; b.push(ll); const [st]=MM_SIT[x.sit]||MM_SIT.livre;
     const ver=x.tipo==="o"?x.v:x.m.rastreio_ver;
     const pop=`<b>${esc(x.nome)}</b>${x.cli?"<br>"+esc(x.cli):""}<br>${st}${x.tipo==="c"&&x.m.servico_numero?" · serviço #"+x.m.servico_numero:""}${ver?`<br><a target="_blank" rel="noopener" href="${RAST_BASE}?v=${esc(ver)}">Acompanhar ao vivo ↗</a>`:""}`;
-    if(MM.mk[x.id]){ MM.mk[x.id].setLatLng(ll); MM.mk[x.id].setIcon(mmIconeIt(x)); MM.mk[x.id].setPopupContent(pop); }
+    if(MM.mk[x.id]){ mmMover(MM.mk[x.id],ll); MM.mk[x.id].setIcon(mmIconeIt(x)); MM.mk[x.id].setPopupContent(pop); }
     else MM.mk[x.id]=L.marker(ll,{icon:mmIconeIt(x)}).addTo(MM.map).bindPopup(pop).bindTooltip(esc(x.nome),{direction:"top",offset:[0,-16]});
   });
   if(b.length && !MM._fit){ MM._fit=1; MM.map.fitBounds(b,{padding:[40,40],maxZoom:14}); }
 }
+/* a moto desliza da posição anterior até a nova (em vez de pular) */
+function mmMover(m,ll){ const a=m.getLatLng(), dl=Math.abs(a.lat-ll[0])+Math.abs(a.lng-ll[1]); if(dl<1e-7) return; cancelAnimationFrame(m._anim);
+  if(dl>0.05 || document.visibilityState!=="visible"){ m.setLatLng(ll); return; }
+  const t0=performance.now(), d=Math.min(4500,MM_SEG*900), f=now=>{ const k=Math.min(1,(now-t0)/d), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2; m.setLatLng([a.lat+(ll[0]-a.lat)*e, a.lng+(ll[1]-a.lng)*e]); if(k<1) m._anim=requestAnimationFrame(f); }; m._anim=requestAnimationFrame(f); }
 function mmFoco(id){ const m=MM.mk[id]; if(!m||!MM.map) return; MM.map.setView(m.getLatLng(),15); m.openPopup(); }
 
 async function ctAbrir(id){
@@ -4274,7 +4287,7 @@ $("#fDe").value=firstOfMonth();
 show(location.hash.slice(1)||"painel");
 initDB();
 </script>
-<script>(function(){var V="7d446995b4";
+<script>(function(){var V="64b6da9181";
 function novo(n){ if(n===V) return; try{ var q=(sessionStorage.getItem("rlv")||"").split("|"); if(q[0]===n && Date.now()-Number(q[1]||0)<180000) return; }catch(e){}
   var m=document.getElementById("modal"), a=document.activeElement, ocupado=(m&&m.offsetParent)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName));
   function ir(){ try{ sessionStorage.setItem("rlv",n+"|"+Date.now()); }catch(e){} var u=new URL(location.href); u.searchParams.set("v",n); location.replace(u.toString()); }
