@@ -51,11 +51,11 @@
     const sv=(n,ret,ent,km,min,valor,fp,ago,obs)=>({id:"d-"+n,numero:n,criado_por:"loja",retirada:{e:ret[0],la:ret[1],lo:ret[2]},paradas:[{e:ent[0],la:ent[1],lo:ent[2],t:"entrega"}],
       km,minutos:min,veiculo:"moto",valor,forma_pag:fp,status:"aberto",criado_em:mins(ago),obs:obs||null});
     db={__v:VER, session:null,
-      users:[U("dono","dono@demo.megaentregas"),U("loja","loja@demo.megaentregas"),U("moto1","carlos@demo.megaentregas")],
-      membros:[{user_id:"dono",email:"dono@demo.megaentregas",papel:"dono",ativo:true},{user_id:"loja",email:"loja@demo.megaentregas",papel:"contratante",ativo:true},{user_id:"moto1",email:"carlos@demo.megaentregas",papel:"prestador",ativo:true}],
+      users:[U("dono","dono@demo.soltoupegou"),U("loja","loja@demo.soltoupegou"),U("moto1","carlos@demo.soltoupegou")],
+      membros:[{user_id:"dono",email:"dono@demo.soltoupegou",papel:"dono",ativo:true},{user_id:"loja",email:"loja@demo.soltoupegou",papel:"contratante",ativo:true},{user_id:"moto1",email:"carlos@demo.soltoupegou",papel:"prestador",ativo:true}],
       perfis:[
-        P({user_id:"loja",email:"loja@demo.megaentregas",tipo:"contratante",pessoa:"pj",nome:"Padaria Bom Pão (demonstração)",envia:true,recebe:false,marca_nome:"Padaria Bom Pão"}),
-        P({user_id:"moto1",email:"carlos@demo.megaentregas",tipo:"prestador",nome:"Carlos Andrade",envia:false,recebe:true,veiculo:"moto",placa:"DMO2A26",modelo:"Honda CG 160",disponivel:true})
+        P({user_id:"loja",email:"loja@demo.soltoupegou",tipo:"contratante",pessoa:"pj",nome:"Padaria Bom Pão (demonstração)",envia:true,recebe:false,marca_nome:"Padaria Bom Pão"}),
+        P({user_id:"moto1",email:"carlos@demo.soltoupegou",tipo:"prestador",nome:"Carlos Andrade",envia:false,recebe:true,veiculo:"moto",placa:"DMO2A26",modelo:"Honda CG 160",disponivel:true})
       ],
       documentos:[],convites:[],docs:[],storage:{},candidaturas:[],mensagens:[],rastreios:[],
       config_sistema:[{chave:"veiculos",valor:{moto:true,carro:false,utilitario:false,caminhao:false}},{chave:"creditos",valor:{valor_credito:0.5,creditos_envia:2,creditos_pega:1}},
